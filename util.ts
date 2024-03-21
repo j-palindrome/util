@@ -2,6 +2,30 @@ import _ from 'lodash'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import * as math from 'mathjs'
+import { useThree } from '@react-three/fiber'
+
+export const probLog = (prob: number, ...args: any[]) => {
+  if (Math.random() < prob) {
+    console.log(...args)
+  }
+}
+
+export const initScene = (
+  state: Parameters<NonNullable<Parameters<typeof useThree>[0]>>[0]
+) => {
+  const aspectRatio = window.innerWidth / window.innerHeight
+  state.scene.clear()
+  state.camera = new THREE.OrthographicCamera(
+    -aspectRatio,
+    aspectRatio,
+    1,
+    -1,
+    0,
+    1
+  )
+  state.camera.position.set(0, 0, 0)
+  state.camera.updateMatrixWorld()
+}
 
 export const useEventListener = <K extends keyof WindowEventMap>(
   listener: K,
@@ -80,13 +104,15 @@ export const measureCurvature = (
   t: number
 ) => {
   const func = v0
+    .clone()
     .multiplyScalar(1 - t)
-    .add(v1.multiplyScalar(t))
+    .add(v1.clone().multiplyScalar(t))
     .multiplyScalar(1 - t)
     .add(
       v1
+        .clone()
         .multiplyScalar(1 - t)
-        .add(v2.multiplyScalar(t))
+        .add(v2.clone().multiplyScalar(t))
         .multiplyScalar(t)
     )
 
@@ -103,7 +129,11 @@ export const measureCurvature = (
 
   return (
     (math.det(
-      math.matrix([v1.sub(v0).toArray(), v2.sub(v1).toArray(), [0, 0, 1]])
+      math.matrix([
+        v1.clone().sub(v0).toArray(),
+        v2.clone().sub(v1).toArray(),
+        [0, 0, 1]
+      ])
     ) *
       4) /
     (func.length() * 3)
