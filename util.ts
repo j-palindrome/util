@@ -3,6 +3,11 @@ import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import * as math from 'mathjs'
 import { useThree } from '@react-three/fiber'
+import { Pt } from 'pts'
+
+export const toVector3 = (...args: Pt[]) => {
+  return args.map(val => new THREE.Vector3(...val.toArray()))
+}
 
 export const probLog = (prob: number, ...args: any[]) => {
   if (Math.random() < prob) {
