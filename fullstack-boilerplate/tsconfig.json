@@ -22,6 +22,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["app", "server", "payload.config.ts", "cms"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
