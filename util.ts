@@ -1,14 +1,9 @@
-import _ from 'lodash'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import * as THREE from 'three'
-import * as math from 'mathjs'
-import { useThree } from '@react-three/fiber'
-import { Pt } from 'pts'
 
 export const useSlider = (
   frame: React.RefObject<HTMLDivElement>,
   onMouseMove: ({ x, y }: { x: number; y: number }) => void,
-  onMouseUp?: ({ x, y }: { x: number; y: number }) => void
+  onMouseUp?: ({ x, y }: { x: number; y: number }) => void,
 ) => {
   const [dragging, setDragging] = useState(false)
 
@@ -30,28 +25,28 @@ export const useSlider = (
   useElementEventListener(
     frame,
     'mousemove',
-    ev => {
+    (ev) => {
       if (!dragging || !open.current) return
       onMouseMove(getXY(ev))
       open.current = false
       requestAnimationFrame(() => (open.current = true))
     },
-    [dragging]
+    [dragging],
   )
 
-  useElementEventListener(frame, 'mouseleave', ev => {
+  useElementEventListener(frame, 'mouseleave', (ev) => {
     setDragging(false)
     if (onMouseUp) onMouseUp(getXY(ev))
   })
 
-  useElementEventListener(frame, 'mouseup', ev => {
+  useElementEventListener(frame, 'mouseup', (ev) => {
     setDragging(false)
     if (onMouseUp) onMouseUp(getXY(ev))
   })
 }
 
 export const useRefAsState = <T>(
-  initialValue: T | null
+  initialValue: T | null,
 ): [T, (set: T) => void, () => T] => {
   const ref = useRef<T | null>(initialValue)
   const setRef = (newValue: T) => {
@@ -74,7 +69,7 @@ export class PixelArray extends Uint8Array {
 
   forEachPixel(
     callback: (values: Uint8Array, x: number, y: number) => void,
-    { downsampling = 1 }: { downsampling?: number }
+    { downsampling = 1 }: { downsampling?: number },
   ) {
     for (let y = 0; y < this.height; y += downsampling) {
       for (let x = 0; x < this.width; x += downsampling) {
@@ -88,7 +83,7 @@ export class PixelArray extends Uint8Array {
     for (let y = 0; y < this.height; y += downsampling) {
       for (let x = 0; x < this.width; x += downsampling) {
         numbers.push(
-          this.average(this.getPixelsAt(x, y, downsampling, downsampling))
+          this.average(this.getPixelsAt(x, y, downsampling, downsampling)),
         )
       }
     }
@@ -100,13 +95,13 @@ export class PixelArray extends Uint8Array {
     {
       angle = 0,
       start = [0, 0],
-      downsample = 1
+      downsample = 1,
     }: {
       angle?: number
       start?: [number, number]
       wrap?: boolean
       downsample?: number
-    }
+    },
   ): Pixel | undefined {
     const traverseX = Math.sin(angle)
     const traverseY = Math.cos(angle)
@@ -139,8 +134,8 @@ export class PixelArray extends Uint8Array {
       numbers.push(
         this.subarray(
           this.xyToIndex(x, sampleY),
-          this.xyToIndex(x + width, sampleY)
-        )
+          this.xyToIndex(x + width, sampleY),
+        ),
       )
     }
     return numbers
@@ -169,7 +164,7 @@ export class PixelArray extends Uint8Array {
       (r / len) * 255,
       (g / len) * 255,
       (b / len) * 255,
-      (a / len) * 255
+      (a / len) * 255,
     ])
   }
 
@@ -181,76 +176,16 @@ export class PixelArray extends Uint8Array {
   }
 }
 
-export const groupArrayBy = (
-  array: THREE.TypedArray | number[],
-  groupSize: number
-) => {
-  const groups: number[][] = []
-  let thisGroup: number[] = []
-  for (let item of array) {
-    thisGroup.push(item)
-    if (thisGroup.length === groupSize) {
-      groups.push(thisGroup)
-      thisGroup = []
-    }
-  }
-  return groups
-}
-
-export const updateInstanceAttribute = (
-  attribute: THREE.InstancedBufferAttribute,
-  instanceNumber: number,
-  update: (array: THREE.TypedArray) => THREE.TypedArray | number[]
-) => {
-  const arrayIndex = instanceNumber * attribute.itemSize
-  const endIndex = arrayIndex + attribute.itemSize
-  const array = attribute.array.slice(arrayIndex, endIndex)
-  const newArray = update(array)
-  // console.log('updating', attribute, newArray, arrayIndex, array.length)
-
-  attribute.array.set(newArray, arrayIndex)
-  attribute.addUpdateRange(arrayIndex, endIndex)
-}
-
-export const randomList = (length: number) =>
-  _.range(length).map(() => Math.random())
-
-export function toVector3(points: Pt): THREE.Vector3
-export function toVector3(points: Pt[]): THREE.Vector3[]
-export function toVector3<T extends Pt[] | Pt>(points: T) {
-  if (points instanceof Array)
-    return points.map(val => new THREE.Vector3(...val.toArray()))
-  else return new THREE.Vector3(...points.toArray())
-}
-
 export const probLog = (prob: number, ...args: any[]) => {
   if (Math.random() < prob) {
     console.log(...args)
   }
 }
 
-export const initScene = (
-  state: Parameters<NonNullable<Parameters<typeof useThree>[0]>>[0]
-) => {
-  const aspectRatio = window.innerWidth / window.innerHeight
-  state.scene.clear()
-  state.camera = new THREE.OrthographicCamera(
-    -aspectRatio,
-    aspectRatio,
-    1,
-    -1,
-    0,
-    1
-  )
-  state.camera.position.set(0, 0, 0)
-  state.camera.updateMatrixWorld()
-  return { aspectRatio }
-}
-
 export const useEventListener = <K extends keyof WindowEventMap>(
   listener: K,
   func: (data: WindowEventMap[K]) => void,
-  dependencies: any[] = []
+  dependencies: any[] = [],
 ) => {
   useEffect(() => {
     window.addEventListener(listener, func)
@@ -262,7 +197,7 @@ export const useElementEventListener = <K extends keyof HTMLElementEventMap>(
   element: React.RefObject<HTMLElement>,
   listener: K,
   func: (data: HTMLElementEventMap[K]) => void,
-  dependencies: any[] = []
+  dependencies: any[] = [],
 ) => {
   useEffect(() => {
     if (!element.current) return
@@ -274,7 +209,7 @@ export const useElementEventListener = <K extends keyof HTMLElementEventMap>(
 export const useInterval = (
   interval: () => void,
   intervalTime: number,
-  dependencies: any[] = []
+  dependencies: any[] = [],
 ) => {
   useEffect(() => {
     const intervalIndex = window.setInterval(interval, intervalTime)
@@ -291,7 +226,7 @@ export const scale = <T extends number | number[]>(
   lowOut: number,
   highOut: number,
   exp: number = 1,
-  clamp = true
+  clamp = true,
 ): T => {
   const scaleNumber = (input: number) => {
     if (high === low) return lowOut
@@ -302,7 +237,7 @@ export const scale = <T extends number | number[]>(
     return final
   }
   if (input instanceof Array) {
-    return input.map(value => scaleNumber(value)) as T
+    return input.map((value) => scaleNumber(value)) as T
   } else {
     return scaleNumber(input) as T
   }
@@ -316,7 +251,7 @@ export const create = <T>(e: T, onCreate: (argument: T) => void) => {
 export const useMemoCleanup = <T>(
   create: () => T,
   cleanup: (item: T) => void,
-  deps: any[] = []
+  deps: any[] = [],
 ) => {
   const itemRef = useRef<T | null>(null)
   const item = useMemo(() => {
@@ -335,47 +270,4 @@ export const lerp = (start: number, end: number, progress: number) =>
 
 export const mtof = (m: number) => {
   return 440 * 2 ** ((m - 69) / 12)
-}
-
-export const measureCurvature = (
-  v0: THREE.Vector3,
-  v1: THREE.Vector3,
-  v2: THREE.Vector3,
-  t: number
-) => {
-  const func = v0
-    .clone()
-    .multiplyScalar(1 - t)
-    .add(v1.clone().multiplyScalar(t))
-    .multiplyScalar(1 - t)
-    .add(
-      v1
-        .clone()
-        .multiplyScalar(1 - t)
-        .add(v2.clone().multiplyScalar(t))
-        .multiplyScalar(t)
-    )
-
-  // from https://math.stackexchange.com/questions/220900/bezier-curvature
-
-  // const firstDerivative = v1
-  //   .sub(v0)
-  //   .multiplyScalar(2 * (1 - t))
-  //   .add(v2.sub(v1).multiplyScalar(2 * t))
-
-  // const secondDerivative = v2
-  //   .sub(v1.multiplyScalar(2).add(v0))
-  //   .multiplyScalar(2)
-
-  return (
-    (math.det(
-      math.matrix([
-        v1.clone().sub(v0).toArray(),
-        v2.clone().sub(v1).toArray(),
-        [0, 0, 1]
-      ])
-    ) *
-      4) /
-    (func.length() * 3)
-  )
 }

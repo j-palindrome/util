@@ -1,8 +1,5 @@
-import { Children, cloneElement, useEffect, useRef, useState } from 'react'
 import WebRenderer from '@elemaudio/web-renderer'
-import type { FC, JSXElementConstructor, ReactNode } from 'react'
-import invariant from 'tiny-invariant'
-import _, { update } from 'lodash'
+import { useEffect, useRef, useState } from 'react'
 
 export const generateContexts = (
   el: HTMLCanvasElement,
