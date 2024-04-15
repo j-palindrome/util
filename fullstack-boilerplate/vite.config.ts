@@ -1,8 +1,11 @@
-import { defineConfig } from 'vite'
 import { vitePlugin as remix } from '@remix-run/dev'
+import { installGlobals } from '@remix-run/node'
+import { defineConfig } from 'vite'
+import tsconfigPaths from 'vite-tsconfig-paths'
+import glsl from 'vite-plugin-glsl'
 
-// https://vitejs.dev/config/
+installGlobals()
+
 export default defineConfig({
-  plugins: [remix()],
-  assetsInclude: ['**/*.PNG']
+  plugins: [remix(), glsl(), tsconfigPaths()]
 })

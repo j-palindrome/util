@@ -1,10 +1,10 @@
 import type { Config } from 'tailwindcss'
 
 export default {
-  content: ['src/**/*.{tsx,css}'],
+  content: ['src/**/*.{tsx,css}', 'index.html'],
   theme: {
     fontFamily: {
-      mono: 'Andale Mono'
+      mono: 'Courier New'
     },
     extend: {}
   },
