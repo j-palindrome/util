@@ -5,7 +5,7 @@ import { Socket, io } from 'socket.io-client'
 import Scene from './components/Scene'
 
 function App() {
-  const sample = useAppStore(state => ({}))
+  const sample = useAppStore((state) => ({}))
   const [socket, setSocket] = useState<Socket<SocketEvents>>()
 
   useEffect(() => {
@@ -18,9 +18,7 @@ function App() {
 
   useEffect(() => {
     if (!socket) return
-    const cb: SocketEvents['oscIn'] = (route, data) => {
-      console.log('IN:', route, data)
-    }
+    const cb: SocketEvents['oscIn'] = (route, data) => {}
     socket.on('oscIn', cb)
     return () => {
       socket.off('oscIn', cb)

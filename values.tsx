@@ -50,12 +50,12 @@ export const useNormalize = (
   {
     signed = false,
     cancelAbove = false,
-    cancelBelow = false
+    cancelBelow = false,
   }: {
     signed?: boolean
     cancelAbove?: false | number
     cancelBelow?: false | number
-  }
+  },
 ) => {
   const min = useRef(init)
   const max = useRef(init)
@@ -75,7 +75,6 @@ export const useNormalize = (
     } else {
       if (cancelAbove !== false && newValue > cancelAbove) return max.current
       if (cancelBelow !== false && newValue < cancelBelow) return min.current
-      if (newValue > max.current) console.log('new max:', newValue)
       if (newValue < min.current) min.current = newValue
       if (newValue > max.current) max.current = newValue
       return scale(newValue, min.current, max.current, 0, 1)
