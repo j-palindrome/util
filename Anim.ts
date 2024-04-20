@@ -5,13 +5,14 @@ export const useAnimation = <Props extends Record<string, any>>(
   init: () => Promise<Props> | Props,
   draw: (
     clock: { time: number; timeDelta: number },
-    props: Props,
+    props: Props
   ) => Partial<Props> | void,
   updates: {
     setup: (props: Props) => Partial<Props> | void
     deps?: any[]
     cleanup?: (props: Props) => void
   }[] = [],
+  cleanup: (props: Props) => void = () => {}
 ) => {
   const props = useRef<Props>({} as Props)
   const [started, setStarted] = useState(false)
@@ -23,6 +24,10 @@ export const useAnimation = <Props extends Record<string, any>>(
   }
   useEffect(() => {
     start()
+    return () => {
+      if (!started || !props.current) return
+      cleanup(props.current)
+    }
   }, [initialize])
 
   const updateProps = (newProps: Partial<Props> | void) => {
@@ -49,7 +54,7 @@ export const useAnimation = <Props extends Record<string, any>>(
     if (!started) return
     let time = 0
     let frameCounter: number
-    const animationFrame: FrameRequestCallback = (timeDelta) => {
+    const animationFrame: FrameRequestCallback = timeDelta => {
       time += timeDelta / 1000
       const newProps = draw({ time, timeDelta }, props.current)
       updateProps(newProps)
@@ -61,5 +66,5 @@ export const useAnimation = <Props extends Record<string, any>>(
     }
   }, [started])
 
-  return { props }
+  return props
 }
