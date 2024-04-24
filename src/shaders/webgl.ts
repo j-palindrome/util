@@ -1,34 +1,67 @@
 import * as twgl from 'twgl.js'
-import defaultVertex from './default.vert'
+import defaultVertex from './default.vert?raw'
 
-export function layer(gl: WebGL2RenderingContext, fragShader: string) {
-  const buffer = twgl.createBufferInfoFromArrays(gl, {
-    position: {
-      numComponents: 2,
-      data: [1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1, 1, 1, -1, -1, -1]
+export class Layer {
+  gl: WebGL2RenderingContext
+  program: twgl.ProgramInfo
+  vertexArray: twgl.VertexArrayInfo
+  drawMode: number
+
+  lastDraw: number
+  private buffers: twgl.Arrays
+
+  constructor(
+    buffers: twgl.Arrays,
+    vertexShader: string,
+    fragmentShader: string,
+    {
+      drawMode,
+      gl,
+      useDefaults = true,
+    }: {
+      drawMode: number
+      gl: WebGL2RenderingContext
+      useDefaults?: boolean
+      frameRate?: number
+    },
+  ) {
+    if (useDefaults) {
+      vertexShader = `precision highp float;\n` + vertexShader
+      fragmentShader = `precision highp float;\n` + fragmentShader
     }
-  })
+    this.gl = gl
+    this.drawMode = drawMode
+    this.program = twgl.createProgramInfo(gl, [vertexShader, fragmentShader])
+    this.vertexArray = twgl.createVertexArrayInfo(
+      gl,
+      this.program,
+      twgl.createBufferInfoFromArrays(gl, buffers),
+    )
+    this.buffers = buffers
+    this.lastDraw = 0
+  }
 
-  const program = twgl.createProgramInfo(gl, [defaultVertex, fragShader])
-  const drawing = twgl.createVertexArrayInfo(gl, program, buffer)
+  update(buffers: twgl.Arrays) {
+    this.buffers = { ...this.buffers, ...buffers }
+    this.vertexArray = twgl.createVertexArrayInfo(
+      this.gl,
+      this.program,
+      twgl.createBufferInfoFromArrays(this.gl, this.buffers),
+    )
+  }
 
-  return { geometry: drawing, material: program }
-}
-
-export function drawShape(
-  gl: WebGL2RenderingContext,
-  {
-    material,
-    geometry
-  }: { material: twgl.ProgramInfo; geometry: twgl.VertexArrayInfo }
-) {
-  gl.useProgram(material.program)
-  twgl.setBuffersAndAttributes(gl, material, geometry)
-  twgl.drawBufferInfo(gl, geometry, gl.TRIANGLES)
+  draw(time: number, { uniforms }: { uniforms?: Record<string, any> } = {}) {
+    this.lastDraw = time
+    this.gl.useProgram(this.program.program)
+    if (uniforms) {
+      twgl.setUniforms(this.program, uniforms)
+    }
+    twgl.setBuffersAndAttributes(this.gl, this.program, this.vertexArray)
+    twgl.drawBufferInfo(this.gl, this.vertexArray, this.drawMode)
+  }
 }
 
 export function resetGl(gl: WebGL2RenderingContext) {
-  twgl.resizeCanvasToDisplaySize(gl.canvas as HTMLCanvasElement)
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
   gl.enable(gl.BLEND)
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
