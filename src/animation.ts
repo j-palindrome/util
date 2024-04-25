@@ -1,12 +1,47 @@
 import { useEffect, useRef, useState } from 'react'
 
+export const useLayer = <Props extends Record<string, any>>(
+  setup: () => Promise<Props> | Props,
+  draw: (time: number, props: Props) => Partial<Props> | undefined,
+  cleanup: (props: Props) => void,
+  deps: any[] = []
+) => {
+  const props = useRef<Props>(null as any)
+  const [animating, setAnimating] = useState(false)
+
+  const initialize = async () => {
+    const initialProps = await setup()
+    props.current = initialProps
+    setAnimating(true)
+  }
+
+  useEffect(() => {
+    initialize()
+  }, [])
+
+  useEffect(() => {
+    if (!animating) return
+    const frame: FrameRequestCallback = (time) => {
+      const newProps = draw(time, props.current)
+      if (newProps) {
+        props.current = { ...props.current, ...newProps }
+      }
+    }
+    const thisFrame = requestAnimationFrame(frame)
+
+    return () => {
+      cancelAnimationFrame(thisFrame)
+      cleanup(props.current)
+    }
+  }, [animating, ...deps])
+
+  return props
+}
+
 export const useAnimation = <Props extends Record<string, any>>(
   initialize: boolean,
   init: () => Promise<Props> | Props,
-  draw: (
-    clock: { time: number; timeDelta: number },
-    props: Props
-  ) => Partial<Props> | void,
+  draw: (time: number, props: Props) => Partial<Props> | void,
   updates: {
     setup: (props: Props) => Partial<Props> | void
     deps?: any[]
@@ -52,11 +87,9 @@ export const useAnimation = <Props extends Record<string, any>>(
 
   useEffect(() => {
     if (!started) return
-    let time = 0
     let frameCounter: number
-    const animationFrame: FrameRequestCallback = timeDelta => {
-      time += timeDelta / 1000
-      const newProps = draw({ time, timeDelta }, props.current)
+    const animationFrame: FrameRequestCallback = (time) => {
+      const newProps = draw(time / 1000, props.current)
       updateProps(newProps)
       frameCounter = requestAnimationFrame(animationFrame)
     }

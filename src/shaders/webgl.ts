@@ -17,17 +17,18 @@ export class Layer {
     {
       drawMode,
       gl,
-      useDefaults = true,
+      useDefaults = true
     }: {
       drawMode: number
       gl: WebGL2RenderingContext
       useDefaults?: boolean
       frameRate?: number
-    },
+    }
   ) {
     if (useDefaults) {
-      vertexShader = `precision highp float;\n` + vertexShader
-      fragmentShader = `precision highp float;\n` + fragmentShader
+      vertexShader = `#version 300 es\nprecision highp float;\n` + vertexShader
+      fragmentShader =
+        `#version 300 es\nprecision highp float;\nout vec4 fragColor;\n` + fragmentShader
     }
     this.gl = gl
     this.drawMode = drawMode
@@ -35,7 +36,7 @@ export class Layer {
     this.vertexArray = twgl.createVertexArrayInfo(
       gl,
       this.program,
-      twgl.createBufferInfoFromArrays(gl, buffers),
+      twgl.createBufferInfoFromArrays(gl, buffers)
     )
     this.buffers = buffers
     this.lastDraw = 0
@@ -46,11 +47,11 @@ export class Layer {
     this.vertexArray = twgl.createVertexArrayInfo(
       this.gl,
       this.program,
-      twgl.createBufferInfoFromArrays(this.gl, this.buffers),
+      twgl.createBufferInfoFromArrays(this.gl, this.buffers)
     )
   }
 
-  draw(time: number, { uniforms }: { uniforms?: Record<string, any> } = {}) {
+  draw(time: number, uniforms?: Record<string, any>) {
     this.lastDraw = time
     this.gl.useProgram(this.program.program)
     if (uniforms) {
