@@ -2,8 +2,16 @@ import _ from 'lodash'
 
 // B(t) = (1 - t)^2 * (P0 - P1) + t^2 * (P2 - P1) for 0 <= t <= 1
 export const quadraticBezier = /*glsl*/ `
-vec2 bezier2(float t, vec2 p0, vec2 p1, vec2 p2) {
+vec2 quadraticBezier(float t, vec2 p0, vec2 p1, vec2 p2) {
   return pow(1.0 - t, 2.0) * (p0 - p1) + pow(t, 2.0) * (p2 - p1);
+}`
+
+export const cubicBezier = /*glsl*/ `
+vec2 cubicBezier(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
+  return pow(1.0 - t, 3.0) * p0
+    + 3.0 * pow(1.0 - t, 2.0) * t * p1
+    + 3.0 * (1.0 - t) * pow(t, 2.0) * p2
+    + pow(t, 3.0) * p3;
 }`
 
 // https://en.wikipedia.org/wiki/Binomial_coefficient

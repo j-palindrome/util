@@ -11,31 +11,36 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
-  useState
+  useState,
 } from 'react'
 import regl from 'regl'
 import invariant from 'tiny-invariant'
 import * as twgl from 'twgl.js'
 import { useEventListener } from '../src/dom'
 import { useInvariantContext } from '../src/react'
-import { defaultVert2D } from '../src/shaders/utilities'
+import { defaultVert2D, glslEs300 } from '../src/shaders/utilities'
 import { Layer as LayerInstance } from '../src/webgl'
+import { DirectionalLightShadow } from 'three'
 
 export type TopContextInfo<T extends Record<string, any>> = {
   time: Time
   elements: T
 }
-type AllowedChildren = React.ReactElement | React.ReactElement[]
+type AllowedChildren = JSX.Element | (JSX.Element | JSX.Element[])[]
+type DepsOptions = any[] | number | (() => number)
 type ParentProps<Props, Self, InternalProps> = Props & {
   name: string
   children?: AllowedChildren
   draw?: (
     self: Self,
     context: TopContextInfo<Record<string, any>>,
-    internalProps: InternalProps
+    internalProps: InternalProps,
   ) => void
-  setup?: (self: Self, context: Omit<TopContextInfo<Record<string, any>>, 'time'>) => InternalProps
-  deps?: any[]
+  setup?: (
+    self: Self,
+    context: Omit<TopContextInfo<Record<string, any>>, 'time'>,
+  ) => InternalProps
+  deps?: DepsOptions
 }
 
 type ChildProps<Props, Self, Parent, InternalProps> = Props & {
@@ -44,10 +49,14 @@ type ChildProps<Props, Self, Parent, InternalProps> = Props & {
     self: Self,
     parent: Parent,
     context: TopContextInfo<Record<string, any>>,
-    internalProps: InternalProps
+    internalProps: InternalProps,
   ) => void
-  setup?: (self: Self, parent: Parent, context: { elements: Record<string, any> }) => InternalProps
-  deps?: any[]
+  setup?: (
+    self: Self,
+    parent: Parent,
+    context: { elements: Record<string, any> },
+  ) => InternalProps
+  deps?: DepsOptions
 }
 
 type Time = { t: number; dt: number }
@@ -58,19 +67,19 @@ function useCreateComponent<Self, InternalProps>(
   options: Record<string, any>,
   setupSelf?: (
     self: Self,
-    context: Omit<TopContextInfo<Record<string, any>>, 'time'>
+    context: Omit<TopContextInfo<Record<string, any>>, 'time'>,
   ) => InternalProps,
   drawSelf?: (
     self: Self,
     context: TopContextInfo<Record<string, any>>,
-    props: InternalProps
+    props: InternalProps,
   ) => void,
-  drawSelfDeps?: any[],
-  cleanupSelf?: (self: Self) => void
+  drawSelfDeps?: DepsOptions,
+  cleanupSelf?: (self: Self) => void,
 ) {
   const { allCreated, registerComponent, elements } = useInvariantContext(
     TopLevelContext,
-    'Need to nest under <Reactive> component'
+    'Need to nest under <Reactive> component',
   )
 
   const [self, setSelf] = useState<Self | null>(null)
@@ -84,16 +93,21 @@ function useCreateComponent<Self, InternalProps>(
 
   const propsRef = useRef<InternalProps>(null!)
 
-  const recreateDeps = Object.values(_.omit(options, 'name', 'setup', 'draw', 'children', 'deps'))
+  const recreateDeps = Object.values(
+    _.omit(options, 'name', 'setup', 'draw', 'children', 'deps'),
+  )
     .map((x) => x.toString())
     .join(';')
 
   useEffect(() => {
     if (!self) return
+
     registerComponent(name, {
       self,
-      draw: drawSelf ? (context) => drawSelf(self, context, propsRef.current) : null,
-      update: drawSelfDeps ? false : 'always'
+      draw: drawSelf
+        ? (context) => drawSelf(self, context, propsRef.current)
+        : null,
+      update: drawSelfDeps ? false : 'always',
     })
     return () => {
       registerComponent(name, null)
@@ -113,18 +127,31 @@ function useCreateComponent<Self, InternalProps>(
   useEffect(
     () => {
       if (!self || !drawSelfDeps) return
-
-      registerComponent(name, {
-        update: true
-      })
+      const requestFrame = () => registerComponent(name, { update: true })
+      if (typeof drawSelfDeps === 'number') {
+        const interval = window.setInterval(requestFrame, drawSelfDeps)
+        return () => window.clearInterval(interval)
+      } else if (typeof drawSelfDeps === 'function') {
+        let timeout: number
+        const repeatFrameRequest = () => {
+          requestFrame()
+          timeout = window.setTimeout(repeatFrameRequest, drawSelfDeps())
+        }
+        timeout = window.setTimeout(repeatFrameRequest, drawSelfDeps())
+        return () => window.clearTimeout(timeout)
+      } else {
+        requestFrame()
+      }
     },
-    !drawSelfDeps ? [] : drawSelfDeps
+    drawSelfDeps instanceof Array ? drawSelfDeps : [self],
   )
 
   useEffect(() => {
     if (!self) return
     registerComponent(name, {
-      draw: drawSelf ? (context) => drawSelf(self, context, propsRef.current) : null
+      draw: drawSelf
+        ? (context) => drawSelf(self, context, propsRef.current)
+        : null,
     })
   }, [drawSelf])
 
@@ -142,7 +169,10 @@ type ComponentType = {
 }
 
 const TopLevelContext = createContext<{
-  registerComponent: (name: string, component: Partial<ComponentType> | null) => void
+  registerComponent: (
+    name: string,
+    component: Partial<ComponentType> | null,
+  ) => void
   elements: Record<string, any>
   allCreated: boolean
 } | null>(null)
@@ -152,7 +182,7 @@ const FrameContext = createContext<{
 
 function TopLevelComponent({
   children,
-  loop = true
+  loop = true,
 }: {
   children?: AllowedChildren
   loop: boolean | number
@@ -165,14 +195,19 @@ function TopLevelComponent({
   useEffect(() => {
     let drawCalls: any[] = []
     let setupCalls: any[] = []
-    const childMap = (child: React.ReactElement) => {
+    const childMap = (child: JSX.Element | JSX.Element[] | undefined) => {
+      if (!child) return
+      if (child instanceof Array) {
+        child.forEach((child) => childMap(child))
+        return
+      }
       if (child.props.name) {
         setupCalls.push(child.props.name)
         if (child.props.draw) drawCalls.push(child.props.name)
         Children.forEach(child.props.children, (child) => childMap(child))
       }
     }
-    Children.forEach(children, (child) => childMap(child!))
+    Children.forEach(children, (child) => childMap(child))
     childrenDraws.current = drawCalls
     childrenSetups.current = setupCalls
   })
@@ -182,7 +217,10 @@ function TopLevelComponent({
   const components = useRef<Record<string, ComponentType>>({})
   // when allCreated is true elements get passed down as is (just to pass selves through)
   const elements = useRef<Record<string, any>>({})
-  const registerComponent = (name: string, component: Partial<ComponentType> | null) => {
+  const registerComponent = (
+    name: string,
+    component: Partial<ComponentType> | null,
+  ) => {
     if (component) {
       components.current[name] = { ...components.current[name], ...component }
       if (component.self) elements.current[name] = component.self
@@ -198,6 +236,7 @@ function TopLevelComponent({
         break
       }
     }
+
     setAllCreated(allCreated)
   }
 
@@ -213,6 +252,7 @@ function TopLevelComponent({
         const component = components.current[drawChild]
         invariant(component.draw, 'Missing draw call')
         // some components only draw on certain updates
+
         if (!component.update) continue
         component.draw!(topContext)
         if (component.update === true) {
@@ -225,12 +265,11 @@ function TopLevelComponent({
       const frameRequest: FrameRequestCallback = (t) => {
         drawFrame({ t, dt: t - time.current })
         time.current = t
-        requestAnimationFrame(frameRequest)
+        animationFrame = requestAnimationFrame(frameRequest)
       }
-
-      requestAnimationFrame(frameRequest)
+      animationFrame = requestAnimationFrame(frameRequest)
     } else if (typeof loop === 'number') {
-      window.setInterval(() => {
+      interval = window.setInterval(() => {
         time.current += loop
         drawFrame({ t: time.current, dt: time.current - loop })
       }, loop)
@@ -246,7 +285,7 @@ function TopLevelComponent({
       value={{
         allCreated,
         registerComponent,
-        elements: elements.current
+        elements: elements.current,
       }}
     >
       {children}
@@ -258,7 +297,7 @@ function FrameComponent<Self, Options, InternalProps>({
   options,
   getSelf,
   cleanupSelf,
-  children
+  children,
 }: { options: ParentProps<Options, Self, InternalProps> } & {
   getSelf: (options: Options) => Self | Promise<Self>
   cleanupSelf?: (self: Self) => void
@@ -271,13 +310,13 @@ function FrameComponent<Self, Options, InternalProps>({
     options.setup,
     options.draw,
     options.deps,
-    cleanupSelf
+    cleanupSelf,
   )
 
   return (
     <FrameContext.Provider
       value={{
-        frame: self
+        frame: self,
       }}
     >
       {self && children}
@@ -288,7 +327,7 @@ function FrameComponent<Self, Options, InternalProps>({
 const ChildComponent = <Self, Options, Context, InternalProps>({
   options,
   getSelf,
-  cleanupSelf
+  cleanupSelf,
 }: {
   options: ChildProps<Options, Self, Context, InternalProps>
 } & {
@@ -300,12 +339,15 @@ const ChildComponent = <Self, Options, Context, InternalProps>({
     options.name,
     async () => await getSelf(options, frame),
     options,
-    options.setup ? (self, context) => options.setup!(self, frame, context) : undefined,
+    options.setup
+      ? (self, context) => options.setup!(self, frame, context)
+      : undefined,
     options.draw
-      ? (self, context, internalProps) => options.draw!(self, frame, context, internalProps)
+      ? (self, context, internalProps) =>
+          options.draw!(self, frame, context, internalProps)
       : undefined,
     options.deps,
-    cleanupSelf
+    cleanupSelf,
   )
   return <></>
 }
@@ -319,61 +361,67 @@ type CanvasComponentProps = {
   hidden?: boolean
 }
 const extractCanvasProps = (
-  props: CanvasComponentProps & Record<string, any>
+  props: CanvasComponentProps & Record<string, any>,
 ): CanvasComponentProps => {
   return {
     resize: true,
-    ..._.pick(props, 'className', 'width', 'height', 'id', 'resize', 'hidden')
+    ..._.pick(props, 'className', 'width', 'height', 'id', 'resize', 'hidden'),
   }
 }
-const CanvasComponent = forwardRef<HTMLCanvasElement, CanvasComponentProps>((props, ref) => {
-  const innerRef = useRef<HTMLCanvasElement>(
-    props.hidden ? document.createElement('canvas') : null!
-  )
-  if (props.hidden) {
-    innerRef.current.height = props.height ?? 1080
-    innerRef.current.width = props.width ?? 1080
-  }
-  useImperativeHandle(ref, () => innerRef.current)
-  const resizeCanvas = () => {
-    const { width, height } = innerRef.current.getBoundingClientRect()
-    innerRef.current.width = width
-    innerRef.current.height = height
-  }
-  useEventListener('resize', () => {
-    if (!props.resize || props.hidden) return
-    resizeCanvas()
-  })
-  useEffect(() => {
-    if (!props.resize || props.hidden) return
-    resizeCanvas()
-  }, [])
+const CanvasComponent = forwardRef<HTMLCanvasElement, CanvasComponentProps>(
+  (props, ref) => {
+    const innerRef = useRef<HTMLCanvasElement>(
+      props.hidden ? document.createElement('canvas') : null!,
+    )
+    if (props.hidden) {
+      innerRef.current.height = props.height ?? 1080
+      innerRef.current.width = props.width ?? 1080
+    }
+    useImperativeHandle(ref, () => innerRef.current)
+    const resizeCanvas = () => {
+      const { width, height } = innerRef.current.getBoundingClientRect()
+      innerRef.current.width = width
+      innerRef.current.height = height
+    }
+    useEventListener('resize', () => {
+      if (!props.resize || props.hidden) return
+      resizeCanvas()
+    })
+    useEffect(() => {
+      if (!props.resize || props.hidden) return
+      resizeCanvas()
+    }, [])
 
-  return (
-    <>
-      {!props.hidden && (
-        <canvas
-          ref={innerRef}
-          className={props.className ?? undefined}
-          id={props.id}
-          height={props.height}
-          width={props.width}
-        ></canvas>
-      )}
-    </>
-  )
-})
+    return (
+      <>
+        {!props.hidden && (
+          <canvas
+            ref={innerRef}
+            className={props.className ?? undefined}
+            id={props.id}
+            height={props.height}
+            width={props.width}
+          ></canvas>
+        )}
+      </>
+    )
+  },
+)
 
 const components = {
   AudioCtx: <InternalProps,>(
-    props: ParentProps<ConstructorParameters<typeof AudioContext>[0], AudioContext, InternalProps>
+    props: ParentProps<
+      ConstructorParameters<typeof AudioContext>[0],
+      AudioContext,
+      InternalProps
+    >,
   ) => (
     <FrameComponent
       options={_.omit(props, 'children')}
       children={props.children}
-      getSelf={(options?: ConstructorParameters<typeof AudioContext>[0] | undefined) =>
-        new AudioContext(options)
-      }
+      getSelf={(
+        options?: ConstructorParameters<typeof AudioContext>[0] | undefined,
+      ) => new AudioContext(options)}
     />
   ),
   CanvasGL: <InternalProps,>(
@@ -383,7 +431,7 @@ const components = {
       },
       WebGL2RenderingContext,
       InternalProps
-    >
+    >,
   ) => {
     const canvasRef = useRef<HTMLCanvasElement>(null!)
     return (
@@ -393,7 +441,10 @@ const components = {
           options={_.omit(props, 'children')}
           children={props.children}
           getSelf={(options) => {
-            const gl = canvasRef.current.getContext('webgl2', options.glOptions)!
+            const gl = canvasRef.current.getContext(
+              'webgl2',
+              options.glOptions,
+            )!
             return gl
           }}
         />
@@ -407,7 +458,7 @@ const components = {
         CanvasComponentProps & { options?: CanvasRenderingContext2DSettings },
       CanvasRenderingContext2D,
       InternalProps
-    >
+    >,
   ) => {
     const canvasRef = useRef<HTMLCanvasElement>(null!)
     return (
@@ -429,20 +480,26 @@ const components = {
       CanvasComponentProps & {
         options?: regl.InitializationOptions
       },
-      { regl: regl.Regl },
+      { gl: WebGL2RenderingContext; regl: regl.Regl },
       InternalProps
-    >
+    >,
   ) => {
     const canvasRef = useRef<HTMLCanvasElement>(null!)
     return (
       <>
-        <CanvasComponent ref={canvasRef} {...extractCanvasProps({ ...props, type: 'webgl2' })} />
+        <CanvasComponent
+          ref={canvasRef}
+          {...extractCanvasProps({ ...props, type: 'webgl2' })}
+        />
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
           getSelf={(options) => {
             const gl = canvasRef.current.getContext('webgl2')!
-            return { regl: regl({ gl, ...options.options }) }
+            return {
+              gl,
+              regl: regl({ gl, ...options.options }),
+            }
           }}
           cleanupSelf={(self) => self.regl.destroy()}
         />
@@ -456,7 +513,7 @@ const components = {
       },
       p5,
       InternalProps
-    >
+    >,
   ) => {
     const canvasRef = useRef<HTMLCanvasElement>(null!)
     return (
@@ -476,7 +533,7 @@ const components = {
                   canvasRef.current.height,
                   canvasRef.current.width,
                   options.type,
-                  canvasRef.current
+                  canvasRef.current,
                 )
               }
             })
@@ -493,7 +550,7 @@ const components = {
         },
       HydraSynth,
       InternalProps
-    >
+    >,
   ) => {
     const canvasRef = useRef<HTMLCanvasElement>(null!)
     return (
@@ -512,7 +569,7 @@ const components = {
               width: canvasRef.current.width,
               height: canvasRef.current.height,
               canvas: canvasRef.current,
-              ...options
+              ...options,
             })
             return instance.synth
           }}
@@ -525,7 +582,7 @@ const components = {
       React.PropsWithChildren & { width: number; height: number },
       HTMLVideoElement,
       InternalProps
-    >
+    >,
   ) => {
     const videoRef = useRef<HTMLVideoElement>(document.createElement('video'))
     return (
@@ -536,9 +593,11 @@ const components = {
           getSelf={async (options) => {
             videoRef.current.height = props.height
             videoRef.current.width = props.width
-            navigator.mediaDevices.getUserMedia({ video: true }).then((localMediaStream) => {
-              videoRef.current.srcObject = localMediaStream
-            })
+            navigator.mediaDevices
+              .getUserMedia({ video: true })
+              .then((localMediaStream) => {
+                videoRef.current.srcObject = localMediaStream
+              })
             await videoRef.current.play()
             return videoRef.current
           }}
@@ -546,7 +605,16 @@ const components = {
         />
       </>
     )
-  }
+  },
+  Call: <InternalProps,>(props: ParentProps<{}, {}, InternalProps>) => (
+    <FrameComponent
+      options={_.omit(props, 'children')}
+      children={props.children}
+      getSelf={() => {
+        return {}
+      }}
+    />
+  ),
 }
 const childComponents = {
   Texture: <InternalProps,>(
@@ -555,7 +623,7 @@ const childComponents = {
       WebGLTexture,
       WebGL2RenderingContext,
       InternalProps
-    >
+    >,
   ) => (
     <ChildComponent
       options={props}
@@ -563,7 +631,7 @@ const childComponents = {
         return twgl.createTexture(context, {
           height: context.canvas.height,
           width: context.canvas.width,
-          ...options
+          ...options,
         })
       }}
     />
@@ -574,7 +642,7 @@ const childComponents = {
       LayerInstance,
       WebGL2RenderingContext,
       InternalProps
-    >
+    >,
   ) => (
     <ChildComponent
       options={props}
@@ -588,11 +656,14 @@ const childComponents = {
    */
   Plane: <InternalProps,>(
     props: ChildProps<
-      Omit<ConstructorParameters<typeof LayerInstance>[0], 'gl' | 'attributes' | 'vertexShader'>,
+      Omit<
+        ConstructorParameters<typeof LayerInstance>[0],
+        'gl' | 'attributes' | 'vertexShader'
+      >,
       LayerInstance,
       WebGL2RenderingContext,
       InternalProps
-    >
+    >,
   ) => (
     <ChildComponent
       options={props}
@@ -602,13 +673,13 @@ const childComponents = {
           attributes: {
             position: {
               data: [-1, 1, 1, 1, -1, -1, 1, -1],
-              numComponents: 2
-            }
+              numComponents: 2,
+            },
           },
           vertexShader: defaultVert2D,
           fragmentShader: `in vec2 uv;\n` + options.fragmentShader,
           drawMode: 'triangle strip',
-          gl: context
+          gl: context,
         })
       }}
     />
@@ -618,11 +689,14 @@ const childComponents = {
    */
   GLFilter: <InternalProps,>(
     props: ChildProps<
-      Omit<ConstructorParameters<typeof LayerInstance>[0], 'gl' | 'attributes' | 'vertexShader'>,
+      Omit<
+        ConstructorParameters<typeof LayerInstance>[0],
+        'gl' | 'attributes' | 'vertexShader'
+      >,
       { filter: (uniforms?: Record<string, any>) => void },
       WebGL2RenderingContext,
       InternalProps
-    >
+    >,
   ) => (
     <ChildComponent
       options={props}
@@ -630,31 +704,36 @@ const childComponents = {
         const texture = context.createTexture()!
         twgl.resizeTexture(context, texture, {
           width: context.drawingBufferWidth,
-          height: context.drawingBufferHeight
+          height: context.drawingBufferHeight,
         })
         const layer = new LayerInstance({
           ...options,
           attributes: {
             position: {
               data: [-1, 1, 1, 1, -1, -1, 1, -1],
-              numComponents: 2
-            }
+              numComponents: 2,
+            },
           },
           vertexShader: defaultVert2D,
-          fragmentShader: `uniform sampler2D canvas;\nin vec2 uv;\n` + options.fragmentShader,
+          fragmentShader:
+            `uniform sampler2D canvas;\nin vec2 uv;\n` + options.fragmentShader,
           drawMode: 'triangle strip',
-          gl: context
+          gl: context,
         })
 
         return {
           filter: (uniforms) => {
             twgl.resizeTexture(context, texture, {
               width: context.drawingBufferWidth,
-              height: context.drawingBufferHeight
+              height: context.drawingBufferHeight,
             })
-            twgl.setTextureFromElement(context, texture, context.canvas as HTMLCanvasElement)
+            twgl.setTextureFromElement(
+              context,
+              texture,
+              context.canvas as HTMLCanvasElement,
+            )
             layer.draw({ ...uniforms, canvas: texture })
-          }
+          },
         }
       }}
     />
@@ -665,7 +744,7 @@ const childComponents = {
       { node: AudioWorkletNode; core: WebAudioRenderer; el: typeof el },
       AudioContext,
       InternalProps
-    >
+    >,
   ) => (
     <ChildComponent
       options={props}
@@ -686,13 +765,13 @@ const childComponents = {
       },
       AudioContext,
       InternalProps
-    >
+    >,
   ) => (
     <ChildComponent
       options={props}
       getSelf={async (options, context) => {
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true
+          audio: true,
         })
         const input = context.createMediaStreamSource(stream)
         const gain = context.createGain()
@@ -714,7 +793,7 @@ const childComponents = {
       { source: AudioBufferSourceNode; buffer: AudioBuffer },
       AudioContext,
       InternalProps
-    >
+    >,
   ) => (
     <ChildComponent
       options={props}
@@ -727,7 +806,7 @@ const childComponents = {
           buffer = new AudioBuffer({
             length: options.data[0].length,
             numberOfChannels: options.data.length,
-            sampleRate: context.sampleRate
+            sampleRate: context.sampleRate,
           })
           for (let i = 0; i < options.data.length; i++)
             [buffer.copyToChannel(new Float32Array(options.data[i]), i)]
@@ -736,13 +815,19 @@ const childComponents = {
             length: 1000,
             numberOfChannels: 1,
             sampleRate: context.sampleRate,
-            ...options.buffer
+            ...options.buffer,
           })
         }
-        return { source: new AudioBufferSourceNode(context, { ...options.source, buffer }), buffer }
+        return {
+          source: new AudioBufferSourceNode(context, {
+            ...options.source,
+            buffer,
+          }),
+          buffer,
+        }
       }}
     />
-  )
+  ),
 }
 
 // Libraries that don't play well on the same canvas, etc. (often Canvas)
@@ -755,6 +840,7 @@ export const Processing = components.Processing
 export const CameraInput = components.CameraInput
 
 // Libraries embedded within a certain one (often AudioContext nodes)
+export const Call = components.Call
 export const Texture = childComponents.Texture
 export const Elementary = childComponents.Elementary
 export const MicInput = childComponents.MicInput
