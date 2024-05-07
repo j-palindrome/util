@@ -5,7 +5,6 @@ import { useFlicker } from './(services)/animation'
 import { useDimensions } from './(services)/dom'
 import { useSelectedLayoutSegments } from 'next/navigation'
 import Link from 'next/link'
-import { fetchPaths } from './page'
 
 import AlterEgo from './(scenes)/alterEgo'
 import Assured from './(scenes)/assured'
@@ -21,6 +20,7 @@ import Systems from './(scenes)/systems'
 import WithoutOrder from './(scenes)/withoutOrder'
 import Zettelkasten from './(scenes)/zettelkasten'
 import Kablooey from './(components)/Kablooey'
+import { fetchPaths } from './(services)/fetch'
 
 export const scenes = {
   'alter-ego': {

@@ -33,10 +33,10 @@ export default async function Works({
             backgroundImage: `url(${work.imageBannerURL})`
           }}>
           <div className='h-[200px] w-full flex flex-col justify-center items-center space-y-2'>
-            <div className='top-4 z-10 text-center text-2xl font-bold drop-shadow-text bg-black/50 p-2 rounded-lg'>
+            <div className='top-4 z-10 text-center text-2xl font-bold drop-shadow-text bg-black/50 p-2 rounded-lg font-heading'>
               {work.title}
             </div>
-            <div className='text-center bg-black/50 p-2 rounded-lg'>
+            <div className='text-center bg-black/50 p-2 rounded-lg font-heading'>
               {work.subtitle}
             </div>
           </div>

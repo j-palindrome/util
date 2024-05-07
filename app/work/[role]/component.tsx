@@ -41,7 +41,7 @@ export default function WorksDisplayClient({
     }
   }
   useEventListener('resize', resize, [works.length, width])
-  useEffect(resize, [works])
+  useEffect(resize, [works, width])
 
   return (
     <div
@@ -127,10 +127,10 @@ function Bubble({
         className='relative z-10 flex h-full w-full flex-col items-center justify-center space-y-2 px-2'
         href={`${role}/${slug!.current!}`}
         scroll={false}>
-        <div className='rounded-lg bg-black/50 px-1 text-center font-menu text-xl shadow-lg'>
+        <div className='rounded-lg bg-black/50 px-1 text-center font-heading text-xl shadow-lg'>
           {title}
         </div>
-        <div className='rounded-lg bg-black/50 px-1 text-center font-menu text-sm text-gray-200 shadow-lg'>
+        <div className='rounded-lg bg-black/50 px-1 text-center font-heading text-sm text-gray-200 shadow-lg'>
           {subtitle}
         </div>
       </Link>

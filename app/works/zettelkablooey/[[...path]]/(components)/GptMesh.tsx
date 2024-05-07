@@ -1,10 +1,6 @@
-import { Stage } from '@pixi/react'
 import _ from 'lodash'
-import { makeNoise3D } from 'open-simplex-noise'
-import { BlurFilter } from 'pixi.js'
 import { Fragment, Suspense, cloneElement, useMemo } from 'react'
-import { useDimensions } from './(services)/dom.client'
-import LoopedGraphics from './LoopedGraphics'
+import { useDimensions } from '../(services)/dom'
 import MyLink from './MyLink'
 import MorphSpan from './MorphSpan'
 
@@ -40,7 +36,7 @@ function ClientGptMesh({
       .sort()
 
     let currentSplit = 0
-    const formattedGptText = []
+    const formattedGptText: string[] = []
     for (let split of splits) {
       formattedGptText.push(splitGptText.slice(currentSplit, split).join(' '))
       currentSplit = split
@@ -48,38 +44,11 @@ function ClientGptMesh({
     formattedGptText.push(splitGptText.slice(currentSplit).join(' '))
 
     return formattedGptText
-  }, [gptText, children])
-  const noise3D = useMemo(() => makeNoise3D(Date.now()), [])
-  const blurFilter = useMemo(() => new BlurFilter(5), [])
+  }, [gptText, children, h, w])
 
   if (!formattedGptText) return <></>
   return (
     <div className='h-full w-full overflow-hidden'>
-      {/* <Stage
-        className='absolute left-0 top-0 z-0 bg-transparent'
-        width={w}
-        height={h}
-        options={{ backgroundAlpha: 0 }}
-      >
-        <LoopedGraphics
-          filters={[blurFilter]}
-          width={w}
-          height={h}
-          x={0}
-          y={0}
-          draw={(g) => {
-            g.clear()
-            const t = Date.now()
-            for (let x = 0; x <= w; x += 10) {
-              for (let y = 0; y <= h; y += 10) {
-                const n = noise3D(x, y, t / 1000)
-                g.beginFill('white', n * 0.05)
-                g.drawCircle(x, y, 20)
-              }
-            }
-          }}
-        />
-      </Stage> */}
       {children.map((child, i) => {
         const splitChildren = child.props.children.split(' ')
         const link = _.random(splitChildren.length)
@@ -91,9 +60,13 @@ function ClientGptMesh({
             <MorphSpan>{formattedGptText[i]}</MorphSpan>
             {cloneElement(child, {
               children: [
-                <span>{splitChildren.slice(0, link).join(' ') + ' '}</span>,
+                <span key={'item0'}>
+                  {splitChildren.slice(0, link).join(' ') + ' '}
+                </span>,
                 newLink,
-                <span>{' ' + splitChildren.slice(link + 1).join(' ')}</span>
+                <span key={'item1'}>
+                  {' ' + splitChildren.slice(link + 1).join(' ')}
+                </span>
               ]
             })}
           </Fragment>

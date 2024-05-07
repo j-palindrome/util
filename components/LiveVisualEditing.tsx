@@ -1,11 +1,22 @@
-import { useLiveMode } from '@sanity/react-loader'
-import { VisualEditing } from '@sanity/visual-editing/remix'
+'use client'
 
-import { client } from 'app/sanity/client'
+import { useLiveMode } from '@sanity/react-loader'
+import { VisualEditing } from 'next-sanity'
+import { useEffect } from 'react'
+
+import { client } from '@/sanity/lib/client'
+
+// Always enable stega in Live Mode
+const stegaClient = client.withConfig({ stega: true })
 
 export default function LiveVisualEditing() {
-  // Enable live queries using the client configuration
-  useLiveMode({ client })
+  useLiveMode({ client: stegaClient })
+  useEffect(() => {
+    // If not an iframe or a Vercel Preview deployment, turn off Draft Mode
+    if (process.env.NEXT_PUBLIC_VERCEL_ENV !== 'preview' && window === parent) {
+      location.href = '/api/disable-draft'
+    }
+  }, [])
 
   return <VisualEditing />
 }

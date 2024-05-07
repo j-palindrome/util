@@ -37,30 +37,30 @@ export default function Kablooey({
     [w]
   )
 
-  const [springs] = useSprings(
-    textMap.length,
-    i => {
-      const toMouse = Vector.sub(randomVectors[i], mousePosition)
-      console.log('mouse:', toMouse)
+  // const [springs] = useSprings(
+  //   textMap.length,
+  //   i => {
+  //     const toMouse = Vector.sub(randomVectors[i], mousePosition)
+  //     console.log('mouse:', toMouse)
 
-      return {
-        from: Vector.create(w / 2, h / 2),
-        to: Vector.add(
-          randomVectors[i],
-          Vector.mult(
-            Vector.normalise(toMouse),
-            lerp(20, 0, Vector.magnitude(toMouse) / w, { clamp: true })
-          )
-        ),
-        config: {
-          damping: 500,
-          friction: 10 * _.random(0.9, 1.1),
-          tension: 250 * _.random(0.8, 1.2)
-        }
-      }
-    },
-    [mousePosition, randomVectors]
-  )
+  //     return {
+  //       from: Vector.create(w / 2, h / 2),
+  //       to: Vector.add(
+  //         randomVectors[i],
+  //         Vector.mult(
+  //           Vector.normalise(toMouse),
+  //           lerp(20, 0, Vector.magnitude(toMouse) / w, { clamp: true })
+  //         )
+  //       ),
+  //       config: {
+  //         damping: 500,
+  //         friction: 10 * _.random(0.9, 1.1),
+  //         tension: 250 * _.random(0.8, 1.2)
+  //       }
+  //     }
+  //   },
+  //   [mousePosition, randomVectors]
+  // )
 
   useFlickers(
     textMap.map(fragment => '#' + fragment.id),
@@ -111,13 +111,14 @@ export default function Kablooey({
 
       {textMap.map((fragment, i) => (
         <animated.div
-          className='absolute left-0 top-0 z-30 -translate-x-1/2 -translate-y-1/2'
+          className='absolute left-0 top-0 z-30'
           key={fragment.t}
           id={fragment.id}
           style={{
             width: fragment.w,
             ...fragment.s,
-            ...springs[i]
+            left: randomVectors[i].x,
+            top: randomVectors[i].y
           }}
           onMouseEnter={() => setOver(fragment.id)}
           onMouseLeave={() => setOver('')}>

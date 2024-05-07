@@ -16,14 +16,14 @@ function Blob({
 }) {
   const position = useMemo(
     () => new Pt(0, -0.25).rotate2D((order / 3) * Math.PI * 2),
-    []
+    [order]
   )
 
   return (
     <Link
       href={'/work/' + to}
       scroll={false}
-      className={`h-[50%] min-h-[100px] aspect-square !transition-[transform,left,top,border-color] !duration-500 circle -translate-x-1/2 -translate-y-1/2 absolute hover:scale-125 hover:brightness-125 hover:z-10 ${role === to ? 'scale-125 brightness-125 border-white' : 'border-transparent'} border !bg-slate-700/50`}
+      className={`font-heading h-[50%] min-h-[100px] aspect-square !transition-[transform,left,top,border-color] !duration-500 circle -translate-x-1/2 -translate-y-1/2 absolute hover:scale-125 hover:brightness-125 hover:z-10 ${role === to ? 'scale-125 brightness-125 border-white' : 'border-transparent'} border !bg-slate-700/50`}
       style={{
         left: !role
           ? `calc(50% + ${position.x * 100}vh)`

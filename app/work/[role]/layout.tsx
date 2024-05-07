@@ -14,8 +14,6 @@ export default async function Role({
   children,
   params
 }: React.PropsWithChildren & { params: { role: string } }) {
-  console.log('params are:', params)
-
   const work = await sanityFetch<WorksQueryResult>({
     query: WorksQuery,
     params
@@ -29,7 +27,7 @@ export default async function Role({
   return (
     <>
       <Section>
-        <div className='*:font-sans text-center'>
+        <div className='*:font-heading text-center'>
           <PortableText value={roleData.description!} />
         </div>
       </Section>

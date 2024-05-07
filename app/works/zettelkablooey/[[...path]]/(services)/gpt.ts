@@ -1,19 +1,10 @@
-import { OpenAIApi, Configuration } from 'openai'
 import { readResponse } from './data.server'
 
 /**
  * @borrows This only works inside useLoaderData
  * @see useLoaderData
  */
-export const generatePrompt = async (
-  prompt: string,
-  config: Partial<
-    Parameters<InstanceType<typeof OpenAIApi>['createChatCompletion']>[0]
-  > = {
-    temperature: 2,
-    stream: false
-  }
-) => {
+export const generatePrompt = async (prompt: string) => {
   // const openai = new OpenAIApi(
   //   new Configuration({ apiKey: process.env.GPT_SECRET })
   // )
