@@ -5,9 +5,9 @@ import { useEventListener } from '@util/dom'
 import anime from 'animejs'
 import { Pt } from 'pts'
 import { useEffect, useRef, useState } from 'react'
-import { SanityImage } from 'sanity-image'
 import { BASE_URL } from '@/constants'
 import Link from 'next/link'
+import SanityImageWrapper from '@/components/SanityImageWrapper'
 
 const itemWidth = 300
 const margin = 24
@@ -145,9 +145,8 @@ function Bubble({
             className='object-cover w-full h-full'
           />
         ) : (
-          <SanityImage
+          <SanityImageWrapper
             id={work.imageBanner!.asset!._ref}
-            baseUrl={BASE_URL}
             className='w-full h-full object-cover'
           />
         )}

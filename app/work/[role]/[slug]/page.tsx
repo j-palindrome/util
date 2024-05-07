@@ -2,10 +2,8 @@ import { WorkQueryResult } from '@/sanity.types'
 import { sanityFetch } from '@/sanity/lib/fetch'
 import { PortableText } from '@portabletext/react'
 import groq from 'groq'
-import { SanityImage } from 'sanity-image'
 import invariant from 'tiny-invariant'
 import ViewButton from '@/components/ViewButton'
-import { BASE_URL } from '@/constants'
 import Link from 'next/link'
 
 const WorkQuery = groq`*[_type == "work" && slug.current == $slug][0]{..., 'imageBannerURL': imageBanner.asset->url, 'filePreviews': documentPreviews[]{..., 'fileSource': uploadSource.asset->}}`

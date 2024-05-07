@@ -9,6 +9,8 @@ import { sanityFetch } from '@/sanity/lib/fetch'
 import { ROOT_QUERYResult } from '@/sanity.types'
 import NavBar from './NavBar'
 
+export const runtime = 'edge'
+
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
