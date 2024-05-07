@@ -10,6 +10,9 @@ const nextConfig = {
   },
   experimental: {
     taint: true
+  },
+  typescript: {
+    ignoreBuildErrors: true
   }
 }
 

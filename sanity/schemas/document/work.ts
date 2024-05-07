@@ -1,4 +1,4 @@
-import { defineField, defineType } from 'sanity'
+import { defineArrayMember, defineField, defineType } from 'sanity'
 
 const work = defineType({
   name: 'work',
@@ -57,9 +57,9 @@ const work = defineType({
       name: 'documentPreviews',
       type: 'array',
       of: [
-        {
+        defineArrayMember({
           type: 'assetInfo'
-        }
+        })
       ]
     })
   ],
