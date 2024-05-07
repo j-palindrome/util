@@ -21,6 +21,9 @@ import { useInvariantContext } from '../src/react'
 import { defaultVert2D, glslEs300 } from '../src/shaders/utilities'
 import { Layer as LayerInstance } from '../src/webgl'
 import { DirectionalLightShadow } from 'three'
+import { useScroll } from 'framer-motion'
+import type { default as SnapInstance } from 'snapsvg-cjs-ts'
+import { SVGForm, SVGSpace } from 'pts'
 
 export type TopContextInfo<T extends Record<string, any>> = {
   time: Time
@@ -158,7 +161,10 @@ function useCreateComponent<Self, InternalProps>(
   useEffect(() => {
     if (!self || !setupSelf || !allCreated) return
     propsRef.current = setupSelf(self, { elements })
-  }, [allCreated])
+    return () => {
+      cleanupSelf && cleanupSelf(self)
+    }
+  }, [allCreated, setupSelf])
   return { self }
 }
 
@@ -183,9 +189,13 @@ const FrameContext = createContext<{
 function TopLevelComponent({
   children,
   loop = true,
+  className,
+  style,
 }: {
   children?: AllowedChildren
-  loop: boolean | number
+  loop?: boolean | number
+  className?: string
+  style?: React.CSSProperties
 }) {
   // the order to call draw calls in, using the key/string pairings from above
   let childrenDraws = useRef<string[]>([])
@@ -244,6 +254,8 @@ function TopLevelComponent({
 
   useEffect(() => {
     if (!allCreated) return
+    console.info('initialized with components', elements.current)
+
     let animationFrame: number
     let interval: number
     const drawFrame = (time: Time) => {
@@ -288,7 +300,9 @@ function TopLevelComponent({
         elements: elements.current,
       }}
     >
-      {children}
+      <div className={`${className}`} style={style}>
+        {children}
+      </div>
     </TopLevelContext.Provider>
   )
 }
@@ -359,13 +373,23 @@ type CanvasComponentProps = {
   id?: string
   resize?: boolean
   hidden?: boolean
+  webgl?: boolean
 }
 const extractCanvasProps = (
   props: CanvasComponentProps & Record<string, any>,
 ): CanvasComponentProps => {
   return {
     resize: true,
-    ..._.pick(props, 'className', 'width', 'height', 'id', 'resize', 'hidden'),
+    ..._.pick(
+      props,
+      'className',
+      'width',
+      'height',
+      'id',
+      'resize',
+      'hidden',
+      'webgl',
+    ),
   }
 }
 const CanvasComponent = forwardRef<HTMLCanvasElement, CanvasComponentProps>(
@@ -382,9 +406,15 @@ const CanvasComponent = forwardRef<HTMLCanvasElement, CanvasComponentProps>(
       const { width, height } = innerRef.current.getBoundingClientRect()
       innerRef.current.width = width
       innerRef.current.height = height
+      if (props.webgl) {
+        innerRef.current
+          .getContext('webgl2')!
+          .viewport(0, 0, innerRef.current.width, innerRef.current.height)
+      }
     }
     useEventListener('resize', () => {
       if (!props.resize || props.hidden) return
+      console.log('resizing')
       resizeCanvas()
     })
     useEffect(() => {
@@ -436,7 +466,7 @@ const components = {
     const canvasRef = useRef<HTMLCanvasElement>(null!)
     return (
       <>
-        <CanvasComponent ref={canvasRef} {...extractCanvasProps(props)} />
+        <CanvasComponent ref={canvasRef} {...extractCanvasProps(props)} webgl />
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
@@ -445,6 +475,8 @@ const components = {
               'webgl2',
               options.glOptions,
             )!
+            gl.enable(gl.BLEND)
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
             return gl
           }}
         />
@@ -490,6 +522,7 @@ const components = {
         <CanvasComponent
           ref={canvasRef}
           {...extractCanvasProps({ ...props, type: 'webgl2' })}
+          webgl
         />
         <FrameComponent
           options={_.omit(props, 'children')}
@@ -518,7 +551,11 @@ const components = {
     const canvasRef = useRef<HTMLCanvasElement>(null!)
     return (
       <>
-        <CanvasComponent ref={canvasRef} {...extractCanvasProps(props)} />
+        <CanvasComponent
+          ref={canvasRef}
+          {...extractCanvasProps(props)}
+          webgl={props.type === 'webgl'}
+        />
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
@@ -530,10 +567,16 @@ const components = {
               p.setup = () => {
                 p.noLoop()
                 p.createCanvas(
-                  canvasRef.current.height,
                   canvasRef.current.width,
+                  canvasRef.current.height,
                   options.type,
                   canvasRef.current,
+                )
+              }
+              p.windowResized = () => {
+                p.resizeCanvas(
+                  canvasRef.current.width,
+                  canvasRef.current.height,
                 )
               }
             })
@@ -555,13 +598,12 @@ const components = {
     const canvasRef = useRef<HTMLCanvasElement>(null!)
     return (
       <>
-        <CanvasComponent ref={canvasRef} {...extractCanvasProps(props)} />
+        <CanvasComponent ref={canvasRef} {...extractCanvasProps(props)} webgl />
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
           getSelf={async (options) => {
             const { default: HydraInstance } = await import('hydra-synth')
-
             const instance = new HydraInstance({
               makeGlobal: false,
               autoLoop: false,
@@ -571,6 +613,11 @@ const components = {
               canvas: canvasRef.current,
               ...options,
             })
+            const fakeCanvas = document.querySelector(
+              '[style="width: 100px; height: 80px; position: absolute; right: 0px; bottom: 0px;"]',
+            )
+            fakeCanvas?.remove()
+
             return instance.synth
           }}
         ></FrameComponent>
@@ -615,6 +662,95 @@ const components = {
       }}
     />
   ),
+  ScrollProgress: <InternalProps,>(
+    props: ParentProps<
+      Parameters<typeof useScroll>[0],
+      ReturnType<typeof useScroll>,
+      InternalProps
+    >,
+  ) => {
+    const progress = useScroll(props)
+    return (
+      <FrameComponent
+        options={_.omit(props, 'children')}
+        children={props.children}
+        getSelf={() => {
+          return progress
+        }}
+      />
+    )
+  },
+  Snap: <InternalProps,>(
+    props: ParentProps<
+      { className?: string; width?: number; height?: number; viewBox?: string },
+      SnapInstance.Paper,
+      InternalProps
+    >,
+  ) => {
+    const frame = useRef<SVGSVGElement>(null!)
+    return (
+      <>
+        <div className={props.className}>
+          <svg
+            preserveAspectRatio="none"
+            ref={frame}
+            className="h-full w-full"
+            width={props.width ?? 1}
+            height={props.height ?? 1}
+            viewBox={
+              props.viewBox ?? `0 0 ${props.width ?? 1} ${props.height ?? 1}`
+            }
+          ></svg>
+        </div>
+        <FrameComponent
+          options={props}
+          getSelf={async (options) => {
+            const { default: SnapInstance } = await import('snapsvg-cjs-ts')
+            const s = SnapInstance(frame.current)
+            return s
+          }}
+          cleanupSelf={(s) => s.clear()}
+        />
+      </>
+    )
+  },
+  PtsCanvas: <InternalProps,>() => <></>,
+  PtsSVG: <InternalProps,>(
+    props: ParentProps<
+      {
+        className?: string
+        width?: number
+        height?: number
+        viewBox?: string
+      },
+      SVGForm,
+      InternalProps
+    >,
+  ) => {
+    const frame = useRef<SVGSVGElement>(null!)
+    return (
+      <>
+        <div className={props.className}>
+          <svg
+            ref={frame}
+            className="h-full w-full"
+            width={props.width ?? 1}
+            height={props.height ?? 1}
+            viewBox={
+              props.viewBox ?? `0 0 ${props.width ?? 1} ${props.height ?? 1}`
+            }
+          ></svg>
+        </div>
+        <FrameComponent
+          options={_.omit(props, 'className', 'width', 'height')}
+          getSelf={() => {
+            const s = new SVGSpace(frame.current)
+            return s.getForm()
+          }}
+        ></FrameComponent>
+      </>
+    )
+  },
 }
 const childComponents = {
   Texture: <InternalProps,>(
@@ -838,6 +974,9 @@ export const Hydra = components.Hydra
 export const Regl = components.Regl
 export const Processing = components.Processing
 export const CameraInput = components.CameraInput
+export const ScrollProgress = components.ScrollProgress
+export const Snap = components.Snap
+export const PtsSVG = components.PtsSVG
 
 // Libraries embedded within a certain one (often AudioContext nodes)
 export const Call = components.Call

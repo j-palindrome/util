@@ -4,16 +4,17 @@ vec2 positionToUv(vec2 pos) {
 }`
 
 export const defaultVert2D = /*glsl*/ `
+uniform vec2 resolution;
 in vec2 position;
 out vec2 uv;
 ${positionToUv}
 void main() {
-  gl_Position = vec4(position, 0, 1);
+  gl_Position = vec4(position.x * (resolution.y / resolution.x), position.y, 0, 1);
   uv = positionToUv(position);
 }`
 
 export const defaultVert2DLegacy = /*glsl*/ `
-vec2 position;
+attribute vec2 position;
 varying vec2 uv;
 ${positionToUv}
 void main() {
@@ -22,7 +23,6 @@ void main() {
 }`
 
 export const defaultFragColor = (r = 1, g = 1, b = 1, a = 1) => /*glsl*/ `
-out vec4 fragColor;
 void main() {
   fragColor = vec4(${r}, ${g}, ${b}, ${a});
 }`
