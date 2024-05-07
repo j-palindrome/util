@@ -1,20 +1,54 @@
-import type { Config } from "tailwindcss";
+import type { Config } from 'tailwindcss'
+import typography from '@tailwindcss/typography'
 
 const config: Config = {
   content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}'
   ],
   theme: {
     extend: {
       backgroundImage: {
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-conic":
-          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-conic':
+          'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))'
       },
-    },
+      screens: {
+        mouse: { raw: '(hover: none)' },
+        touch: { raw: '(hover)' },
+        '-md': { max: '767px' },
+        '-lg': { max: '1023px' },
+        '-sm': { max: '400px' }
+      },
+      fontSize: {
+        h1: '3rem',
+        h2: '2.5rem',
+        h3: '2rem',
+        h4: '1.5rem',
+        base: '18px'
+      },
+      lineHeight: {
+        h: '1.5em'
+      },
+      colors: {
+        bg: 'var(--bg)',
+        bg2: 'var(--bg2)',
+        fg: 'var(--fg)',
+        accent: 'var(--accent)',
+        accent2: 'var(--accent2)'
+      },
+      fontFamily: {
+        body: 'var(--body)',
+        heading: 'var(--heading)'
+      },
+      dropShadow: {
+        text: '0 0 6px rgb(0, 0, 0)'
+      },
+      height: {
+        topbar: 'var(--topbar)'
+      }
+    }
   },
-  plugins: [],
-};
-export default config;
+  plugins: [typography]
+}
+export default config

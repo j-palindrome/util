@@ -1,0 +1,5 @@
+packages:
+  - 'util'
+  - 'util/animation-components'
+  - '.'
+ignore-workspace-root-check: true

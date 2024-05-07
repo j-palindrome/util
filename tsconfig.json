@@ -3,6 +3,7 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
+    "noImplicitAny": false,
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -18,9 +19,22 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
-    }
+      "@/*": ["./*"],
+      "@animation/*": ["./util/animation-components/*"],
+      "@util/*": ["./util/src/*"]
+    },
+    "target": "ES2017"
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/types/app/work/[role]/page.tsx",
+    ".next/types/app/work/layout.tsx",
+    ".next/types/app/work/page.tsx",
+    ".next/types/app/layout.tsx",
+    ".next/types/app/page.tsx"
+  ],
   "exclude": ["node_modules"]
 }
