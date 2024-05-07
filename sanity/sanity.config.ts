@@ -8,9 +8,9 @@ import { structureTool } from 'sanity/structure'
 import { presentationTool } from 'sanity/presentation'
 
 // Go to https://www.sanity.io/docs/api-versioning to learn how API versioning works
-import { apiVersion, dataset, projectId } from './sanity/env'
-import { schema } from './sanity/schema'
-import { locate } from '@/sanity/presentation/locate'
+import { apiVersion, dataset, projectId } from './env'
+import { schema } from './schema'
+import { locate } from './presentation/locate'
 
 const sanityConfig = defineConfig({
   basePath: '/admin',
@@ -22,6 +22,7 @@ const sanityConfig = defineConfig({
     structureTool(),
     // Vision is a tool that lets you query your content with GROQ in the studio
     // https://www.sanity.io/docs/the-vision-plugin
+    // @ts-ignore
     visionTool({ defaultApiVersion: apiVersion }),
     presentationTool({
       locate,
