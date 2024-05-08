@@ -19,18 +19,15 @@ import {
 } from '@util/shaders/utilities'
 import type { HydraSynth } from 'hydra-synth'
 import _ from 'lodash'
+import Link from 'next/link'
 import { RefObject, useRef, useState } from 'react'
 
 export default function Client({ title }: { title: string }) {
-  const frame = useRef<HTMLDivElement>(null!)
-
   return (
-    <div
-      className='h-screen w-screen fixed top-0 left-0 overflow-y-auto'
-      ref={frame}>
+    <>
       <div className='h-screen w-screen flex items-center justify-center relative'>
         <h1 className='text-h1 drop-shadow-lg'>{title}</h1>
-        <DesignScene frame={frame} />
+        <DesignScene />
       </div>
       <Section innerClassName='relative flex flex-col'>
         <h2 className='text-h2 text-center'>Think outside the square.</h2>
@@ -145,112 +142,118 @@ export default function Client({ title }: { title: string }) {
       <Section>
         <h2 className='text-h2 text-center'>Options</h2>
         <div className='sm:flex sm:*:w-1/3 sm:*:px-2 -sm:space-y-2'>
-          <div className='grow'>
-            <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
-              <h3 className='text-center'>Embedding</h3>
-              <Reactive loop={false}>
-                <Snap
-                  name='snap'
-                  width={100}
-                  height={100}
-                  viewBox='0 0 100 100'
-                  setup={s => {
-                    const group = s.group()
-                    for (let i = 0; i < 4; i++) {
-                      const scale = 80 - i * 10
-                      group.add(s.rect(10 + i * 5, 10 + i * 5, scale, scale))
-                    }
-                    group.attr({
-                      stroke: 'white',
-                      fill: 'transparent'
-                    })
-                  }}
-                />
-              </Reactive>
-              <p>Integrate a background design into an existing site.</p>
+          <Link href='/site-design/banner'>
+            <div className='grow'>
+              <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
+                <h3 className='text-center'>Banner</h3>
+                <Reactive loop={false}>
+                  <Snap
+                    name='snap'
+                    width={100}
+                    height={100}
+                    viewBox='0 0 100 100'
+                    setup={s => {
+                      const group = s.group()
+                      for (let i = 0; i < 4; i++) {
+                        const scale = 80 - i * 10
+                        group.add(s.rect(10 + i * 5, 10 + i * 5, scale, scale))
+                      }
+                      group.attr({
+                        stroke: 'white',
+                        fill: 'transparent'
+                      })
+                    }}
+                  />
+                </Reactive>
+                <p>Integrate a background design into an existing site.</p>
+              </div>
             </div>
-          </div>
-          <div className='grow'>
-            <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
-              <h3 className='text-center'>Portfolio</h3>
-              <Reactive loop={false}>
-                <Snap
-                  height={100}
-                  width={100}
-                  name='snap'
-                  setup={s => {
-                    const max = 15
-                    const h = Number(s.node.getAttribute('height'))
-                    const GAP = 10
-                    const rect = s.group(
-                      s.rect(
-                        GAP / 2 + 0,
-                        GAP / 2 + 0,
-                        h / 2 - GAP,
-                        h / 2 - GAP
-                      ),
-                      s.rect(
-                        GAP / 2 + h / 2,
-                        GAP / 2 + 0,
-                        h / 2 - GAP,
-                        h / 2 - GAP
-                      ),
-                      s.rect(
-                        GAP / 2 + 0,
-                        GAP / 2 + h / 2,
-                        h / 2 - GAP,
-                        h / 2 - GAP
-                      ),
-                      s.rect(
-                        GAP / 2 + h / 2,
-                        GAP / 2 + h / 2,
-                        h / 2 - GAP,
-                        h / 2 - GAP
+          </Link>
+          <Link href='/site-design/portfolio'>
+            <div className='grow'>
+              <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
+                <h3 className='text-center'>Portfolio</h3>
+                <Reactive loop={false}>
+                  <Snap
+                    height={100}
+                    width={100}
+                    name='snap'
+                    setup={s => {
+                      const max = 15
+                      const h = Number(s.node.getAttribute('height'))
+                      const GAP = 10
+                      const rect = s.group(
+                        s.rect(
+                          GAP / 2 + 0,
+                          GAP / 2 + 0,
+                          h / 2 - GAP,
+                          h / 2 - GAP
+                        ),
+                        s.rect(
+                          GAP / 2 + h / 2,
+                          GAP / 2 + 0,
+                          h / 2 - GAP,
+                          h / 2 - GAP
+                        ),
+                        s.rect(
+                          GAP / 2 + 0,
+                          GAP / 2 + h / 2,
+                          h / 2 - GAP,
+                          h / 2 - GAP
+                        ),
+                        s.rect(
+                          GAP / 2 + h / 2,
+                          GAP / 2 + h / 2,
+                          h / 2 - GAP,
+                          h / 2 - GAP
+                        )
                       )
-                    )
-                    rect.attr({
-                      fill: 'white'
-                    })
+                      rect.attr({
+                        fill: 'white'
+                      })
 
-                    rect.addClass(
-                      'hover:fill-black transition-colors duration-500'
-                    )
-                  }}
-                />
-              </Reactive>
-              <p>A portfolio site with a simple layout.</p>
-            </div>
-          </div>
-          <div className='grow'>
-            <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
-              <h3 className='text-center'>Custom site</h3>
-              <Reactive loop={false}>
-                <Snap
-                  name='snap'
-                  viewBox={'0 -0.3 1.3 1.3'}
-                  setup={s => {
-                    const group = s.group()
-                    for (let i = 0; i < 6; i++) {
-                      group.add(
-                        s.rect(0.1, 0.8 - (i * 0.3) / 6, 0.5, 0.3).attr({
-                          transform: `rotate(${(i / 6) * 90 * -1}, ${0.0}, ${0.2})`,
-                          opacity: 0.3 + (i / 6) * 0.7
-                        })
+                      rect.addClass(
+                        'hover:fill-black transition-colors duration-500'
                       )
-                    }
-                    group.attr({ fill: 'white' })
-                  }}
-                />
-              </Reactive>
-              <p>
-                A site with custom generative visuals and an interactive
-                homepage with your story.
-              </p>
+                    }}
+                  />
+                </Reactive>
+                <p>A portfolio site with a simple layout.</p>
+              </div>
             </div>
-          </div>
+          </Link>
+          <Link href='/site-design/custom'>
+            <div className='grow'>
+              <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
+                <h3 className='text-center'>Custom</h3>
+                <Reactive loop={false}>
+                  <Snap
+                    name='snap'
+                    viewBox={'0 -0.3 1.3 1.3'}
+                    setup={s => {
+                      const group = s.group()
+                      for (let i = 0; i < 6; i++) {
+                        group.add(
+                          s.rect(0.1, 0.8 - (i * 0.3) / 6, 0.5, 0.3).attr({
+                            transform: `rotate(${(i / 6) * 90 * -1}, ${0.0}, ${0.2})`,
+                            opacity: 0.3 + (i / 6) * 0.7
+                          })
+                        )
+                      }
+                      group.attr({ fill: 'white' })
+                    }}
+                  />
+                </Reactive>
+                <p>
+                  A site with custom generative visuals and an interactive
+                  homepage with your story.
+                </p>
+              </div>
+            </div>
+          </Link>
         </div>
       </Section>
-    </div>
+    </>
   )
 }
 
@@ -316,7 +319,7 @@ const Scene1 = () => {
   )
 }
 
-const DesignScene = ({ frame }: { frame: RefObject<HTMLDivElement> }) => {
+const DesignScene = () => {
   const [shader, setShader] = useState(defaultFragColorLegacy())
 
   return (

@@ -142,10 +142,15 @@ export type ROOT_QUERYResult = null;
 // Query: *[_type == 'bio'][0] {  ...,   'bioURL': cv.asset->url}
 export type BioQueryResult = null;
 
-// Source: ../app/site-design/page.tsx
+// Source: ../app/site-design/layout.tsx
 // Variable: ServiceQuery
 // Query: *[_type == 'service' && slug.current == $service][0]{   ...,   'scenes': scenes[]{    title, subtitle,    'highlightedWorks': highlightedWorks[]->  }}
 export type ServiceQueryResult = null;
+
+// Source: ../app/site-design/banner/page.tsx
+// Variable: bannersQuery
+// Query: *[_type == 'demo' && slug.current == 'banners'][0].files[]{'source': uploadSource.asset->url}
+export type BannersQueryResult = null;
 
 // Source: ../app/work/[role]/layout.tsx
 // Variable: WorksQuery
@@ -160,8 +165,8 @@ export type RoleQueryResult = null;
 // Query: *[_type == "work" && slug.current == $slug][0]{..., 'imageBannerURL': imageBanner.asset->url, 'filePreviews': documentPreviews[]{..., 'fileSource': uploadSource.asset->}}
 export type WorkQueryResult = null;
 
-// Source: ../app/works/works/zettelkablooey/[[...path]]/(services)/data.server.ts
+// Source: ../app/works/zettelkablooey/[[...path]]/(services)/data.ts
 // Variable: demoDataQuery
-// Query: *[_type == 'demo' && slug.current == $id][0]{files}
+// Query: *[_type == 'demo' && slug.current == $id][0].files[]{'source': uploadSource.asset->url}
 export type DemoDataQueryResult = null;
 

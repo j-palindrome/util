@@ -5,20 +5,10 @@ import groq from 'groq'
 import _ from 'lodash'
 import { SanityDocument } from 'next-sanity'
 import invariant from 'tiny-invariant'
-import { BASE_FILE_URL } from '../../../../../constants/index'
 
 export type Data = {
   posts: Record<string, string[]>
 }
-
-// let data = JSON.parse(
-//   readFileSync(process.cwd() + '/public/data.json').toString('utf-8')
-// ) as Data
-
-// export function writeData(newData: Partial<Data>) {
-//   data = { ...data, ...newData }
-//   saveData()
-// }
 
 let allData: any = undefined
 const demoDataQuery = groq`*[_type == 'demo' && slug.current == $id][0].files[]{'source': uploadSource.asset->url}`
