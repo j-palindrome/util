@@ -104,7 +104,7 @@ export class Layer {
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null)
     this.gl.useProgram(this.program.program)
     if (uniforms) {
-      this.uniforms = uniforms
+      this.uniforms = { ...this.uniforms, ...uniforms }
     }
 
     if (attributes) {
