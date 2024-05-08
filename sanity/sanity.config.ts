@@ -13,7 +13,6 @@ import { schema } from './schema'
 import { locate } from './presentation/locate'
 
 const sanityConfig = defineConfig({
-  basePath: '/admin',
   projectId,
   dataset,
   // Add and edit the content schema in the './sanity/schema' folder

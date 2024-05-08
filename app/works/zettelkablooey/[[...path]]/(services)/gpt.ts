@@ -1,4 +1,4 @@
-import { readResponse } from './data.server'
+import { readResponse } from './data'
 
 /**
  * @borrows This only works inside useLoaderData
