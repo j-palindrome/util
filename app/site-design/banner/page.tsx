@@ -4,7 +4,7 @@ import groq from 'groq'
 import _ from 'lodash'
 import invariant from 'tiny-invariant'
 
-const bannersQuery = groq`*[_type == 'demo' && slug.current == 'banners'][0].files[]{'source': uploadSource.asset->{url, mimeType}}`
+const bannersQuery = groq`*[_type == 'demo' && slug.current == 'banners'][0].files[]{'source': uploadSource.asset->{url, mimeType, _id}}`
 export default async function Banner() {
   const data = await sanityFetch<BannersQueryResult>({ query: bannersQuery })
   invariant(data)
@@ -19,7 +19,7 @@ export default async function Banner() {
       </div>
       <div className='sm:grid sm:grid-cols-4 w-full grid-flow-row'>
         {data.map(({ source: asset }) => (
-          <div className='w-full aspect-square p-4'>
+          <div className='w-full aspect-square p-4' key={asset._id}>
             {asset.mimeType?.startsWith('video') ? (
               <video
                 className='w-full h-full'
