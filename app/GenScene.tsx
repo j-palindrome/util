@@ -1,4 +1,4 @@
-import { Call, Reactive, Regl } from '@animation/components.client'
+import { Call, Reactive, Regl } from '@/util/reactive/components'
 import {
   defaultFragColor,
   defaultVert2D,

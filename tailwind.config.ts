@@ -45,7 +45,8 @@ const config: Config = {
         text: '0 0 6px rgb(0, 0, 0)'
       },
       height: {
-        topbar: 'var(--topbar)'
+        topbar: 'var(--topbar)',
+        'screen-topbar': 'calc(100vh - var(--topbar))'
       }
     }
   },

@@ -9,7 +9,7 @@ import {
   Processing,
   Reactive,
   Snap
-} from '@animation/components.client'
+} from '@/util/reactive/components'
 import { shape } from '@util/geometry'
 import {
   defaultFragColor,
