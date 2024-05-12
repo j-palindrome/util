@@ -226,24 +226,20 @@ export default function Client({ title }: { title: string }) {
             <div className='grow'>
               <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
                 <h3 className='text-center'>Custom</h3>
-                <Reactive loop={false}>
-                  <Snap
-                    name='snap'
-                    viewBox={'0 -0.3 1.3 1.3'}
-                    setup={s => {
-                      const group = s.group()
-                      for (let i = 0; i < 6; i++) {
-                        group.add(
-                          s.rect(0.1, 0.8 - (i * 0.3) / 6, 0.5, 0.3).attr({
-                            transform: `rotate(${(i / 6) * 90 * -1}, ${0.0}, ${0.2})`,
-                            opacity: 0.3 + (i / 6) * 0.7
-                          })
-                        )
-                      }
-                      group.attr({ fill: 'white' })
-                    }}
-                  />
-                </Reactive>
+                <svg className='h-full w-full' viewBox='0 -0.3 1.3 1.3'>
+                  <g fill='white'>
+                    {_.range(6).map(i => (
+                      <rect
+                        x='0.1'
+                        y={0.8 - (i * 0.3) / 6}
+                        width={0.5}
+                        height={0.3}
+                        transform={`rotate(${(i / 6) * 90 * -1}, ${0.0}, ${0.2})`}
+                        opacity={0.3 + (i / 6) * 0.7}
+                      />
+                    ))}
+                  </g>
+                </svg>
                 <p>
                   A site with custom generative visuals and an interactive
                   homepage with your story.
