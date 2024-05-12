@@ -230,6 +230,7 @@ export default function Client({ title }: { title: string }) {
                   <g fill='white'>
                     {_.range(6).map(i => (
                       <rect
+                        key={i}
                         x='0.1'
                         y={0.8 - (i * 0.3) / 6}
                         width={0.5}

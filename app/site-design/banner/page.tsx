@@ -19,8 +19,8 @@ export default async function Banner() {
         </a>
       </div>
       <div className='sm:grid sm:grid-cols-4 w-full grid-flow-row'>
-        {data.map(({ source: asset }) => (
-          <Video asset={asset} />
+        {data.map(({ source: asset }, i) => (
+          <Video key={i} asset={asset} />
         ))}
       </div>
     </>
