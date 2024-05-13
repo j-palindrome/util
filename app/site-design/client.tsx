@@ -138,111 +138,110 @@ export default function Client({ title }: { title: string }) {
       </Section>
       <Section>
         <h2 className='text-h2 text-center'>Options</h2>
-        <div className='sm:flex sm:*:w-1/3 sm:*:px-2 -sm:space-y-2'>
-          <Link href='/site-design/banner'>
-            <div className='grow'>
-              <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
-                <h3 className='text-center'>Banner</h3>
-                <Reactive loop={false}>
-                  <Snap
-                    name='snap'
-                    width={100}
-                    height={100}
-                    viewBox='0 0 100 100'
-                    setup={s => {
-                      const group = s.group()
-                      for (let i = 0; i < 4; i++) {
-                        const scale = 80 - i * 10
-                        group.add(s.rect(10 + i * 5, 10 + i * 5, scale, scale))
-                      }
-                      group.attr({
-                        stroke: 'white',
-                        fill: 'transparent'
-                      })
-                    }}
-                  />
-                </Reactive>
-                <p>Integrate a background design into an existing site.</p>
-              </div>
-            </div>
-          </Link>
-          <Link href='/site-design/portfolio'>
-            <div className='grow'>
-              <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
-                <h3 className='text-center'>Portfolio</h3>
-                <Reactive loop={false}>
-                  <Snap
-                    height={100}
-                    width={100}
-                    name='snap'
-                    setup={s => {
-                      const max = 15
-                      const h = Number(s.node.getAttribute('height'))
-                      const GAP = 10
-                      const rect = s.group(
-                        s.rect(
-                          GAP / 2 + 0,
-                          GAP / 2 + 0,
-                          h / 2 - GAP,
-                          h / 2 - GAP
-                        ),
-                        s.rect(
-                          GAP / 2 + h / 2,
-                          GAP / 2 + 0,
-                          h / 2 - GAP,
-                          h / 2 - GAP
-                        ),
-                        s.rect(
-                          GAP / 2 + 0,
-                          GAP / 2 + h / 2,
-                          h / 2 - GAP,
-                          h / 2 - GAP
-                        ),
-                        s.rect(
-                          GAP / 2 + h / 2,
-                          GAP / 2 + h / 2,
-                          h / 2 - GAP,
-                          h / 2 - GAP
-                        )
-                      )
-                      rect.attr({
-                        fill: 'white'
-                      })
+        <div className='sm:flex sm:*:w-1/3 sm:*:px-2 -sm:space-y-2 -sm:*:h-fit'>
+          <Link href='/site-design/banner' className='grow block'>
+            <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
+              <h3 className='text-center h-fit'>Banner</h3>
+              <Reactive
+                loop={false}
+                className='-sm:hidden w-full aspect-square'>
+                <Snap
+                  name='snap'
+                  width={100}
+                  height={100}
+                  viewBox='0 0 100 100'
+                  setup={s => {
+                    const group = s.group()
+                    for (let i = 0; i < 4; i++) {
+                      const scale = 80 - i * 10
+                      group.add(s.rect(10 + i * 5, 10 + i * 5, scale, scale))
+                    }
+                    group.attr({
+                      stroke: 'white',
+                      fill: 'transparent'
+                    })
+                  }}
+                />
+              </Reactive>
 
-                      rect.addClass(
-                        'hover:fill-black transition-colors duration-500'
-                      )
-                    }}
-                  />
-                </Reactive>
-                <p>A portfolio site with a simple layout.</p>
-              </div>
+              <p>Integrate a background design into an existing site.</p>
             </div>
           </Link>
-          <Link href='/site-design/custom'>
-            <div className='grow'>
-              <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
-                <h3 className='text-center'>Custom</h3>
-                <svg className='h-full w-full' viewBox='0 -0.3 1.3 1.3'>
-                  <g fill='white'>
-                    {_.range(6).map(i => (
-                      <rect
-                        key={i}
-                        x='0.1'
-                        y={0.8 - (i * 0.3) / 6}
-                        width={0.5}
-                        height={0.3}
-                        transform={`rotate(${(i / 6) * 90 * -1}, ${0.0}, ${0.2})`}
-                        opacity={0.3 + (i / 6) * 0.7}
-                      />
-                    ))}
-                  </g>
-                </svg>
-                <p>
-                  A site with custom generative visuals and an interactive
-                  homepage with your story.
-                </p>
-              </div>
+          <Link href='/site-design/portfolio/home' className='grow block'>
+            <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
+              <h3 className='text-center'>Portfolio</h3>
+              <Reactive loop={false} className='-sm:hidden w-full'>
+                <Snap
+                  height={100}
+                  width={100}
+                  name='snap'
+                  setup={s => {
+                    const max = 15
+                    const h = Number(s.node.getAttribute('height'))
+                    const GAP = 10
+                    const rect = s.group(
+                      s.rect(
+                        GAP / 2 + 0,
+                        GAP / 2 + 0,
+                        h / 2 - GAP,
+                        h / 2 - GAP
+                      ),
+                      s.rect(
+                        GAP / 2 + h / 2,
+                        GAP / 2 + 0,
+                        h / 2 - GAP,
+                        h / 2 - GAP
+                      ),
+                      s.rect(
+                        GAP / 2 + 0,
+                        GAP / 2 + h / 2,
+                        h / 2 - GAP,
+                        h / 2 - GAP
+                      ),
+                      s.rect(
+                        GAP / 2 + h / 2,
+                        GAP / 2 + h / 2,
+                        h / 2 - GAP,
+                        h / 2 - GAP
+                      )
+                    )
+                    rect.attr({
+                      fill: 'white'
+                    })
+
+                    rect.addClass(
+                      'hover:fill-black transition-colors duration-500'
+                    )
+                  }}
+                />
+              </Reactive>
+              <p>A portfolio site with a simple layout.</p>
+            </div>
+          </Link>
+          <Link href='/site-design/custom' className='grow block'>
+            <div className='bg-bg2 rounded-lg px-2 pb-2 h-full hover:bg-accent2 transition-colors duration-300'>
+              <h3 className='text-center'>Custom</h3>
+              <svg
+                className='-sm:hidden h-full w-full'
+                viewBox='0 -0.3 1.3 1.3'>
+                <g fill='white'>
+                  {_.range(6).map(i => (
+                    <rect
+                      key={i}
+                      x='0.1'
+                      y={0.8 - (i * 0.3) / 6}
+                      width={0.5}
+                      height={0.3}
+                      transform={`rotate(${(i / 6) * 90 * -1}, ${0.0}, ${0.2})`}
+                      opacity={0.3 + (i / 6) * 0.7}
+                    />
+                  ))}
+                </g>
+              </svg>
+              <p>
+                A site with custom generative visuals and an interactive
+                homepage with your story.
+              </p>
             </div>
           </Link>
         </div>
@@ -258,7 +257,7 @@ const Scene1 = () => {
     <Reactive
       loop={true}
       className='h-[100vw] sm:h-[30vw] w-full sm:w-fit sm:place-self-center'>
-      <CanvasGL name='topLevel' className='h-full aspect-square'>
+      <CanvasGL name='topLevel' className='object-fill w-full h-full'>
         <Mesh
           name='square'
           vertexShader={defaultVert2D}

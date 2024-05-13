@@ -46,7 +46,8 @@ const config: Config = {
       },
       height: {
         topbar: 'var(--topbar)',
-        'screen-topbar': 'calc(100vh - var(--topbar))'
+        'screen-topbar': 'calc(100vh - var(--topbar))',
+        vmin: '100vmin'
       }
     }
   },
