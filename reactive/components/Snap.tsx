@@ -1,4 +1,4 @@
-import { FrameComponent } from 'components'
+import { FrameComponent } from '../blocks/ParentChildComponents'
 import { useRef } from 'react'
 import SnapInstance from 'snapsvg-cjs-ts'
 
@@ -35,3 +35,4 @@ const Snap = <InternalProps,>(
     </>
   )
 }
+export default Snap

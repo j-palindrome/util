@@ -1,5 +1,5 @@
-import CanvasComponent, { extractCanvasProps } from 'blocks/CanvasComponent'
-import { FrameComponent } from 'components'
+import CanvasComponent, { extractCanvasProps } from '../blocks/CanvasComponent'
+import { FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 import type p5 from 'p5'
 import { useRef } from 'react'

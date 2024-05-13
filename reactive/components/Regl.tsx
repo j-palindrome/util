@@ -1,5 +1,5 @@
-import CanvasComponent, { extractCanvasProps } from 'blocks/CanvasComponent'
-import { FrameComponent } from 'components'
+import CanvasComponent, { extractCanvasProps } from '../blocks/CanvasComponent'
+import { FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 import { useRef } from 'react'
 import regl from 'regl'
@@ -35,3 +35,5 @@ const Regl = <InternalProps,>(
     </>
   )
 }
+
+export default Regl

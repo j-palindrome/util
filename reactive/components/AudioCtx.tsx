@@ -1,4 +1,4 @@
-import { ChildComponent, FrameComponent } from 'components'
+import { ChildComponent, FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 
 const AudioCtx = <InternalProps,>(

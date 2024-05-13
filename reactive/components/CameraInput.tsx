@@ -1,4 +1,4 @@
-import { FrameComponent } from 'components'
+import { FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 import { useRef } from 'react'
 

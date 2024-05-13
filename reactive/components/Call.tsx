@@ -1,4 +1,4 @@
-import { FrameComponent } from 'components'
+import { FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 
 const Call = <InternalProps,>(props: ParentProps<{}, {}, InternalProps>) => (
@@ -10,3 +10,4 @@ const Call = <InternalProps,>(props: ParentProps<{}, {}, InternalProps>) => (
     }}
   />
 )
+export default Call

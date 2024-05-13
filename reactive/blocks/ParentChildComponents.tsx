@@ -2,7 +2,7 @@
 
 import { Children, createContext, useEffect, useRef, useState } from 'react'
 import invariant from 'tiny-invariant'
-import { useInvariantContext } from '../src/react'
+import { useInvariantContext } from '../../src/react'
 import { omit } from 'lodash'
 
 function useCreateComponent<Self, InternalProps>(

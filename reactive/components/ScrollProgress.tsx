@@ -1,4 +1,4 @@
-import { FrameComponent } from 'components'
+import { FrameComponent } from '../blocks/ParentChildComponents'
 import { useScroll } from 'framer-motion'
 import { omit } from 'lodash'
 

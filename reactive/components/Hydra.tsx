@@ -1,5 +1,5 @@
-import CanvasComponent, { extractCanvasProps } from 'blocks/CanvasComponent'
-import { FrameComponent } from 'components'
+import CanvasComponent, { extractCanvasProps } from '../blocks/CanvasComponent'
+import { FrameComponent } from '../blocks/ParentChildComponents'
 import HydraInstance, { HydraSynth } from 'hydra-synth'
 import { omit } from 'lodash'
 import { useRef } from 'react'

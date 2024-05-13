@@ -1,5 +1,5 @@
-import CanvasComponent, { extractCanvasProps } from 'blocks/CanvasComponent'
-import { ChildComponent, FrameComponent } from 'components'
+import CanvasComponent, { extractCanvasProps } from '../blocks/CanvasComponent'
+import { ChildComponent, FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 import { useRef } from 'react'
 import * as twgl from 'twgl.js'

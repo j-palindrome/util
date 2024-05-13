@@ -1,6 +1,6 @@
 import WebAudioRenderer from '@elemaudio/web-renderer'
 import { el } from '@elemaudio/core'
-import { ChildComponent } from 'components'
+import { ChildComponent } from '../blocks/ParentChildComponents'
 
 const Elementary = <InternalProps,>(
   props: ChildProps<
