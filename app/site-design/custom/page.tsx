@@ -1,19 +1,19 @@
 'use client'
 
-import _ from 'lodash'
-import { useMemo } from 'react'
+import { Reactive } from '@/util/reactive/blocks/ParentChildComponents'
+import CanvasGL, { Mesh } from '@/util/reactive/components/CanvasGL'
+import range from 'lodash/range'
 import { Num } from 'pts'
-import { CanvasGL, Mesh, Reactive } from '@/util/reactive/components'
-import { defaultVert2D } from '@/util/src/shaders/utilities'
+import { useMemo } from 'react'
 
 export default function Portfolio() {
   const random = useMemo(() => {
-    return _.range(200)
+    return range(200)
       .map(() => Num.randomPt([-1, -1], [1, 1]).toArray())
       .flat()
   }, [])
   const randomPoints = useMemo(
-    () => _.range(200).map(x => Math.random() * Math.PI * 2),
+    () => range(200).map(x => Math.random() * Math.PI * 2),
     []
   )
   return (

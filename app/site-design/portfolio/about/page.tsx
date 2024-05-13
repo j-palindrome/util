@@ -1,9 +1,10 @@
 'use client'
 
-import { Call, Reactive } from '@/util/reactive/components'
+import { Reactive } from '@/util/reactive/blocks/ParentChildComponents'
 import { generateRandomString } from '@/util/src/text'
 import range from 'lodash/range'
 import { useMemo, useState } from 'react'
+import Call from '@/util/reactive/components/Call'
 
 export default function About() {
   const randomStrings = useMemo(() => {

@@ -1,4 +1,6 @@
-import { Call, Reactive, Regl } from '@/util/reactive/components'
+import { Reactive } from '@/util/reactive/blocks/ParentChildComponents'
+import Call from '@/util/reactive/components/Call'
+import Regl from '@/util/reactive/components/Regl'
 import {
   defaultFragColor,
   defaultVert2D,

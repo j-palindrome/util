@@ -1,15 +1,8 @@
 'use client'
 
 import Section from '@/components/Section'
-import {
-  Call,
-  CanvasGL,
-  Hydra,
-  Mesh,
-  Processing,
-  Reactive,
-  Snap
-} from '@/util/reactive/components'
+import { Reactive } from '@/util/reactive/blocks/ParentChildComponents'
+import Processing from '@/util/reactive/components/Processing'
 import { shape } from '@util/geometry'
 import {
   defaultFragColor,
@@ -21,6 +14,10 @@ import type { HydraSynth } from 'hydra-synth'
 import _ from 'lodash'
 import Link from 'next/link'
 import { RefObject, useRef, useState } from 'react'
+import Snap from '../../util/reactive/components/Snap'
+import CanvasGL, { Mesh } from '@/util/reactive/components/CanvasGL'
+import Call from '@/util/reactive/components/Call'
+import Hydra from '@/util/reactive/components/Hydra'
 
 export default function Client({ title }: { title: string }) {
   return (
