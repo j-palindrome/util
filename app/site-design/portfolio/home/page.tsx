@@ -1,3 +1,4 @@
+'use client'
 import { Call, Reactive } from '@/util/reactive/components'
 
 export default function Home() {
