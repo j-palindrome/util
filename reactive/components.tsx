@@ -1,3 +1,4 @@
+'use client'
 import { el } from '@elemaudio/core'
 import WebAudioRenderer from '@elemaudio/web-renderer'
 import type HydraInstance from 'hydra-synth'
@@ -39,7 +40,10 @@ type ParentProps<Props, Self, InternalProps> = Props & {
     context: TopContextInfo<Record<string, any>>,
     internalProps: InternalProps
   ) => void
-  setup?: (self: Self, context: Omit<TopContextInfo<Record<string, any>>, 'time'>) => InternalProps
+  setup?: (
+    self: Self,
+    context: Omit<TopContextInfo<Record<string, any>>, 'time'>
+  ) => InternalProps
   deps?: DepsOptions
 }
 
@@ -51,7 +55,11 @@ type ChildProps<Props, Self, Parent, InternalProps> = Props & {
     context: TopContextInfo<Record<string, any>>,
     internalProps: InternalProps
   ) => void
-  setup?: (self: Self, parent: Parent, context: { elements: Record<string, any> }) => InternalProps
+  setup?: (
+    self: Self,
+    parent: Parent,
+    context: { elements: Record<string, any> }
+  ) => InternalProps
   deps?: DepsOptions
 }
 
@@ -89,8 +97,10 @@ function useCreateComponent<Self, InternalProps>(
 
   const propsRef = useRef<InternalProps>(null!)
 
-  const recreateDeps = Object.values(_.omit(options, 'name', 'setup', 'draw', 'children', 'deps'))
-    .map((x) => x.toString())
+  const recreateDeps = Object.values(
+    _.omit(options, 'name', 'setup', 'draw', 'children', 'deps')
+  )
+    .map(x => x.toString())
     .join(';')
 
   useEffect(() => {
@@ -98,7 +108,9 @@ function useCreateComponent<Self, InternalProps>(
 
     registerComponent(name, {
       self,
-      draw: drawSelf ? (context) => drawSelf(self, context, propsRef.current) : null,
+      draw: drawSelf
+        ? context => drawSelf(self, context, propsRef.current)
+        : null,
       update: drawSelfDeps ? false : 'always'
     })
     return () => {
@@ -141,7 +153,9 @@ function useCreateComponent<Self, InternalProps>(
   useEffect(() => {
     if (!self) return
     registerComponent(name, {
-      draw: drawSelf ? (context) => drawSelf(self, context, propsRef.current) : null
+      draw: drawSelf
+        ? context => drawSelf(self, context, propsRef.current)
+        : null
     })
   }, [drawSelf])
 
@@ -162,7 +176,10 @@ type ComponentType = {
 }
 
 const TopLevelContext = createContext<{
-  registerComponent: (name: string, component: Partial<ComponentType> | null) => void
+  registerComponent: (
+    name: string,
+    component: Partial<ComponentType> | null
+  ) => void
   elements: Record<string, any>
   allCreated: boolean
 } | null>(null)
@@ -192,16 +209,16 @@ function TopLevelComponent({
     const childMap = (child: JSX.Element | JSX.Element[] | undefined) => {
       if (!child) return
       if (child instanceof Array) {
-        child.forEach((child) => childMap(child))
+        child.forEach(child => childMap(child))
         return
       }
       if (child.props.name) {
         setupCalls.push(child.props.name)
         if (child.props.draw) drawCalls.push(child.props.name)
-        Children.forEach(child.props.children, (child) => childMap(child))
+        Children.forEach(child.props.children, child => childMap(child))
       }
     }
-    Children.forEach(children, (child) => childMap(child))
+    Children.forEach(children, child => childMap(child))
     childrenDraws.current = drawCalls
     childrenSetups.current = setupCalls
   })
@@ -211,7 +228,10 @@ function TopLevelComponent({
   const components = useRef<Record<string, ComponentType>>({})
   // when allCreated is true elements get passed down as is (just to pass selves through)
   const elements = useRef<Record<string, any>>({})
-  const registerComponent = (name: string, component: Partial<ComponentType> | null) => {
+  const registerComponent = (
+    name: string,
+    component: Partial<ComponentType> | null
+  ) => {
     if (component) {
       components.current[name] = { ...components.current[name], ...component }
       if (component.self) elements.current[name] = component.self
@@ -255,7 +275,7 @@ function TopLevelComponent({
       }
     }
     if (loop === true) {
-      const frameRequest: FrameRequestCallback = (t) => {
+      const frameRequest: FrameRequestCallback = t => {
         drawFrame({ t, dt: t - time.current })
         time.current = t
         animationFrame = requestAnimationFrame(frameRequest)
@@ -279,8 +299,7 @@ function TopLevelComponent({
         allCreated,
         registerComponent,
         elements: elements.current
-      }}
-    >
+      }}>
       <div className={`${className}`} style={style}>
         {children}
       </div>
@@ -312,8 +331,7 @@ function FrameComponent<Self, Options, InternalProps>({
     <FrameContext.Provider
       value={{
         frame: self
-      }}
-    >
+      }}>
       {self && children}
     </FrameContext.Provider>
   )
@@ -334,9 +352,12 @@ const ChildComponent = <Self, Options, Context, InternalProps>({
     options.name,
     async () => await getSelf(options, frame),
     options,
-    options.setup ? (self, context) => options.setup!(self, frame, context) : undefined,
+    options.setup
+      ? (self, context) => options.setup!(self, frame, context)
+      : undefined,
     options.draw
-      ? (self, context, internalProps) => options.draw!(self, frame, context, internalProps)
+      ? (self, context, internalProps) =>
+          options.draw!(self, frame, context, internalProps)
       : undefined,
     options.deps,
     cleanupSelf
@@ -358,63 +379,77 @@ const extractCanvasProps = (
 ): CanvasComponentProps => {
   return {
     resize: true,
-    ..._.pick(props, 'className', 'width', 'height', 'id', 'resize', 'hidden', 'webgl')
+    ..._.pick(
+      props,
+      'className',
+      'width',
+      'height',
+      'id',
+      'resize',
+      'hidden',
+      'webgl'
+    )
   }
 }
-const CanvasComponent = forwardRef<HTMLCanvasElement, CanvasComponentProps>((props, ref) => {
-  const innerRef = useRef<HTMLCanvasElement>(
-    props.hidden ? document.createElement('canvas') : null!
-  )
-  if (props.hidden) {
-    innerRef.current.height = props.height ?? 1080
-    innerRef.current.width = props.width ?? 1080
-  }
-  useImperativeHandle(ref, () => innerRef.current)
-  const resizeCanvas = () => {
-    const { width, height } = innerRef.current.getBoundingClientRect()
-    innerRef.current.width = width
-    innerRef.current.height = height
-    if (props.webgl) {
-      innerRef.current
-        .getContext('webgl2')!
-        .viewport(0, 0, innerRef.current.width, innerRef.current.height)
+const CanvasComponent = forwardRef<HTMLCanvasElement, CanvasComponentProps>(
+  (props, ref) => {
+    const innerRef = useRef<HTMLCanvasElement>(
+      props.hidden ? document.createElement('canvas') : null!
+    )
+    if (props.hidden) {
+      innerRef.current.height = props.height ?? 1080
+      innerRef.current.width = props.width ?? 1080
     }
-  }
-  useEventListener('resize', () => {
-    if (!props.resize || props.hidden) return
-    console.log('resizing')
-    resizeCanvas()
-  })
-  useEffect(() => {
-    if (!props.resize || props.hidden) return
-    resizeCanvas()
-  }, [])
+    useImperativeHandle(ref, () => innerRef.current)
+    const resizeCanvas = () => {
+      const { width, height } = innerRef.current.getBoundingClientRect()
+      innerRef.current.width = width
+      innerRef.current.height = height
+      if (props.webgl) {
+        innerRef.current
+          .getContext('webgl2')!
+          .viewport(0, 0, innerRef.current.width, innerRef.current.height)
+      }
+    }
+    useEventListener('resize', () => {
+      if (!props.resize || props.hidden) return
+      console.log('resizing')
+      resizeCanvas()
+    })
+    useEffect(() => {
+      if (!props.resize || props.hidden) return
+      resizeCanvas()
+    }, [])
 
-  return (
-    <>
-      {!props.hidden && (
-        <canvas
-          ref={innerRef}
-          className={props.className ?? undefined}
-          id={props.id}
-          height={props.height}
-          width={props.width}
-        ></canvas>
-      )}
-    </>
-  )
-})
+    return (
+      <>
+        {!props.hidden && (
+          <canvas
+            ref={innerRef}
+            className={props.className ?? undefined}
+            id={props.id}
+            height={props.height}
+            width={props.width}></canvas>
+        )}
+      </>
+    )
+  }
+)
 
 const components = {
   AudioCtx: <InternalProps,>(
-    props: ParentProps<ConstructorParameters<typeof AudioContext>[0], AudioContext, InternalProps>
+    props: ParentProps<
+      ConstructorParameters<typeof AudioContext>[0],
+      AudioContext,
+      InternalProps
+    >
   ) => (
     <FrameComponent
       options={_.omit(props, 'children')}
       children={props.children}
-      getSelf={(options?: ConstructorParameters<typeof AudioContext>[0] | undefined) =>
-        new AudioContext(options)
-      }
+      getSelf={(
+        options?: ConstructorParameters<typeof AudioContext>[0] | undefined
+      ) => new AudioContext(options)}
     />
   ),
   CanvasGL: <InternalProps,>(
@@ -433,8 +468,11 @@ const components = {
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
-          getSelf={(options) => {
-            const gl = canvasRef.current.getContext('webgl2', options.glOptions)!
+          getSelf={options => {
+            const gl = canvasRef.current.getContext(
+              'webgl2',
+              options.glOptions
+            )!
             gl.enable(gl.BLEND)
             gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
             return gl
@@ -459,7 +497,7 @@ const components = {
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
-          getSelf={(options) => {
+          getSelf={options => {
             const gl = canvasRef.current.getContext('2d', props.options)!
             return gl
           }}
@@ -487,14 +525,14 @@ const components = {
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
-          getSelf={(options) => {
+          getSelf={options => {
             const gl = canvasRef.current.getContext('webgl2')!
             return {
               gl,
               regl: regl({ gl, ...options.options })
             }
           }}
-          cleanupSelf={(self) => self.regl.destroy()}
+          cleanupSelf={self => self.regl.destroy()}
         />
       </>
     )
@@ -519,7 +557,7 @@ const components = {
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
-          getSelf={async (options) => {
+          getSelf={async options => {
             const p5 = await import('p5')
 
             return new p5.default((p: p5) => {
@@ -534,7 +572,10 @@ const components = {
                 )
               }
               p.windowResized = () => {
-                p.resizeCanvas(canvasRef.current.width, canvasRef.current.height)
+                p.resizeCanvas(
+                  canvasRef.current.width,
+                  canvasRef.current.height
+                )
               }
             })
           }}
@@ -559,7 +600,7 @@ const components = {
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
-          getSelf={async (options) => {
+          getSelf={async options => {
             const { default: HydraInstance } = await import('hydra-synth')
             const instance = new HydraInstance({
               makeGlobal: false,
@@ -576,14 +617,17 @@ const components = {
             fakeCanvas?.remove()
 
             return instance.synth
-          }}
-        ></FrameComponent>
+          }}></FrameComponent>
       </>
     )
   },
   CameraInput: <InternalProps,>(
     props: ParentProps<
-      React.PropsWithChildren & { width: number; height: number; hidden?: boolean },
+      React.PropsWithChildren & {
+        width: number
+        height: number
+        hidden?: boolean
+      },
       HTMLVideoElement,
       InternalProps
     >
@@ -594,20 +638,24 @@ const components = {
     )
     return (
       <>
-        {!props.hidden && <video ref={videoRef} height={props.height} width={props.width} />}
+        {!props.hidden && (
+          <video ref={videoRef} height={props.height} width={props.width} />
+        )}
         <FrameComponent
           options={_.omit(props, 'children')}
           children={props.children}
-          getSelf={async (options) => {
+          getSelf={async options => {
             videoRef.current.height = props.height
             videoRef.current.width = props.width
-            navigator.mediaDevices.getUserMedia({ video: true }).then((localMediaStream) => {
-              videoRef.current.srcObject = localMediaStream
-            })
+            navigator.mediaDevices
+              .getUserMedia({ video: true })
+              .then(localMediaStream => {
+                videoRef.current.srcObject = localMediaStream
+              })
             await videoRef.current.play()
             return videoRef.current
           }}
-          cleanupSelf={(self) => self.remove()}
+          cleanupSelf={self => self.remove()}
         />
       </>
     )
@@ -622,7 +670,11 @@ const components = {
     />
   ),
   ScrollProgress: <InternalProps,>(
-    props: ParentProps<Parameters<typeof useScroll>[0], ReturnType<typeof useScroll>, InternalProps>
+    props: ParentProps<
+      Parameters<typeof useScroll>[0],
+      ReturnType<typeof useScroll>,
+      InternalProps
+    >
   ) => {
     const progress = useScroll(props)
     return (
@@ -647,22 +699,23 @@ const components = {
       <>
         <div className={props.className}>
           <svg
-            preserveAspectRatio="none"
+            preserveAspectRatio='none'
             ref={frame}
-            className="h-full w-full"
+            className='h-full w-full'
             width={props.width ?? 1}
             height={props.height ?? 1}
-            viewBox={props.viewBox ?? `0 0 ${props.width ?? 1} ${props.height ?? 1}`}
-          ></svg>
+            viewBox={
+              props.viewBox ?? `0 0 ${props.width ?? 1} ${props.height ?? 1}`
+            }></svg>
         </div>
         <FrameComponent
           options={props}
-          getSelf={async (options) => {
+          getSelf={async options => {
             const { default: SnapInstance } = await import('snapsvg-cjs-ts')
             const s = SnapInstance(frame.current)
             return s
           }}
-          cleanupSelf={(s) => s.clear()}
+          cleanupSelf={s => s.clear()}
         />
       </>
     )
@@ -686,19 +739,19 @@ const components = {
         <div className={props.className}>
           <svg
             ref={frame}
-            className="h-full w-full"
+            className='h-full w-full'
             width={props.width ?? 1}
             height={props.height ?? 1}
-            viewBox={props.viewBox ?? `0 0 ${props.width ?? 1} ${props.height ?? 1}`}
-          ></svg>
+            viewBox={
+              props.viewBox ?? `0 0 ${props.width ?? 1} ${props.height ?? 1}`
+            }></svg>
         </div>
         <FrameComponent
           options={_.omit(props, 'className', 'width', 'height')}
           getSelf={() => {
             const s = new SVGSpace(frame.current)
             return s.getForm()
-          }}
-        ></FrameComponent>
+          }}></FrameComponent>
       </>
     )
   }
@@ -743,7 +796,10 @@ const childComponents = {
    */
   Plane: <InternalProps,>(
     props: ChildProps<
-      Omit<ConstructorParameters<typeof LayerInstance>[0], 'gl' | 'attributes' | 'vertexShader'>,
+      Omit<
+        ConstructorParameters<typeof LayerInstance>[0],
+        'gl' | 'attributes' | 'vertexShader'
+      >,
       LayerInstance,
       WebGL2RenderingContext,
       InternalProps
@@ -761,7 +817,10 @@ const childComponents = {
             }
           },
           uniforms: {
-            resolution: [context.drawingBufferWidth, context.drawingBufferHeight]
+            resolution: [
+              context.drawingBufferWidth,
+              context.drawingBufferHeight
+            ]
           },
           vertexShader: defaultVert2D,
           fragmentShader: `in vec2 uv;\n` + options.fragmentShader,
@@ -776,7 +835,10 @@ const childComponents = {
    */
   GLFilter: <InternalProps,>(
     props: ChildProps<
-      Omit<ConstructorParameters<typeof LayerInstance>[0], 'gl' | 'attributes' | 'vertexShader'>,
+      Omit<
+        ConstructorParameters<typeof LayerInstance>[0],
+        'gl' | 'attributes' | 'vertexShader'
+      >,
       { filter: (uniforms?: Record<string, any>) => void },
       WebGL2RenderingContext,
       InternalProps
@@ -798,20 +860,30 @@ const childComponents = {
               numComponents: 2
             }
           },
-          uniforms: { resolution: [context.drawingBufferWidth, context.drawingBufferHeight] },
+          uniforms: {
+            resolution: [
+              context.drawingBufferWidth,
+              context.drawingBufferHeight
+            ]
+          },
           vertexShader: defaultVert2D,
-          fragmentShader: `uniform sampler2D canvas;\nin vec2 uv;\n` + options.fragmentShader,
+          fragmentShader:
+            `uniform sampler2D canvas;\nin vec2 uv;\n` + options.fragmentShader,
           drawMode: 'triangle strip',
           gl: context
         })
 
         return {
-          filter: (uniforms) => {
+          filter: uniforms => {
             twgl.resizeTexture(context, texture, {
               width: context.drawingBufferWidth,
               height: context.drawingBufferHeight
             })
-            twgl.setTextureFromElement(context, texture, context.canvas as HTMLCanvasElement)
+            twgl.setTextureFromElement(
+              context,
+              texture,
+              context.canvas as HTMLCanvasElement
+            )
             layer.draw({ ...uniforms, canvas: texture })
           }
         }
