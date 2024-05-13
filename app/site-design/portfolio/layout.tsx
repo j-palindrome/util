@@ -1,6 +1,5 @@
 'use client'
 import Section from '@/components/Section'
-import _ from 'lodash'
 import Link from 'next/link'
 import { useSelectedLayoutSegment } from 'next/navigation'
 

@@ -2,13 +2,12 @@
 
 import { Call, Reactive } from '@/util/reactive/components'
 import { generateRandomString } from '@/util/src/text'
-import _ from 'lodash'
-import { useEffect, useMemo, useState } from 'react'
-import * as math from 'mathjs'
+import range from 'lodash/range'
+import { useMemo, useState } from 'react'
 
 export default function About() {
   const randomStrings = useMemo(() => {
-    return _.range(30).map((x, i) => generateRandomString(30))
+    return range(30).map((x, i) => generateRandomString(30))
   }, [])
   const [strings, setStrings] = useState(randomStrings)
 
@@ -22,22 +21,13 @@ export default function About() {
 
           const newStrings: string[] = []
           const newIndex = Math.floor(
-            math.mod(t / 500, 1) * (randomStrings.length - 1)
+            ((t / 500) % 1) * (randomStrings.length - 1)
           )
           for (let i = 0; i < strings.length; i++) {
-            // const thisLength =
-            //   (Math.sin(((t / 1000) * 2 + i / strings.length) * Math.PI * 2) +
-            //     1) /
-            //   2
             const index = (newIndex + i) % (randomStrings.length - 1)
 
             // const index = i
-            newStrings.push(
-              randomStrings[index].slice(
-                0
-                // thisLength * randomStrings[index].length
-              )
-            )
+            newStrings.push(randomStrings[index].slice(0))
           }
           setStrings(newStrings)
         }}

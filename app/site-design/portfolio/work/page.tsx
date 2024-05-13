@@ -1,8 +1,7 @@
 'use client'
 import { Call, Reactive } from '@/util/reactive/components'
-import _ from 'lodash'
+import range from 'lodash/range'
 import { useRef } from 'react'
-import * as math from 'mathjs'
 
 export default function Work() {
   const rectangles = useRef<SVGGElement>(null!)
@@ -16,7 +15,7 @@ export default function Work() {
           for (let rect of rects) {
             rect.setAttribute(
               'opacity',
-              `${((math.sin((t / 1000 + i / rects.length) * math.pi * 2) + 1) / 2 + 0.3) * 0.7}`
+              `${((Math.sin((t / 1000 + i / rects.length) * Math.PI * 2) + 1) / 2 + 0.3) * 0.7}`
             )
             i++
           }
@@ -29,7 +28,7 @@ export default function Work() {
           </text>
         </g>
         <g fill='white' ref={rectangles}>
-          {_.range(12).map(i => (
+          {range(12).map(i => (
             <rect
               key={i}
               height={0.2}

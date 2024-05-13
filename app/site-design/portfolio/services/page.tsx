@@ -1,6 +1,6 @@
 'use client'
+import { Group } from 'pts'
 import { useMemo } from 'react'
-import { Group, Pt } from 'pts'
 
 export default function Services() {
   const d = useMemo(() => {
