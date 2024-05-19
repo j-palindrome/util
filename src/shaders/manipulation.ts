@@ -1,13 +1,19 @@
 // from https://gist.github.com/yiwenl/3f804e80d0930e34a0b33359259b556c
 
+export const uvToCircle = /*glsl*/ `
+vec2 uvToCircle(vec2 uv, vec2 center, float r) {
+  float angle = uv.y * PI * 2.0;
+  float radius = uv.x;
+  return center + r * radius * vec2(sin(angle), cos(angle));
+}`
+
 export const rotate2d = /*glsl*/ `
 vec2 rotate2d(vec2 v, float a) {
 	float s = sin(a);
 	float c = cos(a);
 	mat2 m = mat2(c, s, -s, c);
 	return m * v;
-}
-`
+}`
 
 export const rotate3d = /*glsl*/ `
 mat4 rotationMatrix(vec3 axis, float angle) {

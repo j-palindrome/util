@@ -1,22 +1,60 @@
-export const positionToUv = /*glsl*/ `
-vec2 positionToUv(vec2 pos) {
-  return (pos + 1.0) * 0.5;
+export const uvToPosition = /*glsl*/ `
+vec4 uvToPosition(vec2 uv) {
+  return vec4(uv * 2.0 - 1.0, 0, 1);
+}`
+
+export const PI = /*glsl*/ `
+#define PI 3.141592653589793`
+
+export const positionToNorm = /*glsl*/ `
+vec2 positionToNorm(vec2 pos) {
+  return (pos + 1.0) / 2.0;
+}`
+
+export const normToPosition = /*glsl*/ `
+vec2 normToPosition(vec2 pos) {
+  return pos * 2.0 - 1.0;
+}`
+
+export const wrapUv = /*glsl*/ `
+vec2 wrapUv(vec2 pos) {
+  if (pos.x < 0.0) pos.x += 1.0;
+  else if (pos.x > 1.0) pos.x -= 1.0;
+  if (pos.y < 0.0) pos.y += 1.0;
+  else if (pos.y > 1.0) pos.y -= 1.0;
+  return pos;
+}
+`
+export const wrapPosition = /*glsl*/ `
+${positionToNorm}
+${normToPosition}
+vec2 wrapPosition(vec2 pos) {
+  return normToPosition(mod(positionToNorm(pos), 1.0));
 }`
 
 export const defaultVert2D = /*glsl*/ `
 uniform vec2 resolution;
 in vec2 position;
 out vec2 uv;
-${positionToUv}
+${positionToNorm}
 void main() {
   gl_Position = vec4(position.x * (resolution.y / resolution.x), position.y, 0, 1);
-  uv = positionToUv(position);
+  uv = positionToNorm(position);
+}`
+
+export const defaultVert2DNoResolution = /*glsl*/ `
+in vec2 position;
+out vec2 uv;
+${positionToNorm}
+void main() {
+  gl_Position = vec4(position.x, position.y, 0, 1);
+  uv = positionToNorm(position);
 }`
 
 export const defaultVert2DLegacy = /*glsl*/ `
 attribute vec2 position;
 varying vec2 uv;
-${positionToUv}
+${positionToNorm}
 void main() {
   gl_Position = vec4(position, 0, 1);
   uv = positionToUv(position);

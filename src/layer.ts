@@ -34,7 +34,7 @@ export class Layer {
     uniforms,
     transformFeedback
   }: {
-    attributes: twgl.Arrays
+    attributes: twgl.Arrays | (() => twgl.Arrays)
     vertexShader: string
     fragmentShader: string
     drawMode?: 'triangles' | 'points' | 'triangle strip' | 'triangle fan'
@@ -66,11 +66,12 @@ export class Layer {
         ? { transformFeedbackVaryings: transformFeedback.map((x) => x[0]) }
         : undefined
     )
-    this.bufferInfo = twgl.createBufferInfoFromArrays(gl, attributes)
+    const thisAttributes = typeof attributes === 'function' ? attributes() : attributes
+    this.bufferInfo = twgl.createBufferInfoFromArrays(gl, thisAttributes)
 
     this.vertexArray = twgl.createVertexArrayInfo(gl, this.program, this.bufferInfo)
     if (transformFeedback) {
-      const feedbackAttributes = _.cloneDeep(attributes)
+      const feedbackAttributes = _.cloneDeep(thisAttributes)
       for (let [inKey, outKey] of transformFeedback) {
         delete feedbackAttributes[outKey]['data']
         feedbackAttributes[outKey]['buffer'] = this.bufferInfo.attribs![inKey].buffer
@@ -92,10 +93,10 @@ export class Layer {
       this.vertexArray = twgl.createVertexArrayInfo(
         gl,
         this.program,
-        twgl.createBufferInfoFromArrays(gl, attributes)
+        twgl.createBufferInfoFromArrays(gl, thisAttributes)
       )
     }
-    this.attributes = attributes
+    this.attributes = thisAttributes
     this.lastDraw = 0
     this.uniforms = uniforms
   }
