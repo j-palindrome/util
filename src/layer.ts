@@ -1,6 +1,7 @@
 import * as twgl from 'twgl.js'
 import defaultVertex from './default.vert?raw'
 import _ from 'lodash'
+import glslify from 'glslify'
 
 export const generateShape = (type: 'plane') => {
   switch (type) {

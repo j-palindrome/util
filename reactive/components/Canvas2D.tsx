@@ -5,8 +5,7 @@ import { useRef } from 'react'
 
 const Canvas2D = <InternalProps,>(
   props: ParentProps<
-    React.PropsWithChildren &
-      CanvasComponentProps & { options?: CanvasRenderingContext2DSettings },
+    React.PropsWithChildren & CanvasComponentProps & { options?: CanvasRenderingContext2DSettings },
     CanvasRenderingContext2D,
     InternalProps
   >
@@ -18,7 +17,7 @@ const Canvas2D = <InternalProps,>(
       <FrameComponent
         options={omit(props, 'children')}
         children={props.children}
-        getSelf={options => {
+        getSelf={(options) => {
           const gl = canvasRef.current.getContext('2d', props.options)!
           return gl
         }}
@@ -26,3 +25,4 @@ const Canvas2D = <InternalProps,>(
     </>
   )
 }
+export default Canvas2D
