@@ -17,7 +17,9 @@ const Elementary = <InternalProps,>(
       let node = await core.initialize(context, options)
       return { node, core, el }
     }}
-  />
+  >
+    {props.children}
+  </ChildComponent>
 )
 
 export default Elementary

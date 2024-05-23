@@ -14,24 +14,25 @@ const Snap = <InternalProps,>(
     <>
       <div className={props.className}>
         <svg
-          preserveAspectRatio='none'
+          preserveAspectRatio="none"
           ref={frame}
-          className='h-full w-full'
+          className="h-full w-full"
           width={props.width ?? 1}
           height={props.height ?? 1}
-          viewBox={
-            props.viewBox ?? `0 0 ${props.width ?? 1} ${props.height ?? 1}`
-          }></svg>
+          viewBox={props.viewBox ?? `0 0 ${props.width ?? 1} ${props.height ?? 1}`}
+        ></svg>
       </div>
       <FrameComponent
         options={props}
-        getSelf={async options => {
+        getSelf={async (options) => {
           const { default: SnapInstance } = await import('snapsvg-cjs-ts')
           const s = SnapInstance(frame.current)
           return s
         }}
-        cleanupSelf={s => s.clear()}
-      />
+        cleanupSelf={(s) => s.clear()}
+      >
+        {props.children}
+      </FrameComponent>
     </>
   )
 }

@@ -21,14 +21,15 @@ const CanvasGL = <InternalProps,>(
       <CanvasComponent ref={canvasRef} {...extractCanvasProps(props)} webgl />
       <FrameComponent
         options={omit(props, 'children')}
-        children={props.children}
         getSelf={(options) => {
           const gl = canvasRef.current.getContext('webgl2', options.glOptions)!
           gl.enable(gl.BLEND)
           gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
           return gl
         }}
-      />
+      >
+        {props.children}
+      </FrameComponent>
     </>
   )
 }
@@ -52,12 +53,36 @@ export const Framebuffer = <InternalProps,>(
       const framebuffer = twgl.createFramebufferInfo(
         context,
         options.attachments ?? [{}],
-        options.width,
-        options.height
+        options.width ?? context.drawingBufferWidth,
+        options.height ?? context.drawingBufferHeight
       )
       return framebuffer
     }}
-  />
+  >
+    {props.children}
+  </ChildComponent>
+)
+
+export const Texture = <InternalProps,>(
+  props: ChildProps<
+    Parameters<(typeof twgl)['createTexture']>[1],
+    WebGLTexture,
+    WebGL2RenderingContext,
+    InternalProps
+  >
+) => (
+  <ChildComponent
+    options={props}
+    getSelf={(options, context) => {
+      const texture = twgl.createTexture(context, {
+        width: options.width ?? context.drawingBufferWidth,
+        height: options.height ?? context.drawingBufferHeight
+      })
+      return texture
+    }}
+  >
+    {props.children}
+  </ChildComponent>
 )
 
 export const Mesh = <InternalProps,>(
@@ -74,7 +99,9 @@ export const Mesh = <InternalProps,>(
       getSelf={async (options, context) => {
         return new LayerInstance({ ...options, gl: context })
       }}
-    />
+    >
+      {props.children}
+    </ChildComponent>
   )
 }
 
@@ -125,7 +152,9 @@ export const Plane = <InternalProps,>(
         gl: context
       })
     }}
-  />
+  >
+    {props.children}
+  </ChildComponent>
 )
 // /**
 //  * Returns a Layer alowing a fragment shader from a `sampler2D canvas` which is set to the canvas on each draw call.

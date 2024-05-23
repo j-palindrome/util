@@ -23,8 +23,7 @@ const Processing = <InternalProps,>(
       />
       <FrameComponent
         options={omit(props, 'children')}
-        children={props.children}
-        getSelf={async options => {
+        getSelf={async (options) => {
           const p5 = await import('p5')
 
           return new p5.default((p: p5) => {
@@ -43,7 +42,9 @@ const Processing = <InternalProps,>(
             }
           })
         }}
-      />
+      >
+        {props.children}
+      </FrameComponent>
     </>
   )
 }

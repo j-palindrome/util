@@ -37,10 +37,8 @@ function useCreateComponent<Self, InternalProps>(
 
   const propsRef = useRef<InternalProps>(null!)
 
-  const recreateDeps = Object.values(
-    omit(options, 'name', 'setup', 'draw', 'children', 'deps')
-  )
-    .map(x => x.toString())
+  const recreateDeps = Object.values(omit(options, 'name', 'setup', 'draw', 'children', 'deps'))
+    .map((x) => x.toString())
     .join(';')
 
   useEffect(() => {
@@ -48,9 +46,7 @@ function useCreateComponent<Self, InternalProps>(
 
     registerComponent(name, {
       self,
-      draw: drawSelf
-        ? context => drawSelf(self, context, propsRef.current)
-        : null,
+      draw: drawSelf ? (context) => drawSelf(self, context, propsRef.current) : null,
       update: drawSelfDeps ? false : 'always'
     })
     return () => {
@@ -93,9 +89,7 @@ function useCreateComponent<Self, InternalProps>(
   useEffect(() => {
     if (!self) return
     registerComponent(name, {
-      draw: drawSelf
-        ? context => drawSelf(self, context, propsRef.current)
-        : null
+      draw: drawSelf ? (context) => drawSelf(self, context, propsRef.current) : null
     })
   }, [drawSelf])
 
@@ -110,10 +104,7 @@ function useCreateComponent<Self, InternalProps>(
 }
 
 const TopLevelContext = createContext<{
-  registerComponent: (
-    name: string,
-    component: Partial<ComponentType> | null
-  ) => void
+  registerComponent: (name: string, component: Partial<ComponentType> | null) => void
   elements: Record<string, any>
   allCreated: boolean
 } | null>(null)
@@ -143,16 +134,16 @@ function TopLevelComponent({
     const childMap = (child: JSX.Element | JSX.Element[] | undefined) => {
       if (!child) return
       if (child instanceof Array) {
-        child.forEach(child => childMap(child))
+        child.forEach((child) => childMap(child))
         return
       }
       if (child.props.name) {
         setupCalls.push(child.props.name)
         if (child.props.draw) drawCalls.push(child.props.name)
-        Children.forEach(child.props.children, child => childMap(child))
+        Children.forEach(child.props.children, (child) => childMap(child))
       }
     }
-    Children.forEach(children, child => childMap(child))
+    Children.forEach(children, (child) => childMap(child))
     childrenDraws.current = drawCalls
     childrenSetups.current = setupCalls
   })
@@ -162,10 +153,7 @@ function TopLevelComponent({
   const components = useRef<Record<string, ComponentType>>({})
   // when allCreated is true elements get passed down as is (just to pass selves through)
   const elements = useRef<Record<string, any>>({})
-  const registerComponent = (
-    name: string,
-    component: Partial<ComponentType> | null
-  ) => {
+  const registerComponent = (name: string, component: Partial<ComponentType> | null) => {
     if (component) {
       components.current[name] = { ...components.current[name], ...component }
       if (component.self) elements.current[name] = component.self
@@ -209,7 +197,7 @@ function TopLevelComponent({
       }
     }
     if (loop === true) {
-      const frameRequest: FrameRequestCallback = t => {
+      const frameRequest: FrameRequestCallback = (t) => {
         drawFrame({ t, dt: t - time.current })
         time.current = t
         animationFrame = requestAnimationFrame(frameRequest)
@@ -233,7 +221,8 @@ function TopLevelComponent({
         allCreated,
         registerComponent,
         elements: elements.current
-      }}>
+      }}
+    >
       <div className={`${className}`} style={style}>
         {children}
       </div>
@@ -249,8 +238,7 @@ export function FrameComponent<Self, Options, InternalProps>({
 }: { options: ParentProps<Options, Self, InternalProps> } & {
   getSelf: (options: Options) => Self | Promise<Self>
   cleanupSelf?: (self: Self) => void
-  children?: ParentProps<Options, Self, InternalProps>['children']
-}) {
+} & React.PropsWithChildren) {
   const { self } = useCreateComponent(
     options.name,
     async () => await getSelf(options),
@@ -265,38 +253,59 @@ export function FrameComponent<Self, Options, InternalProps>({
     <FrameContext.Provider
       value={{
         frame: self
-      }}>
+      }}
+    >
       {self && children}
     </FrameContext.Provider>
   )
 }
 
-export const ChildComponent = <Self, Options, Context, InternalProps>({
+export const defineFrameComponent = <Self, Options, InternalProps>(
+  getSelf: (options: Options) => Self,
+  cleanupSelf?: (self: Self) => void
+) => {
+  return (options: ParentProps<Options, Self, InternalProps>) => (
+    <FrameComponent options={options} getSelf={getSelf} cleanupSelf={cleanupSelf}>
+      {options.children}
+    </FrameComponent>
+  )
+}
+
+export function ChildComponent<Self, Options, Context, InternalProps>({
   options,
   getSelf,
-  cleanupSelf
+  cleanupSelf,
+  children
 }: {
   options: ChildProps<Options, Self, Context, InternalProps>
 } & {
   getSelf: (options: Options, context: Context) => Self | Promise<Self>
   cleanupSelf?: (self: Self) => void
-}) => {
+} & React.PropsWithChildren) {
   const { frame } = useInvariantContext(FrameContext)
-  useCreateComponent(
+  const { self } = useCreateComponent(
     options.name,
     async () => await getSelf(options, frame),
     options,
-    options.setup
-      ? (self, context) => options.setup!(self, frame, context)
-      : undefined,
+    options.setup ? (self, context) => options.setup!(self, frame, context) : undefined,
     options.draw
-      ? (self, context, internalProps) =>
-          options.draw!(self, frame, context, internalProps)
+      ? (self, context, internalProps) => options.draw!(self, frame, context, internalProps)
       : undefined,
     options.deps,
     cleanupSelf
   )
-  return <></>
+  return <>{self && children}</>
+}
+
+export const defineChildComponent = <Self, Options, Parent, InternalProps>(
+  getSelf: (options: Options, context: Parent) => Self,
+  cleanupSelf?: (self: Self) => void
+) => {
+  return (options: ChildProps<Options, Self, Parent, InternalProps>) => (
+    <ChildComponent options={options} getSelf={getSelf} cleanupSelf={cleanupSelf}>
+      {options.children}
+    </ChildComponent>
+  )
 }
 
 export const Reactive = TopLevelComponent

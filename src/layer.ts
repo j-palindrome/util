@@ -33,7 +33,7 @@ export class Layer {
     uniforms,
     transformFeedback
   }: {
-    attributes: twgl.Arrays | (() => twgl.Arrays)
+    attributes: twgl.Arrays | ((time: number) => twgl.Arrays)
     vertexShader: string
     fragmentShader: string
     drawMode?: 'triangles' | 'points' | 'triangle strip' | 'triangle fan'
@@ -46,8 +46,7 @@ export class Layer {
     if (useDefaults) {
       vertexShader = `#version 300 es\nprecision highp float;\n` + vertexShader
       fragmentShader =
-        `#version 300 es\nprecision highp float;\nout vec4 fragColor;\n` +
-        fragmentShader
+        `#version 300 es\nprecision highp float;\nout vec4 fragColor;\n` + fragmentShader
     }
 
     this.gl = gl
@@ -63,47 +62,29 @@ export class Layer {
       gl,
       [vertexShader, fragmentShader],
       transformFeedback
-        ? { transformFeedbackVaryings: transformFeedback.map(x => x[0]) }
+        ? { transformFeedbackVaryings: transformFeedback.map((x) => x[0]) }
         : undefined
     )
-    const thisAttributes =
-      typeof attributes === 'function' ? attributes() : attributes
+    const thisAttributes = typeof attributes === 'function' ? attributes(0) : attributes
     this.bufferInfo = twgl.createBufferInfoFromArrays(gl, thisAttributes)
 
-    this.vertexArray = twgl.createVertexArrayInfo(
-      gl,
-      this.program,
-      this.bufferInfo
-    )
+    this.vertexArray = twgl.createVertexArrayInfo(gl, this.program, this.bufferInfo)
     if (transformFeedback) {
       const feedbackAttributes = _.cloneDeep(thisAttributes)
       for (let [inKey, outKey] of transformFeedback) {
         delete feedbackAttributes[outKey]['data']
-        feedbackAttributes[outKey]['buffer'] =
-          this.bufferInfo.attribs![inKey].buffer
-        feedbackAttributes[inKey]['buffer'] =
-          this.bufferInfo.attribs![outKey].buffer
+        feedbackAttributes[outKey]['buffer'] = this.bufferInfo.attribs![inKey].buffer
+        feedbackAttributes[inKey]['buffer'] = this.bufferInfo.attribs![outKey].buffer
       }
 
-      const feedbackBufferInfo = twgl.createBufferInfoFromArrays(
-        gl,
-        feedbackAttributes
-      )
-      const feedbackVertexArray = twgl.createVertexArrayInfo(
-        gl,
-        this.program,
-        feedbackBufferInfo
-      )
+      const feedbackBufferInfo = twgl.createBufferInfoFromArrays(gl, feedbackAttributes)
+      const feedbackVertexArray = twgl.createVertexArrayInfo(gl, this.program, feedbackBufferInfo)
 
       this.transformFeedback = {
         feedbackVertexArray,
         feedbackObjects: [
           twgl.createTransformFeedback(this.gl, this.program, this.bufferInfo),
-          twgl.createTransformFeedback(
-            this.gl,
-            this.program,
-            feedbackBufferInfo
-          )
+          twgl.createTransformFeedback(this.gl, this.program, feedbackBufferInfo)
         ],
         feedbackToggle: false
       }
@@ -125,7 +106,6 @@ export class Layer {
     if (uniforms) {
       this.uniforms = { ...this.uniforms, ...uniforms }
     }
-
     if (attributes) {
       this.attributes = { ...this.attributes, ...attributes }
       this.vertexArray = twgl.createVertexArrayInfo(
@@ -146,9 +126,7 @@ export class Layer {
     }
     if (this.transformFeedback) {
       const feedback =
-        this.transformFeedback.feedbackObjects[
-          this.transformFeedback.feedbackToggle ? 1 : 0
-        ]
+        this.transformFeedback.feedbackObjects[this.transformFeedback.feedbackToggle ? 1 : 0]
       const vertexArray = this.transformFeedback.feedbackToggle
         ? this.transformFeedback.feedbackVertexArray
         : this.vertexArray
@@ -163,8 +141,7 @@ export class Layer {
       this.gl.endTransformFeedback()
       this.gl.bindTransformFeedback(this.gl.TRANSFORM_FEEDBACK, null)
 
-      this.transformFeedback.feedbackToggle =
-        !this.transformFeedback.feedbackToggle
+      this.transformFeedback.feedbackToggle = !this.transformFeedback.feedbackToggle
     } else {
       twgl.setBuffersAndAttributes(this.gl, this.program, this.vertexArray)
       twgl.drawBufferInfo(this.gl, this.vertexArray, this.drawMode)

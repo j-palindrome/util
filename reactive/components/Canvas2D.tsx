@@ -16,12 +16,13 @@ const Canvas2D = <InternalProps,>(
       <CanvasComponent ref={canvasRef} {...extractCanvasProps(props)} />
       <FrameComponent
         options={omit(props, 'children')}
-        children={props.children}
         getSelf={(options) => {
           const gl = canvasRef.current.getContext('2d', props.options)!
           return gl
         }}
-      />
+      >
+        {props.children}
+      </FrameComponent>
     </>
   )
 }

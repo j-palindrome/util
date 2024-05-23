@@ -1,5 +1,8 @@
 export const rad = (progress: number) => progress * Math.PI * 2
 
+export const sine = (t: number, freq: number = 1, amp: number = 1) =>
+  Math.sin(t * Math.PI * 2 * freq) * amp
+
 export const scale = <T extends number | number[]>(
   input: T,
   low: number,
@@ -7,7 +10,7 @@ export const scale = <T extends number | number[]>(
   lowOut: number,
   highOut: number,
   exp: number = 1,
-  clamp = true,
+  clamp = true
 ): T => {
   const scaleNumber = (input: number) => {
     if (high === low) return lowOut

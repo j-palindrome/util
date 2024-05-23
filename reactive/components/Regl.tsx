@@ -22,16 +22,17 @@ const Regl = <InternalProps,>(
       />
       <FrameComponent
         options={omit(props, 'children')}
-        children={props.children}
-        getSelf={options => {
+        getSelf={(options) => {
           const gl = canvasRef.current.getContext('webgl2')!
           return {
             gl,
             regl: regl({ gl, ...options.options })
           }
         }}
-        cleanupSelf={self => self.regl.destroy()}
-      />
+        cleanupSelf={(self) => self.regl.destroy()}
+      >
+        {props.children}
+      </FrameComponent>
     </>
   )
 }

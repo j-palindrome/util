@@ -20,8 +20,7 @@ const Hydra = <InternalProps,>(
       <CanvasComponent ref={canvasRef} {...extractCanvasProps(props)} webgl />
       <FrameComponent
         options={omit(props, 'children')}
-        children={props.children}
-        getSelf={async options => {
+        getSelf={async (options) => {
           const { default: HydraInstance } = await import('hydra-synth')
           const instance = new HydraInstance({
             makeGlobal: false,
@@ -38,7 +37,10 @@ const Hydra = <InternalProps,>(
           fakeCanvas?.remove()
 
           return instance.synth
-        }}></FrameComponent>
+        }}
+      >
+        {props.children}
+      </FrameComponent>
     </>
   )
 }

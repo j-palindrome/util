@@ -7,6 +7,8 @@ const Call = <InternalProps, K>(props: ParentProps<{ options: K }, K, InternalPr
     getSelf={(options) => {
       return options as K
     }}
-  />
+  >
+    {props.children}
+  </FrameComponent>
 )
 export default Call

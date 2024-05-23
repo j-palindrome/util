@@ -6,18 +6,14 @@ type AllowedChildren = JSX.Element | (JSX.Element | JSX.Element[])[]
 type DepsOptions = any[] | number | (() => number)
 type ParentProps<Props, Self, InternalProps> = Props & {
   name: string
-  children?: AllowedChildren
   draw?: (
     self: Self,
     context: TopContextInfo<Record<string, any>>,
     internalProps: InternalProps
   ) => void
-  setup?: (
-    self: Self,
-    context: Omit<TopContextInfo<Record<string, any>>, 'time'>
-  ) => InternalProps
+  setup?: (self: Self, context: Omit<TopContextInfo<Record<string, any>>, 'time'>) => InternalProps
   deps?: DepsOptions
-}
+} & React.PropsWithChildren
 
 type ChildProps<Props, Self, Parent, InternalProps> = Props & {
   name: string
@@ -27,13 +23,9 @@ type ChildProps<Props, Self, Parent, InternalProps> = Props & {
     context: TopContextInfo<Record<string, any>>,
     internalProps: InternalProps
   ) => void
-  setup?: (
-    self: Self,
-    parent: Parent,
-    context: { elements: Record<string, any> }
-  ) => InternalProps
+  setup?: (self: Self, parent: Parent, context: { elements: Record<string, any> }) => InternalProps
   deps?: DepsOptions
-}
+} & React.PropsWithChildren
 
 type Time = { t: number; dt: number }
 
