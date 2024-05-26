@@ -1,10 +1,22 @@
 import _ from 'lodash'
+import { rotate2d } from './shaders/manipulation'
+import { rad } from './math'
+import { PI } from './shaders/utilities'
 
 // B(t) = (1 - t)^2 * (P0 - P1) + t^2 * (P2 - P1) for 0 <= t <= 1
 export const quadraticBezier = /*glsl*/ `
 vec2 quadraticBezier(float t, vec2 p0, vec2 p1, vec2 p2) {
   return pow(1.0 - t, 2.0) * (p0 - p1) + pow(t, 2.0) * (p2 - p1);
 }`
+
+export const cubicBezierTangent = /*glsl*/ `
+${rotate2d}
+${PI}
+vec2 cubicBezierTangent(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
+  vec2 normal = pow(1.0 - t, 2.0) * (p1 - p0) + 2.0 * t * (1.0 - t) * (p2 - p1) + pow(t, 2.0) * (p3 - p2);
+  return normalize(rotate2d(normal, PI * 0.5));
+}
+`
 
 export const cubicBezier = /*glsl*/ `
 vec2 cubicBezier(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
