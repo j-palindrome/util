@@ -9,13 +9,19 @@ vec2 quadraticBezier(float t, vec2 p0, vec2 p1, vec2 p2) {
   return pow(1.0 - t, 2.0) * (p0 - p1) + pow(t, 2.0) * (p2 - p1);
 }`
 
-export const cubicBezierTangent = /*glsl*/ `
+export const cubicBezierNormal = /*glsl*/ `
 ${rotate2d}
-vec2 cubicBezierTangent(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
+vec2 cubicBezierNormal(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
   vec2 normal = pow(1.0 - t, 2.0) * (p1 - p0) + 2.0 * t * (1.0 - t) * (p2 - p1) + pow(t, 2.0) * (p3 - p2);
   return normalize(rotate2d(normal, 3.141592653589793 * 0.5));
-}
-`
+}`
+
+// export const cubicBezierCurvature = /*glsl*/ `
+// vec2 cubicBezierCurvature(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
+//   vec2 curvature = 2.0 * (1.0 - t) * (p0 - p1) + 2.0 * (t - 1.0) * (p1 - p2) + 2.0 * t * (p1 - p2) - 2.0 * t * (p2 - p3);
+//   return curvature;
+// }
+// `
 
 export const cubicBezier = /*glsl*/ `
 vec2 cubicBezier(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
