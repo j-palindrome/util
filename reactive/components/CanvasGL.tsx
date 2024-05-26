@@ -4,7 +4,7 @@ import {
   FrameComponent,
   defineChildComponent
 } from '../blocks/ParentChildComponents'
-import _, { omit, range } from 'lodash'
+import _, { omit, range, sumBy } from 'lodash'
 import { useRef } from 'react'
 import * as twgl from 'twgl.js'
 import { Layer as LayerInstance, assembleAttributes } from '../../src/layer'
@@ -203,6 +203,7 @@ export const AttribCurve = defineChildComponent(
     gl: WebGL2RenderingContext
   ) => {
     const generateAttributes = (curves: Curves) => {
+      // 40.3 ms
       let startIndex = 0
       let indexIndex = 0
       const vertexNumber = _.sumBy(curves, (x) => (x.length - 1) * options.subdivisions * 2)
@@ -219,10 +220,18 @@ export const AttribCurve = defineChildComponent(
         direction: { numComponents: 1, data: new Float32Array(vertexNumber) },
         t: { numComponents: 1, data: new Float32Array(vertexNumber) },
         indices: {
-          data: new Uint8Array(vertexNumber * 3)
+          data: new Uint32Array(sumBy(curves, (x) => (x.length - 1) * options.subdivisions - 2) * 6)
         }
       }
       for (let index = 0; index < curves.length; index++) {
+        for (
+          let i = startIndex;
+          i < (curves[index].length - 1) * options.subdivisions + startIndex - 2;
+          i += 2
+        ) {
+          attributes.indices.data.set([i, i + 1, i + 2, i + 1, i + 2, i + 3], indexIndex)
+          indexIndex += 6
+        }
         for (let i = 0; i < curves[index].length - 1; i++) {
           const thisPoint = curves[index][i]
           const nextPoint = curves[index][i + 1]
@@ -236,18 +245,6 @@ export const AttribCurve = defineChildComponent(
           }
           for (let t = 0; t < options.subdivisions; t++) {
             const thisT = t / options.subdivisions
-            attributes.indices.data.set(
-              [
-                startIndex,
-                startIndex + 1,
-                startIndex + 2,
-                startIndex + 1,
-                startIndex + 2,
-                startIndex + 3
-              ],
-              indexIndex
-            )
-            indexIndex += 6
             attributes.t.data.set([thisT, thisT], startIndex)
             attributes.thisControl.data.set(
               [...fullPoint.thisControl, ...fullPoint.thisControl],
@@ -266,9 +263,53 @@ export const AttribCurve = defineChildComponent(
           }
         }
       }
-      console.log(attributes, startIndex, vertexNumber)
-
       return attributes
+      // 257.5 ms
+      // let startIndex = 0
+      // const indices: number[] = []
+      // const attributes = assembleAttributes(
+      //   {
+      //     p0: {
+      //       numComponents: 2
+      //     },
+      //     thisControl: { numComponents: 2 },
+      //     nextControl: { numComponents: 2 },
+      //     p3: { numComponents: 2 },
+      //     w0: { numComponents: 1 },
+      //     w1: { numComponents: 1 },
+      //     direction: { numComponents: 1 },
+      //     t: { numComponents: 1 },
+      //     indices: {}
+      //   },
+      //   range(curves.length).flatMap((index) => {
+      //     for (
+      //       let i = startIndex;
+      //       i < (curves[index].length - 1) * options.subdivisions + startIndex - 2;
+      //       i += 2
+      //     ) {
+      //       indices.push(i, i + 1, i + 2, i + 1, i + 2, i + 3)
+      //     }
+      //     return range(curves[index].length - 1).flatMap((i) => {
+      //       const thisPoint = curves[index][i]
+      //       const nextPoint = curves[index][i + 1]
+      //       const fullPoint = {
+      //         thisControl: thisPoint.direction,
+      //         nextControl: nextPoint.direction,
+      //         p0: thisPoint.start,
+      //         p3: nextPoint.start,
+      //         w0: thisPoint.width,
+      //         w1: nextPoint.width
+      //       }
+      //       return range(options.subdivisions).flatMap((t) => {
+      //         return [
+      //           { ...fullPoint, t: t / options.subdivisions, direction: 1 },
+      //           { ...fullPoint, t: t / options.subdivisions, direction: 0 }
+      //         ]
+      //       })
+      //     })
+      //   })
+      // )
+      // attributes.indices = indices
     }
 
     const curve = new LayerInstance({
@@ -312,8 +353,8 @@ export const AttribCurve = defineChildComponent(
           float width = w0 + (w1 - w0) * t;
           
           float miter = length(cross(vec3(normal, 0.0), vec3(nextNormal, 0.0)));
-          gl_Position = vec4(pos + normal * direction * width, 0, 1);
-          // gl_Position = vec4(pos + normal * direction * width * (1.0 - miter), 0, 1);
+          // gl_Position = vec4(pos + normal * direction * width, 0, 1);
+          gl_Position = vec4(pos + normal * direction * width * (1.0 - miter), 0, 1);
         }
       `,
       fragmentShader: options.fragmentShader
