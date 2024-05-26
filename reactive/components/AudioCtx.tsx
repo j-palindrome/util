@@ -1,8 +1,8 @@
 import { ChildComponent, FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 
-const AudioCtx = <InternalProps,>(
-  props: ParentProps<ConstructorParameters<typeof AudioContext>[0], AudioContext, InternalProps>
+const AudioCtx = (
+  props: ParentProps<ConstructorParameters<typeof AudioContext>[0], AudioContext>
 ) => (
   <FrameComponent
     options={omit(props, 'children')}
@@ -16,7 +16,7 @@ const AudioCtx = <InternalProps,>(
 
 export default AudioCtx
 
-export const MicInput = <InternalProps,>(
+export const MicInput = (
   props: ChildProps<
     {},
     {
@@ -24,8 +24,7 @@ export const MicInput = <InternalProps,>(
       gain: GainNode
       compressor: DynamicsCompressorNode
     },
-    AudioContext,
-    InternalProps
+    AudioContext
   >
 ) => (
   <ChildComponent
@@ -45,7 +44,7 @@ export const MicInput = <InternalProps,>(
     {props.children}
   </ChildComponent>
 )
-export const BufferSource = <InternalProps,>(
+export const BufferSource = (
   props: ChildProps<
     {
       source?: AudioBufferSourceOptions
@@ -54,8 +53,7 @@ export const BufferSource = <InternalProps,>(
       data?: number[][]
     },
     { source: AudioBufferSourceNode; buffer: AudioBuffer },
-    AudioContext,
-    InternalProps
+    AudioContext
   >
 ) => (
   <ChildComponent

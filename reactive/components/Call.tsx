@@ -1,7 +1,7 @@
 import { FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 
-const Call = <InternalProps, K>(props: ParentProps<{ options: K }, K, InternalProps>) => (
+const Call = <K,>(props: ParentProps<{ options: K }, K>) => (
   <FrameComponent
     options={omit(props, 'children')}
     getSelf={(options) => {

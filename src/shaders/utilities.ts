@@ -1,3 +1,11 @@
+export const toES300 = (shader: string) => {
+  return shader
+    .replace(/^ *precision.*/gm, '')
+    .replace(/varying/g, 'in')
+    .replace(/gl_FragColor/g, 'fragColor')
+    .replace(/texture2D/g, 'texture')
+}
+
 export const uvToPosition = /*glsl*/ `
 vec4 uvToPosition(vec2 uv) {
   return vec4(uv * 2.0 - 1.0, 0, 1);
@@ -47,8 +55,8 @@ in vec2 position;
 out vec2 uv;
 ${positionToNorm}
 void main() {
-  gl_Position = vec4(position.x, position.y, 0, 1);
   uv = positionToNorm(position);
+  gl_Position = vec4(position.x, position.y, 0, 1);
 }`
 
 export const defaultVert2DLegacy = /*glsl*/ `
@@ -68,6 +76,12 @@ void main() {
 export const defaultFragColorLegacy = (r = 1, g = 1, b = 1, a = 1) => /*glsl*/ `
 void main() {
   gl_FragColor = vec4(${r}, ${g}, ${b}, ${a});
+}`
+
+export const defaultFragSource = (name: string) => /*glsl*/ `
+uniform sampler2D ${name};
+void main() {
+  fragColor = texture(${name}, uv);
 }`
 
 export const glslEs300 = /*glsl*/ `#version 300 es

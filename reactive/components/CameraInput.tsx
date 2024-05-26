@@ -2,15 +2,14 @@ import { FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 import { useRef } from 'react'
 
-const CameraInput = <InternalProps,>(
+const CameraInput = (
   props: ParentProps<
     React.PropsWithChildren & {
       width: number
       height: number
       hidden?: boolean
     },
-    HTMLVideoElement,
-    InternalProps
+    HTMLVideoElement
   >
 ) => {
   props = { hidden: true, ...props }

@@ -2,12 +2,11 @@ import WebAudioRenderer from '@elemaudio/web-renderer'
 import { el } from '@elemaudio/core'
 import { ChildComponent } from '../blocks/ParentChildComponents'
 
-const Elementary = <InternalProps,>(
+const Elementary = (
   props: ChildProps<
     Parameters<WebAudioRenderer['initialize']>[1],
     { node: AudioWorkletNode; core: WebAudioRenderer; el: typeof el },
-    AudioContext,
-    InternalProps
+    AudioContext
   >
 ) => (
   <ChildComponent

@@ -1,5 +1,10 @@
 // from https://gist.github.com/yiwenl/3f804e80d0930e34a0b33359259b556c
 
+export const flipY = /*glsl*/ `
+vec2 flipY(vec2 uv) {
+  return vec2(uv.x, 1.0 - uv.y);
+}`
+
 export const uvToCircle = /*glsl*/ `
 vec2 uvToCircle(vec2 uv, vec2 center, float r) {
   float angle = uv.y * PI * 2.0;

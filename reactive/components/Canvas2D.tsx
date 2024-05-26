@@ -3,11 +3,10 @@ import { FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 import { useRef } from 'react'
 
-const Canvas2D = <InternalProps,>(
+const Canvas2D = (
   props: ParentProps<
     React.PropsWithChildren & CanvasComponentProps & { options?: CanvasRenderingContext2DSettings },
-    CanvasRenderingContext2D,
-    InternalProps
+    CanvasRenderingContext2D
   >
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null!)

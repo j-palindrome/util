@@ -1,3 +1,9 @@
+export const clock = (value: number, max: number, min: number = 0) => {
+  if (value < min) value += max - min
+  else if (value > max) value -= max - min
+  return value
+}
+
 export const rad = (progress: number) => progress * Math.PI * 2
 
 export const sine = (t: number, freq: number = 1, amp: number = 1) =>

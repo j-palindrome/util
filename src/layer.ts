@@ -7,6 +7,19 @@ export const generateShape = (type: 'plane') => {
       return [-1, 1, -1, -1, 1, 1, 1, 1, -1, -1, 1, -1]
   }
 }
+export function assembleAttributes<K extends string[]>(
+  template: Record<K[number], twgl.FullArraySpec>,
+  attribs: Record<K[number], number | number[]>[]
+) {
+  const newTemplate: twgl.Arrays = {}
+  for (let key of Object.keys(template)) {
+    newTemplate[key] = {
+      ...(template[key] as twgl.FullArraySpec),
+      data: attribs.map((x) => x[key]).flat()
+    }
+  }
+  return newTemplate
+}
 export class Layer {
   gl: WebGL2RenderingContext
   program: twgl.ProgramInfo

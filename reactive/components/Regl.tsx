@@ -3,13 +3,12 @@ import { FrameComponent } from '../blocks/ParentChildComponents'
 import { omit } from 'lodash'
 import { useRef } from 'react'
 import regl from 'regl'
-const Regl = <InternalProps,>(
+const Regl = (
   props: ParentProps<
     CanvasComponentProps & {
       options?: regl.InitializationOptions
     },
-    { gl: WebGL2RenderingContext; regl: regl.Regl },
-    InternalProps
+    { gl: WebGL2RenderingContext; regl: regl.Regl }
   >
 ) => {
   const canvasRef = useRef<HTMLCanvasElement>(null!)

@@ -1,36 +1,31 @@
-type TopContextInfo<T extends Record<string, any>> = {
+type ReactiveContext<
+  Elements extends Record<string, any> = any,
+  Props extends Record<string, any> = any
+> = {
   time: Time
-  elements: T
+  elements: Elements
+  props: Props
 }
 type AllowedChildren = JSX.Element | (JSX.Element | JSX.Element[])[]
 type DepsOptions = any[] | number | (() => number)
-type ParentProps<Props, Self, InternalProps> = Props & {
+type ParentProps<Props, Self> = Props & {
   name: string
-  draw?: (
-    self: Self,
-    context: TopContextInfo<Record<string, any>>,
-    internalProps: InternalProps
-  ) => void
-  setup?: (self: Self, context: Omit<TopContextInfo<Record<string, any>>, 'time'>) => InternalProps
+  draw?: (self: Self, context: ReactiveContext) => void
+  setup?: (self: Self, context: Omit<ReactiveContext, 'time'>) => void
   deps?: DepsOptions
 } & React.PropsWithChildren
 
-type ChildProps<Props, Self, Parent, InternalProps> = Props & {
+type ChildProps<Props, Self, Parent> = Props & {
   name: string
-  draw?: (
-    self: Self,
-    parent: Parent,
-    context: TopContextInfo<Record<string, any>>,
-    internalProps: InternalProps
-  ) => void
-  setup?: (self: Self, parent: Parent, context: { elements: Record<string, any> }) => InternalProps
+  draw?: (self: Self, parent: Parent, context: ReactiveContext) => void
+  setup?: (self: Self, parent: Parent, context: Omit<ReactiveContext, 'time'>) => void
   deps?: DepsOptions
 } & React.PropsWithChildren
 
 type Time = { t: number; dt: number }
 
 type ComponentType = {
-  draw: ((context: TopContextInfo<Record<string, any>>) => void) | null
+  draw: ((context: ReactiveContext) => void) | null
   self: any
   update: 'always' | boolean
 }

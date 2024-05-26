@@ -5,23 +5,16 @@ import invariant from 'tiny-invariant'
 import { useInvariantContext } from '../../src/react'
 import { omit } from 'lodash'
 
-function useCreateComponent<Self, InternalProps>(
+function useCreateComponent<Self>(
   name: string,
   getSelf: () => Self | Promise<Self>,
   options: Record<string, any>,
-  setupSelf?: (
-    self: Self,
-    context: Omit<TopContextInfo<Record<string, any>>, 'time'>
-  ) => InternalProps,
-  drawSelf?: (
-    self: Self,
-    context: TopContextInfo<Record<string, any>>,
-    props: InternalProps
-  ) => void,
+  setupSelf?: (self: Self, context: Omit<ReactiveContext<Record<string, any>>, 'time'>) => void,
+  drawSelf?: (self: Self, context: ReactiveContext<Record<string, any>>) => void,
   drawSelfDeps?: DepsOptions,
   cleanupSelf?: (self: Self) => void
 ) {
-  const { allCreated, registerComponent, elements } = useInvariantContext(
+  const { allCreated, registerComponent, elements, props } = useInvariantContext(
     TopLevelContext,
     'Need to nest under <Reactive> component'
   )
@@ -35,8 +28,6 @@ function useCreateComponent<Self, InternalProps>(
     creating.current = false
   }
 
-  const propsRef = useRef<InternalProps>(null!)
-
   const recreateDeps = Object.values(omit(options, 'name', 'setup', 'draw', 'children', 'deps'))
     .map((x) => x.toString())
     .join(';')
@@ -46,7 +37,7 @@ function useCreateComponent<Self, InternalProps>(
 
     registerComponent(name, {
       self,
-      draw: drawSelf ? (context) => drawSelf(self, context, propsRef.current) : null,
+      draw: drawSelf ? (context) => drawSelf(self, context) : null,
       update: drawSelfDeps ? false : 'always'
     })
     return () => {
@@ -89,23 +80,24 @@ function useCreateComponent<Self, InternalProps>(
   useEffect(() => {
     if (!self) return
     registerComponent(name, {
-      draw: drawSelf ? (context) => drawSelf(self, context, propsRef.current) : null
+      draw: drawSelf ? (context) => drawSelf(self, context) : null
     })
   }, [drawSelf])
 
   useEffect(() => {
     if (!self || !setupSelf || !allCreated) return
-    propsRef.current = setupSelf(self, { elements })
+    setupSelf(self, { elements, props })
     return () => {
       cleanupSelf && cleanupSelf(self)
     }
-  }, [allCreated, setupSelf])
+  }, [allCreated])
   return { self }
 }
 
 const TopLevelContext = createContext<{
   registerComponent: (name: string, component: Partial<ComponentType> | null) => void
   elements: Record<string, any>
+  props: Record<string, any>
   allCreated: boolean
 } | null>(null)
 const FrameContext = createContext<{
@@ -153,6 +145,7 @@ function TopLevelComponent({
   const components = useRef<Record<string, ComponentType>>({})
   // when allCreated is true elements get passed down as is (just to pass selves through)
   const elements = useRef<Record<string, any>>({})
+  const props = useRef<Record<string, any>>({})
   const registerComponent = (name: string, component: Partial<ComponentType> | null) => {
     if (component) {
       components.current[name] = { ...components.current[name], ...component }
@@ -177,17 +170,16 @@ function TopLevelComponent({
 
   useEffect(() => {
     if (!allCreated) return
-    console.info('initialized with components', elements.current)
 
     let animationFrame: number
     let interval: number
     const drawFrame = (time: Time) => {
-      const topContext = { time, elements: elements.current }
+      const topContext: ReactiveContext = { time, elements: elements.current, props: props.current }
       for (let drawChild of childrenDraws.current) {
         const component = components.current[drawChild]
         invariant(component.draw, 'Missing draw call')
-        // some components only draw on certain updates
 
+        // some components only draw on certain updates
         if (!component.update) continue
         component.draw!(topContext)
         if (component.update === true) {
@@ -197,9 +189,10 @@ function TopLevelComponent({
       }
     }
     if (loop === true) {
-      const frameRequest: FrameRequestCallback = (t) => {
-        drawFrame({ t, dt: t - time.current })
-        time.current = t
+      const frameRequest: FrameRequestCallback = () => {
+        // this prevents dropped frames
+        time.current += 1 / 60
+        drawFrame({ t: time.current, dt: 1 / 60 })
         animationFrame = requestAnimationFrame(frameRequest)
       }
       animationFrame = requestAnimationFrame(frameRequest)
@@ -207,7 +200,7 @@ function TopLevelComponent({
       interval = window.setInterval(() => {
         time.current += loop
         drawFrame({ t: time.current, dt: time.current - loop })
-      }, loop)
+      }, loop * 1000)
     }
     return () => {
       if (animationFrame) window.cancelAnimationFrame(animationFrame)
@@ -220,7 +213,8 @@ function TopLevelComponent({
       value={{
         allCreated,
         registerComponent,
-        elements: elements.current
+        elements: elements.current,
+        props: props.current
       }}
     >
       <div className={`${className}`} style={style}>
@@ -230,21 +224,33 @@ function TopLevelComponent({
   )
 }
 
-export function FrameComponent<Self, Options, InternalProps>({
+export function FrameComponent<Self, Options>({
   options,
   getSelf,
   cleanupSelf,
-  children
-}: { options: ParentProps<Options, Self, InternalProps> } & {
+  children,
+  defaultDraw
+}: { options: ParentProps<Options, Self> } & {
   getSelf: (options: Options) => Self | Promise<Self>
   cleanupSelf?: (self: Self) => void
+  defaultDraw?: (self: Self, context: ReactiveContext, options: Options) => void
 } & React.PropsWithChildren) {
   const { self } = useCreateComponent(
     options.name,
     async () => await getSelf(options),
     options,
     options.setup,
-    options.draw,
+    options.draw
+      ? (self, context) => {
+          options.draw!(self, context)
+        }
+      : defaultDraw
+        ? (self, context) => {
+            defaultDraw(self, context, options)
+          }
+        : options.draw
+          ? options.draw
+          : undefined,
     options.deps,
     cleanupSelf
   )
@@ -260,27 +266,18 @@ export function FrameComponent<Self, Options, InternalProps>({
   )
 }
 
-export const defineFrameComponent = <Self, Options, InternalProps>(
-  getSelf: (options: Options) => Self,
-  cleanupSelf?: (self: Self) => void
-) => {
-  return (options: ParentProps<Options, Self, InternalProps>) => (
-    <FrameComponent options={options} getSelf={getSelf} cleanupSelf={cleanupSelf}>
-      {options.children}
-    </FrameComponent>
-  )
-}
-
-export function ChildComponent<Self, Options, Context, InternalProps>({
+export function ChildComponent<Self, Options, Frame>({
   options,
   getSelf,
   cleanupSelf,
-  children
+  children,
+  defaultDraw
 }: {
-  options: ChildProps<Options, Self, Context, InternalProps>
+  options: ChildProps<Options, Self, Frame>
 } & {
-  getSelf: (options: Options, context: Context) => Self | Promise<Self>
+  getSelf: (options: Options, frame: Frame) => Self | Promise<Self>
   cleanupSelf?: (self: Self) => void
+  defaultDraw?: (self: Self, frame: Frame, context: ReactiveContext, options: Options) => void
 } & React.PropsWithChildren) {
   const { frame } = useInvariantContext(FrameContext)
   const { self } = useCreateComponent(
@@ -289,23 +286,52 @@ export function ChildComponent<Self, Options, Context, InternalProps>({
     options,
     options.setup ? (self, context) => options.setup!(self, frame, context) : undefined,
     options.draw
-      ? (self, context, internalProps) => options.draw!(self, frame, context, internalProps)
-      : undefined,
+      ? (self, context) => {
+          options.draw!(self, frame, context)
+        }
+      : defaultDraw
+        ? (self, context) => {
+            defaultDraw(self, frame, context, options)
+          }
+        : undefined,
     options.deps,
     cleanupSelf
   )
   return <>{self && children}</>
 }
 
-export const defineChildComponent = <Self, Options, Parent, InternalProps>(
-  getSelf: (options: Options, context: Parent) => Self,
+export const Reactive = TopLevelComponent
+
+export const defineChildComponent = <Self, Options, Frame>(
+  getSelf: (options: Options, frame: Frame) => Self | Promise<Self>,
+  defaultDraw?: (self: Self, frame: Frame, context: ReactiveContext, options: Options) => void,
   cleanupSelf?: (self: Self) => void
 ) => {
-  return (options: ChildProps<Options, Self, Parent, InternalProps>) => (
-    <ChildComponent options={options} getSelf={getSelf} cleanupSelf={cleanupSelf}>
+  return (options: ChildProps<Options, Self, Frame>) => (
+    <ChildComponent
+      options={options}
+      getSelf={getSelf}
+      cleanupSelf={cleanupSelf}
+      defaultDraw={defaultDraw}
+    >
       {options.children}
     </ChildComponent>
   )
 }
 
-export const Reactive = TopLevelComponent
+export const defineFrameComponent = <Self, Options>(
+  getSelf: (options: Options) => Self,
+  defaultDraw?: (self: Self, context: ReactiveContext, options: Options) => void,
+  cleanupSelf?: (self: Self) => void
+) => {
+  return (options: ParentProps<Options, Self>) => (
+    <FrameComponent
+      options={options}
+      getSelf={getSelf}
+      cleanupSelf={cleanupSelf}
+      defaultDraw={defaultDraw}
+    >
+      {options.children}
+    </FrameComponent>
+  )
+}

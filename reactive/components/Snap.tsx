@@ -2,11 +2,10 @@ import { FrameComponent } from '../blocks/ParentChildComponents'
 import { useRef } from 'react'
 import SnapInstance from 'snapsvg-cjs-ts'
 
-const Snap = <InternalProps,>(
+const Snap = (
   props: ParentProps<
     { className?: string; width?: number; height?: number; viewBox?: string },
-    SnapInstance.Paper,
-    InternalProps
+    SnapInstance.Paper
   >
 ) => {
   const frame = useRef<SVGSVGElement>(null!)

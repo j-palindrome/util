@@ -13,6 +13,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
+    "declaration": true,
 
     // Vite takes care of building everything, not tsc.
     "noEmit": true

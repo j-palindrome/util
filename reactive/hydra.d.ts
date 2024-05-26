@@ -1,5 +1,6 @@
 declare module 'hydra-synth' {
   export type HydraSynth = any
+
   export default class HydraInstance {
     synth: HydraSynth
     constructor(
