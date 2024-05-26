@@ -13,7 +13,7 @@ import {
   defaultVert2D,
   defaultVert2DNoResolution
 } from '../../src/shaders/utilities'
-import { cubicBezier } from '../../src/curve'
+import { cubicBezier, cubicBezierTangent } from '../../src/curve'
 
 const CanvasGL = (
   props: ParentProps<
@@ -264,17 +264,25 @@ export const AttribCurve = defineChildComponent(
         in float w0;
         in float w1;
         in float direction;
+        out vec2 vTest;
 
         ${cubicBezier}
+        ${cubicBezierTangent}
         
         void main() {
           vec2 pos = cubicBezier(t, p0, p1, p2, p3);
           float width = w0 + (w1 - w0) * t;
-          gl_Position = vec4(pos + vec2(direction, 0) * width, 0, 1);
+          vec2 tangent = cubicBezierTangent(t, p0, p1, p2, p3);
+          vTest = tangent;
+          gl_Position = vec4(pos + tangent * direction * width, 0, 1);
           // gl_Position = vec4(p0, 0, 1);
         }
       `,
-      fragmentShader: defaultFragColor()
+      fragmentShader: /*glsl*/ `
+      in vec2 vTest;
+      void main() {
+        fragColor = vec4(vTest, 1.0, 1.0);
+      }`
     })
   },
   (self) => self.draw()
