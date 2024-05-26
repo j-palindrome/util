@@ -11,10 +11,9 @@ vec2 quadraticBezier(float t, vec2 p0, vec2 p1, vec2 p2) {
 
 export const cubicBezierTangent = /*glsl*/ `
 ${rotate2d}
-${PI}
 vec2 cubicBezierTangent(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
   vec2 normal = pow(1.0 - t, 2.0) * (p1 - p0) + 2.0 * t * (1.0 - t) * (p2 - p1) + pow(t, 2.0) * (p3 - p2);
-  return normalize(rotate2d(normal, PI * 0.5));
+  return normalize(rotate2d(normal, 3.141592653589793 * 0.5));
 }
 `
 
