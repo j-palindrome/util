@@ -193,7 +193,7 @@ export const VideoPlane = defineChildComponent(
 
 type Point = [number, number]
 type Curves = { start: Point; direction: Point; width: number }[][]
-export const AttribCurve = defineChildComponent(
+export const MeshCurve = defineChildComponent(
   (
     options: {
       curves?: Curves
@@ -366,6 +366,95 @@ export const AttribCurve = defineChildComponent(
   },
   (self) => self.draw()
 )
+
+export const LineCurve = defineChildComponent(
+  (
+    options: {
+      curves?: Curves
+      subdivisions: number
+      fragmentShader: string
+    },
+    gl: WebGL2RenderingContext
+  ) => {
+    const generateAttributes = (curves: Curves) => {
+      // 8.79 ms to render 1000
+      let startIndex = 0
+      const vertexNumber = _.sumBy(curves, (x) => (x.length - 1) * options.subdivisions)
+      const attributes = {
+        p0: {
+          numComponents: 2,
+          data: new Float32Array(vertexNumber * 2)
+        },
+        thisControl: { numComponents: 2, data: new Float32Array(vertexNumber * 2) },
+        nextControl: { numComponents: 2, data: new Float32Array(vertexNumber * 2) },
+        p3: { numComponents: 2, data: new Float32Array(vertexNumber * 2) },
+        t: { numComponents: 1, data: new Float32Array(vertexNumber) }
+      }
+      for (let index = 0; index < curves.length; index++) {
+        for (let i = 0; i < curves[index].length - 1; i++) {
+          const thisPoint = curves[index][i]
+          const nextPoint = curves[index][i + 1]
+          const fullPoint = {
+            thisControl: thisPoint.direction,
+            nextControl: nextPoint.direction,
+            p0: thisPoint.start,
+            p3: nextPoint.start
+          }
+          for (let t = 0; t < options.subdivisions; t++) {
+            const thisT = t / options.subdivisions
+            attributes.t.data[startIndex] = thisT
+            attributes.thisControl.data.set(fullPoint.thisControl, startIndex * 2)
+            attributes.nextControl.data.set(fullPoint.nextControl, startIndex * 2)
+            attributes.p0.data.set(fullPoint.p0, startIndex * 2)
+            attributes.p3.data.set(fullPoint.p3, startIndex * 2)
+            startIndex++
+          }
+        }
+      }
+      return attributes
+    }
+
+    const curve = new LayerInstance({
+      gl,
+      drawMode: 'line strip',
+      attributes: options.curves
+        ? generateAttributes(options.curves)
+        : {
+            p0: {
+              numComponents: 2
+            },
+            thisControl: { numComponents: 2 },
+            nextControl: { numComponents: 2 },
+            p3: { numComponents: 2 },
+            t: { numComponents: 1 }
+          },
+      vertexShader: /*glsl*/ `
+        in vec2 p0;
+        in vec2 p3;
+        in vec2 thisControl;
+        in vec2 nextControl;
+        in float t;
+        out vec2 uv;
+
+        ${cubicBezier}
+        
+        void main() {
+          vec2 p1 = p0 + thisControl;
+          vec2 p2 = nextControl * -1.0 + p3;
+          vec2 pos = cubicBezier(t, p0, p1, p2, p3);
+          gl_Position = vec4(pos, 0, 1);
+        }
+      `,
+      fragmentShader: options.fragmentShader
+    })
+    return {
+      draw: (curves?: Curves, uniforms?: Record<string, any>) =>
+        curve.draw(uniforms, curves ? generateAttributes(curves) : undefined)
+    }
+  },
+  (self) => self.draw()
+)
+
 // /**
 //  * Returns a Layer alowing a fragment shader from a `sampler2D canvas` which is set to the canvas on each draw call.
 //  */

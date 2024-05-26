@@ -49,7 +49,7 @@ export class Layer {
     attributes: twgl.Arrays | ((time: number) => twgl.Arrays)
     vertexShader: string
     fragmentShader: string
-    drawMode?: 'triangles' | 'points' | 'triangle strip' | 'triangle fan'
+    drawMode?: 'triangles' | 'points' | 'triangle strip' | 'triangle fan' | 'line strip' | 'lines'
     gl: WebGL2RenderingContext
     useDefaults?: boolean
     frameRate?: number
@@ -68,7 +68,10 @@ export class Layer {
           triangles: this.gl.TRIANGLES,
           points: this.gl.POINTS,
           'triangle strip': this.gl.TRIANGLE_STRIP,
-          'triangle fan': this.gl.TRIANGLE_FAN
+          'triangle fan': this.gl.TRIANGLE_FAN,
+          lines: this.gl.LINES,
+          'line strip': this.gl.LINE_STRIP,
+          'line loop': this.gl.LINE_LOOP
         }[drawMode]
       : this.gl.TRIANGLES
     this.program = twgl.createProgramInfo(
