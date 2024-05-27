@@ -7,13 +7,13 @@ import {
 import _, { omit, range, sumBy } from 'lodash'
 import { useRef } from 'react'
 import * as twgl from 'twgl.js'
-import { Layer as LayerInstance, assembleAttributes } from '../../src/layer'
+import { Layer as LayerInstance } from '../../src/layer'
 import {
   defaultFragColor,
   defaultVert2D,
   defaultVert2DNoResolution
 } from '../../src/shaders/utilities'
-import { cubicBezier, cubicBezierNormal } from '../../src/curve'
+import { cubicBezier, cubicBezierNormal } from '../../src/shaders/curve'
 
 const CanvasGL = (
   props: ParentProps<
@@ -144,7 +144,10 @@ export const Plane = defineChildComponent(
 
 export const VideoPlane = defineChildComponent(
   (
-    options: { xywh?: [number, number, number, number]; source: WebGLTexture | string },
+    options: {
+      xywh?: [number, number, number, number]
+      source?: WebGLTexture | ((context: ReactiveContext) => WebGLTexture) | string
+    },
     context: WebGL2RenderingContext
   ) => {
     const xywh = options.xywh
@@ -186,7 +189,12 @@ export const VideoPlane = defineChildComponent(
   },
   (self, frame, context, options) => {
     self.draw({
-      source: typeof options.source === 'string' ? context.elements[options.source] : options.source
+      source:
+        typeof options.source === 'string'
+          ? context.elements[options.source]
+          : typeof options.source === 'function'
+            ? options.source(context)
+            : options.source
     })
   }
 )
@@ -454,6 +462,69 @@ export const LineCurve = defineChildComponent(
   },
   (self) => self.draw()
 )
+
+// export const TextureCurve = defineChildComponent(
+//   (
+//     options: {
+//       curves: WebGLTexture
+//       subdivisions: number
+//       fragmentShader: string
+//     },
+//     gl: WebGL2RenderingContext
+//   ) => {
+
+//     const curve = new LayerInstance({
+//       gl,
+//       drawMode: 'line strip',
+//       attributes: options.curves
+//         ? generateAttributes(options.curves)
+//         : {
+//             p0: {
+//               numComponents: 2
+//             },
+//             thisControl: { numComponents: 2 },
+//             nextControl: { numComponents: 2 },
+//             p3: { numComponents: 2 },
+//             t: { numComponents: 1 }
+//           },
+//       vertexShader: /*glsl*/ `
+//         in vec2 p0;
+//         in vec2 p3;
+//         in vec2 thisControl;
+//         in vec2 nextControl;
+//         in float t;
+//         out vec2 uv;
+
+//         ${cubicBezier}
+
+//         void main() {
+//           vec2 p1 = p0 + thisControl;
+//           vec2 p2 = nextControl * -1.0 + p3;
+//           vec2 pos = cubicBezier(t, p0, p1, p2, p3);
+//           gl_Position = vec4(pos, 0, 1);
+//         }
+//       `,
+//       fragmentShader: options.fragmentShader
+//     })
+//     return {
+//       draw: (curves?: Curves, uniforms?: Record<string, any>) =>
+//         curve.draw(uniforms, curves ? generateAttributes(curves) : undefined)
+//     }
+//   },
+//   (self) => self.draw()
+// )
+
+// export const FeedbackTexture = defineChildComponent(
+//   (
+//     {
+//       fragmentShader,
+//       height,
+//       width,
+//       depth
+//     }: { fragmentShader: string; height: number; width: number; depth: number },
+//     gl: WebGL2RenderingContext
+//   ) => {}
+// )
 
 // /**
 //  * Returns a Layer alowing a fragment shader from a `sampler2D canvas` which is set to the canvas on each draw call.

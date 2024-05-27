@@ -2,7 +2,8 @@ type ReactiveContext<
   Elements extends Record<string, any> = any,
   Props extends Record<string, any> = any
 > = {
-  time: Time
+  t: number
+  dt: number
   elements: Elements
   props: Props
 }
@@ -22,8 +23,6 @@ type ChildProps<Props, Self, Parent> = Props & {
   deps?: DepsOptions
 } & React.PropsWithChildren
 
-type Time = { t: number; dt: number }
-
 type ComponentType = {
   draw: ((context: ReactiveContext) => void) | null
   self: any
@@ -35,7 +34,7 @@ type CanvasComponentProps = {
   width?: number
   height?: number
   id?: string
-  resize?: boolean
+  noResize?: true
   hidden?: boolean
   webgl?: boolean
 }

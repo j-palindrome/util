@@ -1,5 +1,7 @@
 import * as twgl from 'twgl.js'
 import _ from 'lodash'
+import { defaultVert2D, positionToNorm } from './shaders/utilities'
+import { flipY } from './shaders/manipulation'
 
 export const generateShape = (type: 'plane') => {
   switch (type) {
@@ -138,7 +140,7 @@ export class Layer {
       }
     }
     if (this.uniforms) {
-      twgl.setUniforms(this.program, this.uniforms)
+      twgl.setUniformsAndBindTextures(this.program, this.uniforms)
     }
     if (this.transformFeedback) {
       const feedback =
@@ -173,4 +175,51 @@ export function resetGl(gl: WebGL2RenderingContext) {
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
   gl.clearColor(0, 0, 0, 0)
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+}
+
+export class FeedbackTexture {
+  gl: WebGL2RenderingContext
+  options: {
+    height: number
+    width: number
+    depth: number
+    fragmentShader: string
+    useDefaults?: true
+  }
+  glOptions?: twgl.TextureOptions
+  renderIndex: boolean
+  buffers: [twgl.FramebufferInfo, twgl.FramebufferInfo]
+  output: WebGLTexture
+
+  constructor(
+    gl: FeedbackTexture['gl'],
+    options: FeedbackTexture['options'],
+    glOptions?: (gl: WebGL2RenderingContext) => twgl.TextureOptions
+  ) {
+    this.gl = gl
+    this.options = options
+    this.renderIndex = false
+    this.glOptions = glOptions ? glOptions(this.gl) : {}
+    this.glOptions.height = this.options.height
+    this.glOptions.width = this.options.width
+    this.glOptions.depth = this.options.depth
+    this.buffers = [
+      twgl.createFramebufferInfo(gl, [twgl.createTexture(gl, this.glOptions)]),
+      twgl.createFramebufferInfo(gl, [twgl.createTexture(gl, this.glOptions)])
+    ]
+
+    if (this.options.useDefaults) {
+      this.options.fragmentShader =
+        `#version 300 es\nprecision highp float;\nout vec4 fragColor;\n` +
+        this.options.fragmentShader
+    }
+
+    this.output = this.buffers[0].attachments[0]
+  }
+
+  draw(uniforms?: Record<string, any>) {
+    const renderIndexNumber = this.renderIndex ? 1 : 0
+
+    this.renderIndex = !this.renderIndex
+  }
 }

@@ -36,9 +36,6 @@ const Processing = (
                 canvasRef.current
               )
             }
-            p.windowResized = () => {
-              p.resizeCanvas(canvasRef.current.width, canvasRef.current.height)
-            }
           })
         }}
       >

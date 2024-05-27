@@ -1,7 +1,12 @@
 import _ from 'lodash'
-import { rotate2d } from './shaders/manipulation'
-import { rad } from './math'
-import { PI } from './shaders/utilities'
+import { rotate2d } from './manipulation'
+import { rad } from '../math'
+import { PI } from './utilities'
+
+export const lerp = /*glsl*/ `
+vec2 lerp(float t, vec2 p0, vec2 p1) {
+  return p0 + (p1 - p0) * t;
+}`
 
 // B(t) = (1 - t)^2 * (P0 - P1) + t^2 * (P2 - P1) for 0 <= t <= 1
 export const quadraticBezier = /*glsl*/ `

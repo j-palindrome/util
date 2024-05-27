@@ -9,8 +9,8 @@ function useCreateComponent<Self>(
   name: string,
   getSelf: () => Self | Promise<Self>,
   options: Record<string, any>,
-  setupSelf?: (self: Self, context: Omit<ReactiveContext<Record<string, any>>, 'time'>) => void,
-  drawSelf?: (self: Self, context: ReactiveContext<Record<string, any>>) => void,
+  setupSelf?: (self: Self, context: ReactiveContext) => void,
+  drawSelf?: (self: Self, context: ReactiveContext) => void,
   drawSelfDeps?: DepsOptions,
   cleanupSelf?: (self: Self) => void
 ) {
@@ -86,7 +86,7 @@ function useCreateComponent<Self>(
 
   useEffect(() => {
     if (!self || !setupSelf || !allCreated) return
-    setupSelf(self, { elements, props })
+    setupSelf(self, { elements, props, t: 0, dt: 0 })
     return () => {
       cleanupSelf && cleanupSelf(self)
     }
@@ -173,8 +173,13 @@ function TopLevelComponent({
 
     let animationFrame: number
     let interval: number
-    const drawFrame = (time: Time) => {
-      const topContext: ReactiveContext = { time, elements: elements.current, props: props.current }
+    const drawFrame = (t: number, dt: number) => {
+      const topContext: ReactiveContext = {
+        t,
+        dt,
+        elements: elements.current,
+        props: props.current
+      }
       for (let drawChild of childrenDraws.current) {
         const component = components.current[drawChild]
         invariant(component.draw, 'Missing draw call')
@@ -192,14 +197,14 @@ function TopLevelComponent({
       const frameRequest: FrameRequestCallback = () => {
         // this prevents dropped frames
         time.current += 1 / 60
-        drawFrame({ t: time.current, dt: 1 / 60 })
+        drawFrame(time.current, 1 / 60)
         animationFrame = requestAnimationFrame(frameRequest)
       }
       animationFrame = requestAnimationFrame(frameRequest)
     } else if (typeof loop === 'number') {
       interval = window.setInterval(() => {
         time.current += loop
-        drawFrame({ t: time.current, dt: time.current - loop })
+        drawFrame(time.current, loop)
       }, loop * 1000)
     }
     return () => {
