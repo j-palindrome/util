@@ -1,5 +1,19 @@
 // from https://gist.github.com/yiwenl/3f804e80d0930e34a0b33359259b556c
 
+export const wrapAt1 = /*glsl*/ `
+vec4 wrapAt1 (vec4 color) {
+  if (color.r >= 0.999) color.r -= 1.0;
+  else if (color.r <= 0.001) color.r += 1.0;
+  if (color.g >= 0.999) color.g -= 1.0;
+  else if (color.g <= 0.001) color.g += 1.0;
+  if (color.b >= 0.999) color.b -= 1.0;
+  else if (color.b <= 0.001) color.b += 1.0;
+  if (color.a >= 0.999) color.a -= 1.0;
+  else if (color.a <= 0.001) color.a += 1.0;
+  return color;
+}
+`
+
 export const flipY = /*glsl*/ `
 vec2 flipY(vec2 uv) {
   return vec2(uv.x, 1.0 - uv.y);
