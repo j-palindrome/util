@@ -58,7 +58,7 @@ export const initScene = (
     -1,
     0,
     1
-  )
+  ) as any
   state.camera.position.set(0, 0, 0)
   state.camera.updateMatrixWorld()
   return { aspectRatio }

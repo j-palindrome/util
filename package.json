@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@elemaudio/web-renderer": "^3.2.3",
-    "@react-three/fiber": "^8.16.2",
+    "@react-three/fiber": "^8.16.8",
     "@types/lodash": "^4.17.0",
     "@types/p5": "^1.7.6",
     "@types/react": "^18.2.79",
