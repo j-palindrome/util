@@ -3,6 +3,11 @@ import { rotate2d } from './manipulation'
 import { rad } from '../math'
 import { PI } from './utilities'
 
+export const arc = /*glsl*/ `
+vec2 arc(float t, vec2 center, float r) {
+  return center + vec2(sin(t), cos(t)) * r;
+}`
+
 export const lerp = /*glsl*/ `
 vec2 lerp(float t, vec2 p0, vec2 p1) {
   return p0 + (p1 - p0) * t;
@@ -128,7 +133,9 @@ struct PointInterpolation {
   float t;
 };
 PointInterpolation getPointInterpolation(float t, vec2 points[${points}]) {
-  float splines = float(${points - 3}); // count only the starting points of splines (taking off the first, last, and endpoint)
+  float splines = float(${
+    points - 3
+  }); // count only the starting points of splines (taking off the first, last, and endpoint)
   float mappedT = floor(t * splines);
   float progress = t * splines - mappedT;
   // whichever lengths work, return that
