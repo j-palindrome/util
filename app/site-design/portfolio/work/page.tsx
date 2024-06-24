@@ -1,6 +1,6 @@
 'use client'
-import { Reactive } from '@/util/reactive/blocks/ParentChildComponents'
-import Call from '@/util/reactive/components/Call'
+import { Reactive } from 'reactive-frames'
+import Call from 'reactive-frames'
 import range from 'lodash/range'
 import { useRef } from 'react'
 

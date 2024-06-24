@@ -1,7 +1,7 @@
 'use client'
 
-import { Reactive } from '@/util/reactive/blocks/ParentChildComponents'
-import CanvasGL, { Mesh } from '@/util/reactive/components/CanvasGL'
+import { Reactive } from 'reactive-frames'
+import CanvasGL, { Mesh } from 'reactive-frames'
 import range from 'lodash/range'
 import { Num } from 'pts'
 import { useMemo } from 'react'

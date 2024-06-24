@@ -120,7 +120,7 @@ export type Geopoint = {
 
 export type Slug = {
   _type: "slug";
-  current: string;
+  current?: string;
   source?: string;
 };
 
@@ -149,7 +149,7 @@ export type ServiceQueryResult = null;
 
 // Source: ../app/site-design/banner/page.tsx
 // Variable: bannersQuery
-// Query: *[_type == 'demo' && slug.current == 'banners'][0].files[]{'source': uploadSource.asset->url}
+// Query: *[_type == 'demo' && slug.current == 'banners'][0].files[]{'source': uploadSource.asset->{url, mimeType, _id}}
 export type BannersQueryResult = null;
 
 // Source: ../app/work/[role]/layout.tsx

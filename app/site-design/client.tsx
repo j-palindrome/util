@@ -1,8 +1,8 @@
 'use client'
 
 import Section from '@/components/Section'
-import { Reactive } from '@/util/reactive/blocks/ParentChildComponents'
-import Processing from '@/util/reactive/components/Processing'
+import Reactive from 'reactive-frames'
+import { Processing } from 'reactive-frames'
 import { shape } from '@util/geometry'
 import {
   defaultFragColor,
@@ -10,14 +10,10 @@ import {
   defaultVert2D,
   defaultVert2DLegacy
 } from '@util/shaders/utilities'
-import type { HydraSynth } from 'hydra-synth'
 import _ from 'lodash'
 import Link from 'next/link'
 import { RefObject, useRef, useState } from 'react'
-import Snap from '../../util/reactive/components/Snap'
-import CanvasGL, { Mesh } from '@/util/reactive/components/CanvasGL'
-import Call from '@/util/reactive/components/Call'
-import Hydra from '@/util/reactive/components/Hydra'
+import { CanvasGL, Snap, Mesh, Call, Hydra } from 'reactive-frames'
 
 export default function Client({ title }: { title: string }) {
   return (
@@ -57,19 +53,17 @@ export default function Client({ title }: { title: string }) {
               width={300}
               height={600}
               className='!h-full !w-full'
-              setup={p => {
+              setup={(p, { props }) => {
                 p.colorMode(p.HSL, 1)
-                return {
-                  particles: _.range(30).map(() => ({
-                    pos: 0,
-                    spread: Math.random(),
-                    color: Math.random(),
-                    speed: Math.random() * 0.1 + 0.05,
-                    start: Math.random() - 0.5
-                  }))
-                }
+                props.particles = _.range(30).map(() => ({
+                  pos: 0,
+                  spread: Math.random(),
+                  color: Math.random(),
+                  speed: Math.random() * 0.1 + 0.05,
+                  start: Math.random() - 0.5
+                }))
               }}
-              draw={(p, ctx, { particles }) => {
+              draw={(p, { props: { particles } }) => {
                 p.clear()
                 p.noStroke()
                 for (let particle of particles) {
@@ -328,9 +322,9 @@ const DesignScene = () => {
           attributes={{
             position: { data: [-1, 0, 0, -1, 1, 1], numComponents: 2 }
           }}
-          draw={(self, gl, { time: { t }, elements }) => {
+          draw={(self, gl, { time, elements }) => {
             self.draw({
-              time: t / 1000 / 1000,
+              time: time / 1000,
               resolution: [gl.drawingBufferWidth, gl.drawingBufferHeight]
             })
           }}
@@ -338,10 +332,8 @@ const DesignScene = () => {
       </CanvasGL>
       <Hydra
         name='shader'
-        resize={false}
-        detectAudio={false}
         className='h-full w-full hidden'
-        setup={(h: HydraSynth) => {
+        setup={h => {
           setShader(h.noise(10, 190).glsl()[0].frag)
         }}></Hydra>
     </Reactive>

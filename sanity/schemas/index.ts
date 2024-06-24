@@ -10,6 +10,7 @@ import service from './document/service'
 import sceneInfo from './type/sceneInfo'
 import demo from './document/demo'
 import rawAssetInfo from './type/rawAssetInfo'
+import jobInfo from './type/jobInfo'
 
 export const schemaTypes = [
   bio,
@@ -23,5 +24,6 @@ export const schemaTypes = [
   fontInfo,
   service,
   sceneInfo,
-  rawAssetInfo
+  rawAssetInfo,
+  jobInfo
 ]

@@ -16,14 +16,9 @@ const bio = defineType({
       validation: rule => rule.required()
     }),
     defineField({
-      name: 'cv',
-      type: 'file',
-      options: { accept: 'application/pdf' }
-    }),
-    defineField({
       name: 'resume',
-      type: 'file',
-      options: { accept: 'application/pdf' }
+      type: 'array',
+      of: [{ type: 'jobInfo' }]
     })
   ],
   preview: {
