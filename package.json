@@ -8,7 +8,6 @@
     "start": "npx wrangler pages dev .vercel/output/static --compatibility-flag=nodejs_compat",
     "lint": "next lint",
     "build-cloudflare": "npx @cloudflare/next-on-pages@1",
-    "postinstall": "cd util && npm install",
     "schema": "cd sanity && sanity schema extract --enforce-required-fields",
     "typegen": "cd sanity && sanity typegen generate"
   },
