@@ -1,6 +1,6 @@
 'use client'
 
-import { generateRandomString } from '@/util/src/text'
+import { generateRandomString } from '@/services/utility-functions'
 import { range } from 'lodash'
 import { useMemo, useState } from 'react'
 import { Call, Hydra, Reactive } from 'reactive-frames'

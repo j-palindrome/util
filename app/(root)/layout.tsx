@@ -1,14 +1,11 @@
+import { ROOT_QUERYResult } from '@/sanity.types'
+import { sanityFetch } from '@/sanity/lib/fetch'
+import { ROOT_QUERY } from '@/sanity/queries'
+import { formatColor } from '@/services/utility-functions'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { VisualEditing, groq } from 'next-sanity'
-import Link from 'next/link'
-import { sanitize } from '@/util/src/sanitize'
-import { sanityFetch } from '@/sanity/lib/fetch'
-import { ROOT_QUERYResult } from '@/sanity.types'
-import { ROOT_QUERY } from '@/sanity/queries'
 import NavBar from './NavBar'
-import { formatColor } from '@/services/utility-functions'
 
 export const runtime = 'edge'
 
