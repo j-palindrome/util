@@ -31,11 +31,11 @@ const config: Config = {
         h: '1.5em'
       },
       colors: {
-        bg: 'var(--bg)',
-        bg2: 'var(--bg2)',
-        fg: 'var(--fg)',
-        accent: 'var(--accent)',
-        accent2: 'var(--accent2)'
+        bg: 'rgb(var(--bg) / <alpha-value>)',
+        bg2: 'rgb(var(--bg2) / <alpha-value>)',
+        fg: 'rgb(var(--fg) / <alpha-value>)',
+        accent: 'rgb(var(--accent) / <alpha-value>)',
+        accent2: 'rgb(var(--accent2) / <alpha-value>)'
       },
       fontFamily: {
         body: 'var(--body)',

@@ -19,12 +19,6 @@
     },
     "target": "ES2017"
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "../util/**/*.ts",
-    "../util/**/*.tsx",
-    "vite.config.mts"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", "vite.config.mts"],
   "exclude": ["node_modules"]
 }

@@ -24,7 +24,7 @@ const jobInfo = defineType({
       name: 'highlightedProjects',
       type: 'reference',
       to: {
-        type: 'project'
+        type: 'work'
       }
     },
     {

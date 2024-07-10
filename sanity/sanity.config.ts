@@ -9,29 +9,16 @@ import { presentationTool } from 'sanity/presentation'
 
 // Go to https://www.sanity.io/docs/api-versioning to learn how API versioning works
 import { apiVersion, dataset, projectId } from './env'
-import { schema } from './schema'
+import { schema } from './schemas'
 import { locate } from './presentation/locate'
+import { colorInput } from '@sanity/color-input'
 
 const sanityConfig = defineConfig({
   projectId,
   dataset,
   // Add and edit the content schema in the './sanity/schema' folder
   schema,
-  plugins: [
-    structureTool(),
-    // Vision is a tool that lets you query your content with GROQ in the studio
-    // https://www.sanity.io/docs/the-vision-plugin
-    // @ts-ignore
-    visionTool({ defaultApiVersion: apiVersion }),
-    presentationTool({
-      locate,
-      previewUrl: {
-        draftMode: {
-          enable: '/api/draft'
-        }
-      }
-    })
-  ]
+  plugins: [colorInput(), structureTool()]
 })
 
 export default sanityConfig

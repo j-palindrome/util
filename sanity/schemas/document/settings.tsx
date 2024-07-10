@@ -16,68 +16,38 @@ const settings = defineType({
     }),
     defineField({
       name: 'backgroundColor',
-      type: 'string',
-      description: (
-        <div>
-          The background color of your site. Copy the "Hex" from a color-picker
-          such as{' '}
-          <a href='https://htmlcolorcodes.com/color-picker/' target='_blank'>
-            this one
-          </a>
-        </div>
-      )
+      type: 'color',
+      options: {
+        disableAlpha: true
+      }
     }),
     defineField({
       name: 'backgroundAltColor',
-      type: 'string',
-      description: (
-        <div>
-          The alternate background color of your site. Copy the "Hex" from a
-          color-picker such as{' '}
-          <a href='https://htmlcolorcodes.com/color-picker/' target='_blank'>
-            this one
-          </a>
-        </div>
-      )
+      type: 'color',
+      options: {
+        disableAlpha: true
+      }
     }),
     defineField({
       name: 'foregroundColor',
-      type: 'string',
-      description: (
-        <div>
-          The foreground (text) color of your site. Copy the "Hex" from a
-          color-picker such as{' '}
-          <a href='https://htmlcolorcodes.com/color-picker/' target='_blank'>
-            this one
-          </a>
-        </div>
-      )
+      type: 'color',
+      options: {
+        disableAlpha: true
+      }
     }),
     defineField({
       name: 'accentColor',
-      type: 'string',
-      description: (
-        <div>
-          The accent color of your site, used for buttons and things that stand
-          out. Copy the "Hex" from a color-picker such as{' '}
-          <a href='https://htmlcolorcodes.com/color-picker/' target='_blank'>
-            this one
-          </a>
-        </div>
-      )
+      type: 'color',
+      options: {
+        disableAlpha: true
+      }
     }),
     defineField({
       name: 'accentAltColor',
-      type: 'string',
-      description: (
-        <div>
-          The alternate accent color of your site, used for alternate
-          backgrounds and borders. Copy the "Hex" from a color-picker such as{' '}
-          <a href='https://htmlcolorcodes.com/color-picker/' target='_blank'>
-            this one
-          </a>
-        </div>
-      )
+      type: 'color',
+      options: {
+        disableAlpha: true
+      }
     }),
     defineField({
       name: 'bodyFont',

@@ -12,18 +12,20 @@ import demo from './document/demo'
 import rawAssetInfo from './type/rawAssetInfo'
 import jobInfo from './type/jobInfo'
 
-export const schemaTypes = [
-  bio,
-  category,
-  work,
-  description,
-  demo,
-  imageInfo,
-  assetInfo,
-  settings,
-  fontInfo,
-  service,
-  sceneInfo,
-  rawAssetInfo,
-  jobInfo
-]
+export const schema = {
+  types: [
+    bio,
+    category,
+    work,
+    description,
+    demo,
+    imageInfo,
+    assetInfo,
+    settings,
+    fontInfo,
+    service,
+    sceneInfo,
+    rawAssetInfo,
+    jobInfo
+  ]
+}
