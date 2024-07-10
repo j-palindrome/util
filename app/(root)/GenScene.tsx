@@ -1,11 +1,11 @@
 import { Reactive, Call, Regl } from 'reactive-frames'
+import _ from 'lodash'
+import { useRef } from 'react'
 import {
   defaultFragColor,
   defaultVert2D,
   glslEs300
-} from '@util/shaders/utilities'
-import _ from 'lodash'
-import { useRef } from 'react'
+} from '@/services/utility-functions'
 
 export default function GenScene() {
   const constants = {

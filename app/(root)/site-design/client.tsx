@@ -2,13 +2,13 @@
 
 import Section from '@/components/Section'
 import { Processing } from 'reactive-frames'
-import { shape } from '@util/geometry'
 import {
   defaultFragColor,
   defaultFragColorLegacy,
   defaultVert2D,
-  defaultVert2DLegacy
-} from '@util/shaders/utilities'
+  defaultVert2DLegacy,
+  shape
+} from '@/services/utility-functions'
 import _ from 'lodash'
 import Link from 'next/link'
 import { RefObject, useRef, useState } from 'react'

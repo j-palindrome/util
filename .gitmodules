@@ -1,4 +1,0 @@
-
-[submodule "util"]
-	path = util
-	url = https://github.com/j-palindrome/util.git

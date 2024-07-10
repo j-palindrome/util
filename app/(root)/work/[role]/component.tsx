@@ -1,7 +1,7 @@
 'use client'
 
 import { WorksQueryResult } from '@/sanity.types'
-import { useEventListener } from '@util/dom'
+import { useEventListener } from '@/services/utility-functions'
 import anime from 'animejs'
 import { Pt } from 'pts'
 import { useEffect, useRef, useState } from 'react'
