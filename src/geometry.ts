@@ -34,3 +34,5 @@ export function arc(
     center[1] + Math.cos(t) * (typeof r === 'number' ? r : r[1])
   ]
 }
+
+export function bezierCurve() {}
