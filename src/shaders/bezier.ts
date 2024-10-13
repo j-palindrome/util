@@ -92,11 +92,10 @@ vec2 bezierN(float t, vec2 points[${degree + 1}]) {
 // or [0, 1, 2, 3], [2, 3, 4, 5]
 // each bezier needs to switch to the next slowly...
 export const multiBezier2 = (numPoints: number) => /*glsl*/ `
-float degree = 2.;
-int numPoints = ${numPoints};
-float subdivisions = float(numPoints) / (degree - 1.);
+#define degree 2.
+#define numPoints ${numPoints}
+const float subdivisions = float(numPoints) / (degree - 1.);
 
-${lerp}
 ${bezier2}
 vec2 multiBezier2(float t, vec2[${numPoints}] points) {
   // 0...4 * 1 = 0, 1, 4, 6
@@ -104,8 +103,8 @@ vec2 multiBezier2(float t, vec2[${numPoints}] points) {
   float cycle = fract(t * subdivisions);
   return bezier2(
     cycle, 
-    points[i], 
-    points[i + 1], 
-    points[i + 2]);
+    points[start], 
+    points[start + 1], 
+    points[start + 2]);
 }
 `
