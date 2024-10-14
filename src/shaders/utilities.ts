@@ -2,8 +2,8 @@ export const hash = /*glsl*/ `
 // hash function from https://www.shadertoy.com/view/4djSRW
 // given a value between 0 and 1
 // returns a value between 0 and 1 that *appears* kind of random
-float hash(float p) {
-  p = fract(p);
+float hash(float p, float seed) {
+  p = fract(p * seed);
   vec2 p2 = fract(vec2(p * 5.3983, p * 5.4427));
   p2 += dot(p2.yx, p2.xy + vec2(21.5351, 14.3137));
   return fract(p2.x * p2.y * 95.4337);

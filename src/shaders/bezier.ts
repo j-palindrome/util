@@ -94,17 +94,17 @@ vec2 bezierN(float t, vec2 points[${degree + 1}]) {
 export const multiBezier2 = (numPoints: number) => /*glsl*/ `
 #define degree 2.
 #define numPoints ${numPoints}
-const float subdivisions = float(numPoints) / (degree - 1.);
+const float subdivisions = (float(numPoints) - degree) / (degree - 1.);
 
 ${bezier2}
 vec2 multiBezier2(float t, vec2[${numPoints}] points) {
-  // 0...4 * 1 = 0, 1, 4, 6
+  // [0, 1, 2, 3, 4]: [0, 1, 2], [1, 2, 3], [2, 3, 4]: numPoints - degree
   int start = int(floor(t * subdivisions) * (degree - 1.));
   float cycle = fract(t * subdivisions);
   return bezier2(
     cycle, 
-    points[start], 
+    lerp(0.5, points[start], points[start + 1]), 
     points[start + 1], 
-    points[start + 2]);
+    lerp(0.5, points[start + 1], points[start + 2]));
 }
 `
