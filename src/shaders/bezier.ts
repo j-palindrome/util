@@ -103,8 +103,12 @@ vec2 multiBezier2(float t, vec2[${numPoints}] points) {
   float cycle = fract(t * subdivisions);
   return bezier2(
     cycle, 
-    lerp(0.5, points[start], points[start + 1]), 
+    start == 0
+      ? points[start]
+      : lerp(0.5, points[start], points[start + 1]), 
     points[start + 1], 
-    lerp(0.5, points[start + 1], points[start + 2]));
+    start == int(subdivisions)
+      ? points[start + 2]
+      : lerp(0.5, points[start + 1], points[start + 2]));
 }
 `
