@@ -8,15 +8,17 @@ vec2 arc(float t, vec2 center, float r) {
   return center + vec2(sin(t), cos(t)) * r;
 }`
 
-export const lerp = /*glsl*/ `
-vec2 lerp(float t, vec2 p0, vec2 p1) {
-  return p0 + (p1 - p0) * t;
+export const bezier2Tangent = /*glsl*/ `
+vec2 bezier2Tangent(float t, vec2 p0, vec2 p1, vec2 p2) {
+  return 2.0 * (1.0 - t) * (p1 - p0) + 2.0 * t * (p2 - p1);
 }`
 
 export const bezier2 = /*glsl*/ `
-${lerp}
 vec2 bezier2(float t, vec2 p0, vec2 p1, vec2 p2) {
-  return lerp(t, lerp(t, p0, p1), lerp(t, p1, p2));
+  float tInverse = 1. - t;
+  return tInverse * tInverse * p0 
+    + 2. * tInverse * t * p1 
+    + t * t * p2;
 }`
 
 export const bezier3Normal = /*glsl*/ `
@@ -70,22 +72,6 @@ vec2 bezierN(float t, vec2 points[${degree + 1}]) {
   return endPoint;
 }`
 
-// export const multiBezier3 = (numControlPoints: number) => / `
-// int degree = 3;
-// ${cubicBezier}
-// vec2 multiBezier(float t, vec2[${numControlPoints}] points) {
-//   int subdivisions = ${numControlPoints} - degree;
-//   int start = int(floor(t * float(subdivisions)));
-//   float cycle = fract(t * float(subdivisions));
-//   return cubicBezier(
-//     cycle,
-//     points[start],
-//     points[start + 1],
-//     points[start + 2],
-//     points[start + 3]);
-// }
-// `
-
 // for points [0, 1, 2, 3, 4, 5, 6]: [0, 1, 2], then [2, 3, 4] then [4, 5, 6]
 // for points [0, 1, 2, 3, 4, 5, 6, 7, 8]: [0, 1, 2], [2, 3, 4], [4, 5, 6], [6, 7, 8]: 1 + (numControlPoints - (degree + 1)) / degree = 6 / 2 = 3 + 1 = 6
 // it's really [0, 1, 2] [1, 2, 3], [2, 3, 4], [3, 4, 5]
@@ -96,19 +82,28 @@ export const multiBezier2 = (numPoints: number) => /*glsl*/ `
 #define numPoints ${numPoints}
 const float subdivisions = (float(numPoints) - degree) / (degree - 1.);
 
+struct BezierPoint {
+  vec2 position;
+  float rotation;
+};
+
 ${bezier2}
-vec2 multiBezier2(float t, vec2[${numPoints}] points) {
+${bezier2Tangent}
+
+BezierPoint multiBezier2(float t, vec2[${numPoints}] points) {
   // [0, 1, 2, 3, 4]: [0, 1, 2], [1, 2, 3], [2, 3, 4]: numPoints - degree
   int start = int(floor(t * subdivisions) * (degree - 1.));
   float cycle = fract(t * subdivisions);
-  return bezier2(
-    cycle, 
-    start == 0
-      ? points[start]
-      : lerp(0.5, points[start], points[start + 1]), 
-    points[start + 1], 
-    start == int(subdivisions) - 1
-      ? points[start + 2]
-      : lerp(0.5, points[start + 1], points[start + 2]));
+  vec2 p0 = start == 0
+    ? points[start]
+    : mix(points[start], points[start + 1], 0.5);
+  vec2 p1 = points[start + 1];
+  vec2 p2 = start == int(subdivisions) - 1
+    ? points[start + 2]
+    : mix(points[start + 1], points[start + 2], 0.5);
+  vec2 tangent = bezier2Tangent(cycle, p0, p1, p2);
+  vec2 position = bezier2(cycle, p0, p1, p2);
+  float rotation = atan(tangent.y, tangent.x);
+  return BezierPoint(position, rotation);
 }
 `
