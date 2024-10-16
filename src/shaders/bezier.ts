@@ -107,7 +107,7 @@ vec2 multiBezier2(float t, vec2[${numPoints}] points) {
       ? points[start]
       : lerp(0.5, points[start], points[start + 1]), 
     points[start + 1], 
-    start == int(subdivisions)
+    start == int(subdivisions) - 1
       ? points[start + 2]
       : lerp(0.5, points[start + 1], points[start + 2]));
 }
