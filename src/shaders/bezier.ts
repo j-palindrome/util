@@ -91,6 +91,25 @@ ${bezier2}
 ${bezier2Tangent}
 
 BezierPoint multiBezier2(float t, vec2[${numPoints}] points) {
+  float totalLength = 0.;
+  float pointLengths[${numPoints}] = float[${numPoints}](${range(numPoints)
+  .map(() => `0.`)
+  .join(', ')});
+  for (int i = 1; i < points.length(); i ++) {
+    totalLength += distance(points[i], points[i - 1]);
+    pointLengths[i] = totalLength;
+  }
+  
+  float mappedT = t * totalLength;
+  for (int i = 0; i < points.length(); i ++) {
+    if (pointLengths[i] > mappedT) {
+      // this is the END of the point
+      float segmentStart = float(i) / float(points.length()); 
+      float segmentProgress = ((mappedT - pointLengths[i - 1]) / (pointLengths[i] - pointLengths[i - 1])) / float(points.length());
+      t = segmentStart + segmentProgress;
+    }
+  }
+
   // [0, 1, 2, 3, 4]: [0, 1, 2], [1, 2, 3], [2, 3, 4]: numPoints - degree
   int start = int(floor(t * subdivisions) * (degree - 1.));
   float cycle = fract(t * subdivisions);
