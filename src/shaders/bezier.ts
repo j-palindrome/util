@@ -72,6 +72,20 @@ vec2 bezierN(float t, vec2 points[${degree + 1}]) {
   return endPoint;
 }`
 
+export const polyLine = /*glsl*/ `
+vec2 polyLine(float t, vec2 p0, vec2 p1, vec2 p2) {
+  float l0 = distance(p0, p1);
+  float l1 = distance(p1, p2);
+  float totalLength = l0 + l1;
+  float progress = t * totalLength;
+  if (progress > l0) {
+    return mix(p1, p2, (progress - l0) / l1);
+  } else {
+    return mix(p0, p1, progress / l0);
+  }
+}
+`
+
 // export const lerpVectors = glsl `
 // vec2 lerpVectors(vec2 a, vec2 b, float lerp) {
 //   return a + (b - a) * lerp;
@@ -82,42 +96,52 @@ vec2 bezierN(float t, vec2 points[${degree + 1}]) {
 // it's really [0, 1, 2] [1, 2, 3], [2, 3, 4], [3, 4, 5]
 // or [0, 1, 2, 3], [2, 3, 4, 5]
 // each bezier needs to switch to the next slowly...
-export const multiBezier2 = (numPoints: number) => /*glsl*/ `
-#define degree 2.
-#define numPoints ${numPoints}
-#define numSegments ${numPoints - 1}
-const float subdivisions = (float(numPoints) - degree) / (degree - 1.);
+export const multiBezier2 = (
+  numPoints: number,
+  { includes = true, endPoints = true } = {}
+) => /*glsl*/ `
+${
+  includes
+    ? /*glsl*/ `
 
+${endPoints ? '#define ENDPOINTS 1' : ''}
 struct BezierPoint {
   vec2 position;
   float rotation;
 };
 
 ${bezier2}
-${bezier2Tangent}
+${polyLine}
+${bezier2Tangent}`
+    : ''
+}
 
-BezierPoint multiBezier2(float t, vec2[${numPoints}] points, vec2 aspectRatio) {
+BezierPoint multiBezier2(float t, vec3[${numPoints}] points, vec2 aspectRatio) {
+  int numPoints = ${numPoints};
+  int numSegments = ${numPoints - 1};
+  float subdivisions = float(numPoints) - 2.;
   vec2 p0, p1, p2;
   // [0, 1, 2, 3, 4]: [0, 1, 2], [1, 2, 3], [2, 3, 4]: numPoints - degree
-  int start = int(floor(t * subdivisions) * (degree - 1.));
+  int start = int(floor(t * subdivisions));
   float cycle = fract(t * subdivisions);
-  p0 = 
-    // start == 0
-    // ? points[start]
-    // : 
-    mix(points[start], points[start + 1], 0.5);
-  p1 = points[start + 1];
-  p2 = 
-    // start == int(subdivisions) - 1
-    // ? points[start + 2]
-    // : 
-    mix(points[start + 1], points[start + 2], 0.5);
-  vec2 position = bezier2(cycle, p0, p1, p2);
-  // float prog = t * float(interpolations.length() - 1);
-  // int ind = int(floor(prog));
-  // vec2 position = mix(interpolations[ind], interpolations[ind + 1], fract(prog));
-  // vec2 tangent = bezier2Tangent(cycle, p0, p1, p2) * aspectRatio;
-  // float rotation = atan(tangent.y, tangent.x);
-  return BezierPoint(position, 0.);
+
+  #ifdef ENDPOINTS
+  p0 = start == 0 ? points[start].xy : mix(points[start].xy, points[start + 1].xy, 0.5);
+  p2 = start == ${
+    numPoints - 3
+  } ? points[start + 2].xy : mix(points[start + 1].xy, points[start + 2].xy, 0.5);
+  #else
+  p0 = mix(points[start].xy, points[start + 1].xy, 0.5);
+  p2 = mix(points[start + 1].xy, points[start + 2].xy, 0.5);
+  #endif
+  p1 = points[start + 1].xy;
+
+  vec2 positionCurve = bezier2(cycle, p0, p1, p2);
+  vec2 positionStraight = polyLine(cycle, p0, p1, p2);
+  float strength = points[start + 1].z;
+  vec2 position = mix(positionCurve, positionStraight, pow(strength, 2.));
+  vec2 tangent = bezier2Tangent(cycle, p0, p1, p2) * aspectRatio;
+  float rotation = atan(tangent.y, tangent.x);
+  return BezierPoint(position, rotation);
 }
 `

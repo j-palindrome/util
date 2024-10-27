@@ -1,3 +1,18 @@
+import { Vector2 } from 'three'
+export const bezier2JS = (
+  t: number,
+  p0: [number, number],
+  p1: [number, number],
+  p2: [number, number]
+) => {
+  const tInverse = 1 - t
+  return new Vector2(...p0)
+    .clone()
+    .multiplyScalar(tInverse ** 2)
+    .add(new Vector2(...p1).multiplyScalar(2 * tInverse * t))
+    .add(new Vector2(...p2).multiplyScalar(t * t))
+}
+
 export function shape(type: 'square') {
   const sourceTypes = {
     square: [-1, 1, 1, 1, -1, -1, -1, -1, 1, 1, 1, -1]
