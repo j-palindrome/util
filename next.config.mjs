@@ -18,11 +18,11 @@ const nextConfig = {
     return [
       {
         // matching all API routes
-        source: '*',
+        source: '/',
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: 'https://www.jpalindrome.com https://jpalindrome.com '
+            value: 'https://www.jpalindrome.com'
           },
           {
             key: 'Access-Control-Allow-Headers',
