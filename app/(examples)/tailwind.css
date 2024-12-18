@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .heading {
+    @apply font-heading font-semibold text-center mb-4 leading-tight block w-full;
+  }
+
+  a {
+    @apply hover:underline;
+  }
+
+  h1 {
+    @apply text-h1;
+  }
+
+  h2 {
+    @apply text-h2;
+  }
+
+  h3 {
+    @apply text-h3;
+  }
+
+  h4 {
+    @apply text-h4;
+  }
+
+  p {
+    @apply mb-8;
+  }
+}
+
+@layer components {
+  .cover {
+    @apply absolute top-0 left-0 h-full w-full flex items-center justify-center dropShadow p-4;
+  }
+
+  .dropShadow {
+    @apply drop-shadow shadow-black;
+  }
+}

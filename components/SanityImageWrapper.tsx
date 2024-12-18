@@ -1,6 +1,6 @@
 'use client'
 
-import { BASE_URL } from '@/services'
+import { BASE_URL, BASE_URL_IMAGES } from '@/sanity/env'
 import { SanityImage } from 'sanity-image'
 
 export default function SanityImageWrapper({
@@ -10,5 +10,5 @@ export default function SanityImageWrapper({
   id: string
   className?: string
 }) {
-  return <SanityImage id={id} className={className} baseUrl={BASE_URL} />
+  return <SanityImage id={id} className={className} baseUrl={BASE_URL_IMAGES} />
 }

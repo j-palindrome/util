@@ -23,8 +23,6 @@ export default async function RootLayout({
 }>) {
   const data = await sanityFetch<ROOT_QUERYResult>({ query: ROOT_QUERY })
 
-  console.log('root data', data)
-
   const style = {
     '--bg': formatColor(data?.backgroundColor!),
     '--bg2': formatColor(data?.backgroundAltColor!),

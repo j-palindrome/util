@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+        <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+          
+      <head>
+        <meta name="dtb:uid" content="4be0618f02f619f5de64a4bdeafb19fe76b24feb"/>
+        <meta name="dtb:depth" content="1"/>
+        <meta name="dtb:totalPageCount" content="1"/>
+        <meta name="dtb:maxPageNumber" content="1"/>
+      </head>
+    
+          
+      <docTitle>
+        <text>Project Title</text>
+      </docTitle>
+    
+          
+      <docAuthor>
+        <text>Last Name, First Name</text>
+      </docAuthor>
+    
+          <navMap>
+            
+          <navPoint id="navPoint-1" playOrder="1">
+            
+      <navLabel>
+        <text>Introduction</text>
+      </navLabel>
+      <content src="text/Introduction.xhtml" />
+    
+            
+          </navPoint>
+        
+          <navPoint id="navPoint-2" playOrder="2">
+            
+      <navLabel>
+        <text>Code as Language</text>
+      </navLabel>
+      <content src="text/Code-as-Language.xhtml" />
+    
+            
+          </navPoint>
+        
+          <navPoint id="navPoint-3" playOrder="3">
+            
+      <navLabel>
+        <text>A History of Triple Canopy&#39;s Publishing Formats</text>
+      </navLabel>
+      <content src="text/A-History-of-Triple-Canopy-s-Publishing-Formats.xhtml" />
+    
+            
+          </navPoint>
+        
+          <navPoint id="navPoint-4" playOrder="4">
+            
+      <navLabel>
+        <text>On Performance</text>
+      </navLabel>
+      <content src="text/On-Performance.xhtml" />
+    
+            
+          </navPoint>
+        
+          <navPoint id="navPoint-5" playOrder="5">
+            
+      <navLabel>
+        <text>Conclusion</text>
+      </navLabel>
+      <content src="text/Conclusion.xhtml" />
+    
+            
+          </navPoint>
+        
+          <navPoint id="navPoint-6" playOrder="6">
+            
+      <navLabel>
+        <text>Figures</text>
+      </navLabel>
+      <content src="text/figures-titlepage.xhtml" />
+    
+            
+          </navPoint>
+        
+          </navMap>
+        </ncx>
+      

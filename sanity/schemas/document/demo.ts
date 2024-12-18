@@ -26,6 +26,15 @@ const demo = defineType({
           type: 'rawAssetInfo'
         })
       ]
+    }),
+    defineField({
+      name: 'images',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          type: 'image'
+        })
+      ]
     })
   ]
 })
