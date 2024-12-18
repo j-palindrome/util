@@ -10,17 +10,27 @@
     
           
       <docTitle>
-        <text>Project Title</text>
+        <text>Crying Trees: Triple Canopy&#39;s Digital Evolution</text>
       </docTitle>
     
           
       <docAuthor>
-        <text>Last Name, First Name</text>
+        <text>Jay Reinier</text>
       </docAuthor>
     
           <navMap>
             
           <navPoint id="navPoint-1" playOrder="1">
+            
+      <navLabel>
+        <text>Title</text>
+      </navLabel>
+      <content src="text/Title.xhtml" />
+    
+            
+          </navPoint>
+        
+          <navPoint id="navPoint-2" playOrder="2">
             
       <navLabel>
         <text>Introduction</text>
@@ -30,7 +40,7 @@
             
           </navPoint>
         
-          <navPoint id="navPoint-2" playOrder="2">
+          <navPoint id="navPoint-3" playOrder="3">
             
       <navLabel>
         <text>Code as Language</text>
@@ -40,7 +50,7 @@
             
           </navPoint>
         
-          <navPoint id="navPoint-3" playOrder="3">
+          <navPoint id="navPoint-4" playOrder="4">
             
       <navLabel>
         <text>A History of Triple Canopy&#39;s Publishing Formats</text>
@@ -50,17 +60,17 @@
             
           </navPoint>
         
-          <navPoint id="navPoint-4" playOrder="4">
+          <navPoint id="navPoint-5" playOrder="5">
             
       <navLabel>
-        <text>On Performance</text>
+        <text>Expanding Offline</text>
       </navLabel>
       <content src="text/On-Performance.xhtml" />
     
             
           </navPoint>
         
-          <navPoint id="navPoint-5" playOrder="5">
+          <navPoint id="navPoint-6" playOrder="6">
             
       <navLabel>
         <text>Conclusion</text>
@@ -70,7 +80,7 @@
             
           </navPoint>
         
-          <navPoint id="navPoint-6" playOrder="6">
+          <navPoint id="navPoint-7" playOrder="7">
             
       <navLabel>
         <text>Figures</text>
