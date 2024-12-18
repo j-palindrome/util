@@ -53,7 +53,9 @@ function ClientGptMesh({
         const splitChildren = child.props.children.split(' ')
         const link = _.random(splitChildren.length)
         const newLink = (
-          <MyLink to={'/demos/zettelkablooey/'}>{splitChildren[link]}</MyLink>
+          <MyLink key={i} to={'/demos/zettelkablooey/'}>
+            {splitChildren[link]}
+          </MyLink>
         )
         return (
           <Fragment key={i}>
