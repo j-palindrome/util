@@ -1,11 +1,10 @@
 import { bezierPoint, multiBezierProgress } from './bezier'
-import { useEventListener } from '@util/dom'
-import { rotate2d } from '@util/shaders/manipulation'
 import { isEqual, now } from 'lodash'
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import Builder from './Builder'
+import { rotate2d, useEventListener } from './util'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]

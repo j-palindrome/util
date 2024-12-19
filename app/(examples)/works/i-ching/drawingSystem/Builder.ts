@@ -1,4 +1,3 @@
-import { lerp } from '@util/math'
 import { last, max, min, range, sum } from 'lodash'
 import {
   AnyPixelFormat,
@@ -17,10 +16,8 @@ import {
 import invariant from 'tiny-invariant'
 import { Jitter } from './Brush'
 import { PointBuilder } from './PointBuilder'
+import { lerp } from './util'
 
-const letters = 'abcdefghijklmnopqrstuvyxyz'.split('')
-const twoLines = 'abdfhjpqrtxy'.split('')
-const oneLine = 'clnos'.split('')
 const SHAPES: Record<string, Coordinate[]> = {
   circle: [
     [1, 0],

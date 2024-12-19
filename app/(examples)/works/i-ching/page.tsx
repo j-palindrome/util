@@ -1,9 +1,8 @@
 'use client'
 import { useState } from 'react'
-import Brush from './drawingSystem/Brush'
-import Builder from './drawingSystem/Builder'
-import { useInterval } from '@/util/src/dom'
 import Asemic from './drawingSystem/Asemic'
+import Builder from './drawingSystem/Builder'
+import { useInterval } from './drawingSystem/util'
 
 const yin = (b: Builder) =>
   b
