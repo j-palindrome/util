@@ -1,10 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "noImplicitAny": false,
@@ -23,15 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@animation/*": [
-        "./util/reactive/*"
-      ],
-      "@util/*": [
-        "./util/src/*"
-      ]
+      "@/*": ["./*"],
+      "@animation/*": ["./util/reactive/*"],
+      "@util/*": ["./util/src/*"]
     },
     "target": "ES2017"
   },
@@ -46,7 +36,5 @@
     ".next/types/app/layout.tsx",
     ".next/types/app/page.tsx"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

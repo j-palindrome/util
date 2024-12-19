@@ -15,6 +15,7 @@ export default function GenScene() {
   const props = useRef({
     positions: [] as number[][][]
   })
+
   return (
     <Reactive
       loop={true}
