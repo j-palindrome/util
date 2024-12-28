@@ -141,8 +141,8 @@ export default class Builder {
         typeof transform.scale === 'number'
           ? new Vector2(transform.scale, transform.scale)
           : transform.scale instanceof Array
-          ? new Vector2(...transform.scale)
-          : transform.scale ?? new Vector2(1, 1),
+            ? new Vector2(...transform.scale)
+            : transform.scale ?? new Vector2(1, 1),
       rotate: this.toRad(transform.rotate ?? 0),
       translate:
         transform.translate instanceof Array
@@ -242,12 +242,19 @@ export default class Builder {
   }
 
   protected packToTexture(resolution: Vector2) {
-    this.keyframe.groups = this.keyframe.groups
-      .map(x => ({
-        ...x,
-        curves: x.curves.filter(x => x.length)
-      }))
-      .filter(x => x.curves.length)
+    this.keyframe.groups = [
+      {
+        transform: this.toTransform(),
+        curves: this.keyframe.groups.flatMap(x =>
+          x.curves
+            .filter(x => x.length)
+            .map(curve =>
+              curve.map(point => this.applyTransform(point, x.transform))
+            )
+        )
+      }
+    ]
+
     const hypotenuse = resolution.length()
 
     this.reset(true)

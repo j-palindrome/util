@@ -1,5 +1,5 @@
 import { isEqual, now } from 'lodash'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
@@ -69,41 +69,6 @@ export default function Brush({
   } = lastData
 
   const meshRef = useRef<THREE.Group>(null!)
-  const maxCurveLength = resolution.length() * 2
-
-  // const updateChildren = (newData: typeof lastData) => {
-  //   if (!meshRef.current) return
-  //   meshRef.current.rotation.set(0, 0, newData.transform.rotate)
-  //   meshRef.current.scale.set(...newData.transform.scale.toArray(), 1)
-  //   meshRef.current.position.set(...newData.transform.translate.toArray(), 0)
-
-  //   meshRef.current.children.forEach((c, i) => {
-  //     const child = c as THREE.InstancedMesh<
-  //       THREE.PlaneGeometry,
-  //       THREE.ShaderMaterial
-  //     >
-  //     if (!newData.groups[i]) return
-  //     child.material.uniforms.keyframesTex.value = newData.keyframesTex
-  //     child.material.uniforms.colorTex.value = newData.colorTex
-  //     child.material.uniforms.thicknessTex.value = newData.thicknessTex
-  //     child.material.uniforms.curveEnds.value = newData.groups[i].curveEnds
-  //     child.material.uniforms.curveIndexes.value =
-  //       newData.groups[i].curveIndexes
-  //     child.material.uniforms.controlPointCounts.value =
-  //       newData.groups[i].controlPointCounts
-
-  //     child.material.uniforms.resolution.value = resolution
-  //     child.material.uniforms.dimensions.value = newData.dimensions
-  //     child.count = newData.groups[i].totalCurveLength
-  //     child.material.uniformsNeedUpdate = true
-
-  //     const { translate, scale, rotate } = newData.groups[i].transform
-  //     child.material.uniforms.scaleCorrection.value = scale
-  //     child.position.set(translate.x, translate.y, 0)
-  //     child.scale.set(scale.x, scale.y, 1)
-  //     child.rotation.set(0, 0, rotate)
-  //   })
-  // }
 
   const reInitialize = useCallback(() => {
     const resolution = new Vector2(
@@ -111,30 +76,8 @@ export default function Brush({
       window.innerHeight * window.devicePixelRatio
     )
     const newData = keyframes.reInitialize(resolution)
-    if (!isEqual(newData.curveCounts, lastData.curveCounts)) {
-      console.log('reinit')
-
-      setLastData(newData)
-    } else {
-      // updateChildren(newData)
-    }
+    setLastData(newData)
   }, [lastData])
-
-  // useEffect(() => {
-  //   updateChildren(lastData)
-  // }, [lastData])
-
-  // useEffect(() => {
-  //   let timeout: number
-  //   const reinit = () => {
-  //     reInitialize()
-  //     timeout = window.setTimeout(reinit, Math.random() ** 2 * 300)
-  //   }
-  //   reinit()
-  //   return () => window.clearTimeout(timeout)
-  // }, [])
-
-  const arcLength = 1000 / lastData.settings.spacing
   const materials = useMemo(
     () =>
       groups.map(group => {
@@ -145,7 +88,6 @@ export default function Brush({
         })
 
         const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
-        const curveEnds = uniformArray(group.curveEnds as any, 'int')
         const controlPointCounts = uniformArray(
           group.controlPointCounts as any,
           'int'
@@ -327,28 +269,21 @@ export default function Brush({
 
         return material
       }),
-    []
+    [lastData]
   )
+  useEffect(() => {
+    let timeout: number
+    const reinit = () => {
+      reInitialize()
+      keyframesTex.needsUpdate = true
 
-  // const resolution = uniform(vec2(0, 0))
-  // const scaleCorrection = uniform(vec2(0, 0))
-  // const progress = uniform(float(0))
-  // const aspectRatio = vec2(1, resolution.y.div(resolution.x))
-  // const pixel = vec2(1).div(resolution)
-  // const rotate2d = Fn(({ v, angle }) => {
-  //   const c = cos(angle)
-  //   const s = sin(angle)
-  //   return vec2(v.x.mul(c).sub(v.y.mul(s)), v.x.mul(s).add(v.y.mul(c)))
-  // })
-  // ROTATION
-  // .add(
-  //   rotate2d({
-  //     v: position.xy.mul(pixel).mul(vec2(thickness)),
-  //     angle: point.rotation.add(float(1.5707))
-  //   })
-  // )
-  // .div(aspectRatio)
-  // .div(scaleCorrection)
+      timeout = window.setTimeout(reinit, Math.random() ** 2 * 300)
+    }
+    reinit()
+    return () => window.clearTimeout(timeout)
+  }, [])
+
+  const arcLength = 1000 / lastData.settings.spacing
 
   return (
     <group
