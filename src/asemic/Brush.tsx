@@ -145,7 +145,6 @@ export default function Brush({
         })
 
         const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
-
         const curveEnds = uniformArray(group.curveEnds as any, 'int')
         const controlPointCounts = uniformArray(
           group.controlPointCounts as any,
@@ -330,7 +329,6 @@ export default function Brush({
       }),
     []
   )
-  console.log(lastData)
 
   // const resolution = uniform(vec2(0, 0))
   // const scaleCorrection = uniform(vec2(0, 0))
