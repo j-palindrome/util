@@ -1,8 +1,9 @@
 'use client'
+import Builder from '@/util/src/asemic/Builder'
+import { useInterval } from '@/util/src/dom'
 import { useState } from 'react'
-import Asemic from './drawingSystem/Asemic'
-import Builder from './drawingSystem/Builder'
-import { useInterval } from './drawingSystem/util'
+import Asemic from '@/util/src/asemic/Asemic'
+import Brush from '@/util/src/asemic/Brush'
 
 const yin = (b: Builder) =>
   b
@@ -135,7 +136,13 @@ export default function IChing() {
         </button>
       </div>
       <div className='grow h-full py-4 relative'>
-        {<Asemic builders={days[day].asemic[timeSwitch]}></Asemic>}
+        {
+          <Asemic>
+            {days[day].asemic[timeSwitch].map((x, i) => (
+              <Brush key={i} render={x} />
+            ))}
+          </Asemic>
+        }
         {
           <div className='absolute top-0 left-0 w-full h-full flex flex-col justify-around px-4 font-serif text-sm italic text-center'>
             {days[day].poem.map((x, i) => (
