@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
   atan2,
+  attribute,
   cos,
   float,
   Fn,
@@ -14,6 +15,7 @@ import {
   PI2,
   pow,
   screenSize,
+  select,
   sin,
   texture,
   uniform,
@@ -24,7 +26,10 @@ import {
   vec3,
   vec4
 } from 'three/tsl'
-import { SpriteNodeMaterial } from 'three/webgpu'
+import {
+  SpriteNodeMaterial,
+  StorageInstancedBufferAttribute
+} from 'three/webgpu'
 import { useEventListener } from '../dom'
 import Builder from './Builder'
 
@@ -67,6 +72,7 @@ export default function Brush({
     dimensions,
     settings
   } = lastData
+  console.log(keyframesTex.source.data)
 
   const meshRef = useRef<THREE.Group>(null!)
 
@@ -78,6 +84,28 @@ export default function Brush({
     const newData = keyframes.reInitialize(resolution)
     setLastData(newData)
   }, [lastData])
+
+  // const i = instanceIndex.div(arcLength)
+  // const curveI = curveIndexes.element(i)
+  // const curveProgress = float(curveI).add(0.5).div(dimensionsU.y)
+  // const t = instanceIndex
+  //   .toFloat()
+  //   .mod(arcLength)
+  //   .div(arcLength)
+  //   .toVar()
+
+  const bufferArray = new Float32Array(lastData.groups[0].totalCurveLength)
+
+  const curveEnds = lastData.groups[0].curveEnds
+  for (let i = 0; i < lastData.groups[0].totalCurveLength; i++) {
+    const curveEnd = curveEnds.findIndex(x => x > i)!
+    const progress =
+      (i - curveEnds[curveEnd]) /
+      (curveEnds[curveEnd] - (curveEnds[curveEnd - 1] ?? 0))
+    bufferArray[i * 2] = curveEnd
+    bufferArray[i * 2 + 1] = progress
+  }
+
   const materials = useMemo(
     () =>
       groups.map(group => {
@@ -92,8 +120,6 @@ export default function Brush({
           group.controlPointCounts as any,
           'int'
         )
-
-        const curveIndexes = uniformArray(group.curveIndexes as any, 'int')
         const dimensionsU = uniform(dimensions, 'vec2')
 
         // Define the Bezier functions
@@ -141,19 +167,34 @@ export default function Brush({
           ).mul(aspectRatio)
         }
 
-        const polyLine = ({ t, p0, p1, p2 }) => {
-          return p0.mul(t.oneMinus()).add(p2.mul(t))
+        const polyLine = ({
+          t,
+          p0,
+          p1,
+          p2
+        }: {
+          t: ReturnType<typeof float>
+          p0: ReturnType<typeof vec2>
+          p1: ReturnType<typeof vec2>
+          p2: ReturnType<typeof vec2>
+        }) => {
+          const l0 = p1.sub(p0).length()
+          const l1 = p2.sub(p1).length()
+          const totalLength = l0.add(l1)
+          const progress = t.mul(totalLength)
+
+          return select(
+            progress.greaterThan(l0),
+            mix(p1, p2, progress.sub(l0).div(l1)),
+            mix(p0, p1, progress.div(l0))
+          )
         }
 
         // Function to calculate a point on a Bezier curve
         const bezierPoint = ({ t, p0, p1, p2, strength }) => {
           const positionCurve = bezier2({ t, p0, p1, p2 })
           const positionStraight = polyLine({ t, p0, p1, p2 })
-          const position = mix(
-            positionCurve,
-            positionStraight,
-            pow(strength, 2)
-          )
+          const position = mix(positionCurve, positionStraight, strength)
           const tangent = bezier2Tangent({ t, p0, p1, p2 })
           const rotation = atan2(tangent.y, tangent.x)
           return { position, rotation }
@@ -169,19 +210,13 @@ export default function Brush({
         const rotation = float(0).toVar('rotation')
         const thickness = float(10).toVar('thickness')
         const main = Fn(() => {
-          const i = instanceIndex.div(arcLength)
-          const curveI = curveIndexes.element(i)
-          const curveProgress = float(curveI).add(0.5).div(dimensionsU.y)
-          const t = instanceIndex
-            .toFloat()
-            .mod(arcLength)
-            .div(arcLength)
-            .toVar()
-          const controlPointsCount = controlPointCounts.element(i)
+          const t = vec2(0, 0)
+          const controlPointsCount = controlPointCounts.element(t.y)
+          const curveProgress = t.y.add(0.5).div(dimensionsU.y)
 
           let point = {
-            position: vec2(0, 0).toVar(),
-            rotation: float(0).toVar()
+            position: vec2(0, 0).toVar('positionV'),
+            rotation: float(0).toVar('rotationV')
           }
 
           If(controlPointsCount.equal(2), () => {
@@ -226,7 +261,7 @@ export default function Brush({
             const p0 = texture(keyframesTex, t0).xy.toVar('p0')
             const p1 = texture(keyframesTex, t1).xy.toVar('p1')
             const p2 = texture(keyframesTex, t2).xy.toVar('p2')
-            let strength = float(p1.z)
+            const strength = texture(keyframesTex, t1).z.toVar('strength')
 
             varyingProperty('vec4', 'colorV').assign(texture(colorTex, tt))
             thickness.assign(texture(thicknessTex, tt))
@@ -247,7 +282,7 @@ export default function Brush({
               p2,
               strength
             })
-            // point.position.assign(p0)
+
             point.position.assign(thisPoint.position)
             point.rotation.assign(thisPoint.rotation)
           })
@@ -271,19 +306,27 @@ export default function Brush({
       }),
     [lastData]
   )
-  useEffect(() => {
-    let timeout: number
-    const reinit = () => {
-      reInitialize()
-      keyframesTex.needsUpdate = true
+  // useEffect(() => {
+  //   let timeout: number
+  //   const reinit = () => {
+  //     reInitialize()
+  //     keyframesTex.needsUpdate = true
 
-      timeout = window.setTimeout(reinit, Math.random() ** 2 * 300)
-    }
-    reinit()
-    return () => window.clearTimeout(timeout)
-  }, [])
+  //     timeout = window.setTimeout(reinit, Math.random() ** 2 * 300)
+  //   }
+  //   reinit()
+  //   return () => window.clearTimeout(timeout)
+  // }, [])
 
   const arcLength = 1000 / lastData.settings.spacing
+
+  const attrRef = useRef<any>(null!)
+  useEffect(() => {
+    attrRef.current!.setAttribute(
+      't',
+      new StorageInstancedBufferAttribute(bufferArray, 2)
+    )
+  })
 
   return (
     <group
@@ -299,7 +342,9 @@ export default function Brush({
           key={i + now()}
           count={arcLength * group.controlPointCounts.length}
           material={materials[i]}>
-          <planeGeometry args={lastData.settings.defaults.size} />
+          <planeGeometry
+            args={lastData.settings.defaults.size}
+            ref={attrRef}></planeGeometry>
         </instancedMesh>
       ))}
     </group>
