@@ -309,12 +309,15 @@ export default function Brush({
   //   return () => window.clearTimeout(timeout)
   // }, [])
 
-  const array = new Float32Array(
-    arcLength * groups[0].controlPointCounts.length * 2
-  )
-  for (let i = 0; i < arcLength * groups[0].controlPointCounts.length; i++) {
-    array[i * 2] = (i % arcLength) / arcLength
-    array[i * 2 + 1] = Math.floor(i / arcLength)
+  const instanceCount = groups[0].totalCurveLength / settings.spacing
+  const array = new Float32Array(instanceCount * 2)
+  let currentIndex = 0
+  for (let i = 0; i < instanceCount; i++) {
+    if (groups[0].curveEnds[currentIndex] <= i) currentIndex++
+    const lastCurve = groups[0].curveEnds[currentIndex - 1] ?? 0
+    const curveLength = groups[0].curveEnds[currentIndex] - lastCurve
+    array[i * 2] = (i - lastCurve) / curveLength
+    array[i * 2 + 1] = currentIndex
   }
 
   return (
@@ -329,7 +332,7 @@ export default function Brush({
           scale={[...group.transform.scale.toArray(), 1]}
           rotation={[0, 0, group.transform.rotate]}
           key={i + now()}
-          count={arcLength * group.controlPointCounts.length}
+          count={instanceCount}
           material={materials[i]}>
           <planeGeometry args={lastData.settings.defaults.size}>
             <storageInstancedBufferAttribute
