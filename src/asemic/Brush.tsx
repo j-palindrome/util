@@ -41,6 +41,7 @@ import {
 import { useEventListener } from '../dom'
 import Builder from './Builder'
 import { extend, useFrame } from '@react-three/fiber'
+import { updateInstanceAttribute } from '../three'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -55,11 +56,11 @@ export type Jitter = {
 extend({ StorageInstancedBufferAttribute })
 
 export default function Brush({
-  render
+  builder
 }: {
-  render: ConstructorParameters<typeof Builder>[0]
+  builder: ConstructorParameters<typeof Builder>[0]
 }) {
-  const keyframes = new Builder(render)
+  const keyframes = new Builder(builder)
 
   const resolution = new Vector2(
     window.innerWidth * window.devicePixelRatio,
@@ -288,27 +289,30 @@ export default function Brush({
     []
   )
 
-  const array = new Float32Array(MAX_INSTANCE_COUNT * 2)
-  useMemo(() => {
-    let currentIndex = 0
-    let lastCurve = 0
-    let curveLength = groups[0].curveEnds[currentIndex] - lastCurve
-    for (let i = 0; i < instanceCount; i++) {
-      if (groups[0].curveEnds[currentIndex] <= i) {
-        currentIndex++
-        lastCurve = groups[0].curveEnds[currentIndex - 1]
-        curveLength = groups[0].curveEnds[currentIndex] - lastCurve
-      }
-      array[i * 2] = (i - lastCurve) / curveLength
-      array[i * 2 + 1] = currentIndex
-    }
-  }, [instanceCount])
-
   useLayoutEffect(() => {
     if (!meshRef.current) return
     meshRef.current.children.forEach(child => {
-      child.material.needsUpdate = true
-      child.count = instanceCount
+      const c = child as THREE.InstancedMesh<
+        THREE.PlaneGeometry,
+        SpriteNodeMaterial
+      >
+      c.material.needsUpdate = true
+      c.count = instanceCount
+      const bufGeom = c.geometry.getAttribute(
+        't'
+      ) as StorageInstancedBufferAttribute
+      let currentIndex = 0
+      let lastCurve = 0
+      let curveLength = groups[0].curveEnds[currentIndex] - lastCurve
+      for (let i = 0; i < instanceCount; i++) {
+        if (groups[0].curveEnds[currentIndex] <= i) {
+          currentIndex++
+          lastCurve = groups[0].curveEnds[currentIndex - 1]
+          curveLength = groups[0].curveEnds[currentIndex] - lastCurve
+        }
+        bufGeom.setXY(i, (i - lastCurve) / curveLength, currentIndex)
+      }
+      bufGeom.needsUpdate = true
     })
   }, [instanceCount])
 
@@ -323,13 +327,13 @@ export default function Brush({
           position={[...group.transform.translate.toArray(), 0]}
           scale={[...group.transform.scale.toArray(), 1]}
           rotation={[0, 0, group.transform.rotate]}
-          key={i + now()}
+          key={i}
           count={MAX_INSTANCE_COUNT}
           material={material}>
           <planeGeometry args={lastData.settings.defaults.size}>
             <storageInstancedBufferAttribute
               attach='attributes-t'
-              args={[array.subarray(0, instanceCount * 2), 2]}
+              args={[new Float32Array(MAX_INSTANCE_COUNT * 2), 2]}
             />
           </planeGeometry>
         </instancedMesh>

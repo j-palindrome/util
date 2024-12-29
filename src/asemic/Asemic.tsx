@@ -43,7 +43,7 @@ export default function Asemic({
       {source
         ?.split('\n')
         .filter(x => x)
-        .map((x, i) => <Brush key={i + now()} render={b => b.parse(x)} />)}
+        .map((x, i) => <Brush key={i + now()} builder={b => b.parse(x)} />)}
       {children}
     </Canvas>
   )
