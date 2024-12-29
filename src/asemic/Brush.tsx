@@ -198,18 +198,11 @@ export default function Brush({
 
         const rotation = float(0).toVar('rotation')
         const thickness = float(10).toVar('thickness')
-        const t = attribute('t')
+        const t = attribute('t', 'vec2')
 
         const main = Fn(() => {
-          const i = instanceIndex.div(arcLength)
-          const curveI = curveIndexes.element(i)
-          const curveProgress = float(curveI).add(0.5).div(dimensionsU.y)
-          // const t = instanceIndex
-          //   .toFloat()
-          //   .mod(arcLength)
-          //   .div(arcLength)
-          //   .toVar()
-          const controlPointsCount = controlPointCounts.element(i)
+          const curveProgress = t.y.add(0.5).div(dimensionsU.y)
+          const controlPointsCount = controlPointCounts.element(t.y)
 
           let point = {
             position: vec2(0, 0).toVar(),
@@ -222,12 +215,12 @@ export default function Brush({
               keyframesTex,
               vec2(float(1).div(dimensionsU.x), curveProgress)
             ).xy
-            const progressPoint = mix(p0, p1, t)
+            const progressPoint = mix(p0, p1, t.x)
             point.position.assign(progressPoint)
             const rotation = lineTangent(p0, p1)
             point.rotation.assign(atan2(rotation.y, rotation.x))
             const textureVector = vec2(
-              t.add(0.5).div(dimensionsU.x),
+              t.x.add(0.5).div(dimensionsU.x),
               curveProgress
             )
             varyingProperty('vec4', 'colorV').assign(
@@ -236,7 +229,7 @@ export default function Brush({
             thickness.assign(texture(thicknessTex, textureVector))
           }).Else(() => {
             const pointProgress = multiBezierProgress({
-              t,
+              t: t.x,
               controlPointsCount
             })
             const t0 = vec2(
@@ -252,7 +245,7 @@ export default function Brush({
                 curveProgress
               ),
               tt = vec2(
-                t.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
+                t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
                 curveProgress
               )
             const p0 = texture(keyframesTex, t0).xy.toVar('p0')
@@ -317,10 +310,11 @@ export default function Brush({
   // }, [])
 
   const array = new Float32Array(
-    arcLength * groups[0].controlPointCounts.length
+    arcLength * groups[0].controlPointCounts.length * 2
   )
   for (let i = 0; i < arcLength * groups[0].controlPointCounts.length; i++) {
-    array[i] = (i % arcLength) / arcLength
+    array[i * 2] = (i % arcLength) / arcLength
+    array[i * 2 + 1] = Math.floor(i / arcLength)
   }
 
   return (
@@ -340,7 +334,7 @@ export default function Brush({
           <planeGeometry args={lastData.settings.defaults.size}>
             <storageInstancedBufferAttribute
               attach='attributes-t'
-              args={[array, 1]}
+              args={[array, 2]}
             />
           </planeGeometry>
         </instancedMesh>
