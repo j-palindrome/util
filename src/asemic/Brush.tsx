@@ -37,11 +37,12 @@ import {
 } from 'three/tsl'
 import {
   SpriteNodeMaterial,
-  StorageInstancedBufferAttribute
+  StorageInstancedBufferAttribute,
+  WebGPURenderer
 } from 'three/webgpu'
 import { useEventListener } from '../dom'
 import Builder from './Builder'
-import { extend, useFrame } from '@react-three/fiber'
+import { extend, useFrame, useThree } from '@react-three/fiber'
 import { updateInstanceAttribute } from '../three'
 import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
 
@@ -203,7 +204,13 @@ export default function Brush({
     []
   )
 
+  // @ts-ignore
+  const gl = useThree(state => state.gl as WebGPURenderer)
+
+  const array = useMemo(() => new Float32Array(MAX_INSTANCE_COUNT * 2), [])
+
   useLayoutEffect(() => {
+    // ~10ms
     if (!meshRef.current) return
 
     meshRef.current.children.forEach(child => {
@@ -224,7 +231,8 @@ export default function Brush({
           lastCurve = lastData.groups[0].curveEnds[currentIndex - 1]
           curveLength = lastData.groups[0].curveEnds[currentIndex] - lastCurve
         }
-        bufGeom.setXY(i, (i - lastCurve) / curveLength, currentIndex)
+        array[i * 2] = (i - lastCurve) / curveLength
+        array[i * 2 + 1] = currentIndex
       }
       bufGeom.needsUpdate = true
     })
@@ -247,7 +255,7 @@ export default function Brush({
           <planeGeometry args={lastData.settings.defaults.size}>
             <storageInstancedBufferAttribute
               attach='attributes-t'
-              args={[new Float32Array(MAX_INSTANCE_COUNT * 2), 2]}
+              args={[array, 2]}
             />
           </planeGeometry>
         </instancedMesh>
