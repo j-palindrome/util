@@ -1,5 +1,12 @@
 import { isEqual, now } from 'lodash'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
@@ -33,7 +40,7 @@ import {
 } from 'three/webgpu'
 import { useEventListener } from '../dom'
 import Builder from './Builder'
-import { extend } from '@react-three/fiber'
+import { extend, useFrame } from '@react-three/fiber'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -54,42 +61,21 @@ export default function Brush({
 }) {
   const keyframes = new Builder(render)
 
-  useEventListener(
-    'resize',
-    () => {
-      reInitialize()
-    },
-    []
-  )
   const resolution = new Vector2(
     window.innerWidth * window.devicePixelRatio,
     window.innerHeight * window.devicePixelRatio
   )
 
   const [lastData, setLastData] = useState(keyframes.reInitialize(resolution))
-  const {
-    keyframesTex,
-    colorTex,
-    thicknessTex,
-    groups,
-    transform,
-    dimensions,
-    settings
-  } = lastData
+  const { groups, transform, dimensions, settings } = lastData
+  const keyframesTexRef = useRef(lastData.keyframesTex)
+  keyframesTexRef.current = lastData.keyframesTex
+  const colorTexRef = useRef(lastData.colorTex)
+  colorTexRef.current = lastData.colorTex
+  const thicknessTexRef = useRef(lastData.thicknessTex)
+  thicknessTexRef.current = lastData.thicknessTex
 
   const meshRef = useRef<THREE.Group>(null!)
-
-  const reInitialize = useCallback(() => {
-    const resolution = new Vector2(
-      window.innerWidth * window.devicePixelRatio,
-      window.innerHeight * window.devicePixelRatio
-    )
-    const newData = keyframes.reInitialize(resolution)
-    setLastData(newData)
-  }, [lastData])
-
-  const arcLength = 1000 / lastData.settings.spacing
-
   const materials = useMemo(
     () =>
       groups.map(group => {
@@ -104,8 +90,6 @@ export default function Brush({
           group.controlPointCounts as any,
           'int'
         )
-
-        const curveIndexes = uniformArray(group.curveIndexes as any, 'int')
         const dimensionsU = uniform(dimensions, 'vec2')
 
         // Define the Bezier functions
@@ -210,9 +194,12 @@ export default function Brush({
           }
 
           If(controlPointsCount.equal(2), () => {
-            const p0 = texture(keyframesTex, vec2(0, curveProgress)).xy
+            const p0 = texture(
+              keyframesTexRef.current,
+              vec2(0, curveProgress)
+            ).xy
             const p1 = texture(
-              keyframesTex,
+              keyframesTexRef.current,
               vec2(float(1).div(dimensionsU.x), curveProgress)
             ).xy
             const progressPoint = mix(p0, p1, t.x)
@@ -224,9 +211,9 @@ export default function Brush({
               curveProgress
             )
             varyingProperty('vec4', 'colorV').assign(
-              texture(colorTex, textureVector)
+              texture(colorTexRef.current, textureVector)
             )
-            thickness.assign(texture(thicknessTex, textureVector))
+            thickness.assign(texture(thicknessTexRef.current, textureVector))
           }).Else(() => {
             const pointProgress = multiBezierProgress({
               t: t.x,
@@ -248,13 +235,17 @@ export default function Brush({
                 t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
                 curveProgress
               )
-            const p0 = texture(keyframesTex, t0).xy.toVar('p0')
-            const p1 = texture(keyframesTex, t1).xy.toVar('p1')
-            const p2 = texture(keyframesTex, t2).xy.toVar('p2')
-            const strength = texture(keyframesTex, t1).z.toVar('strength')
+            const p0 = texture(keyframesTexRef.current, t0).xy.toVar('p0')
+            const p1 = texture(keyframesTexRef.current, t1).xy.toVar('p1')
+            const p2 = texture(keyframesTexRef.current, t2).xy.toVar('p2')
+            const strength = texture(keyframesTexRef.current, t1).z.toVar(
+              'strength'
+            )
 
-            varyingProperty('vec4', 'colorV').assign(texture(colorTex, tt))
-            thickness.assign(texture(thicknessTex, tt))
+            varyingProperty('vec4', 'colorV').assign(
+              texture(colorTexRef.current, tt)
+            )
+            thickness.assign(texture(thicknessTexRef.current, tt))
 
             If(pointProgress.x.greaterThan(float(0)), () => {
               p0.assign(mix(p0, p1, float(0.5)))
@@ -292,33 +283,52 @@ export default function Brush({
         const vDirection = varying(vec4(), 'colorV')
         material.colorNode = vDirection
 
-        // console.log(material.positionNode);
         return material
       }),
-    [lastData]
+    []
   )
-  // useEffect(() => {
-  //   let timeout: number
-  //   const reinit = () => {
-  //     reInitialize()
-  //     keyframesTex.needsUpdate = true
 
-  //     timeout = window.setTimeout(reinit, Math.random() ** 2 * 300)
-  //   }
-  //   reinit()
-  //   return () => window.clearTimeout(timeout)
-  // }, [])
+  useFrame(() => {
+    const resolution = new Vector2(
+      window.innerWidth * window.devicePixelRatio,
+      window.innerHeight * window.devicePixelRatio
+    )
+    const newData = keyframes.reInitialize(resolution)
+    setLastData(newData)
+  })
 
-  const instanceCount = groups[0].totalCurveLength / settings.spacing
-  const array = new Float32Array(instanceCount * 2)
-  let currentIndex = 0
-  for (let i = 0; i < instanceCount; i++) {
-    if (groups[0].curveEnds[currentIndex] <= i) currentIndex++
-    const lastCurve = groups[0].curveEnds[currentIndex - 1] ?? 0
-    const curveLength = groups[0].curveEnds[currentIndex] - lastCurve
-    array[i * 2] = (i - lastCurve) / curveLength
-    array[i * 2 + 1] = currentIndex
-  }
+  const instanceCount = Math.floor(
+    groups[0].totalCurveLength / settings.spacing
+  )
+  const MAX_INSTANCE_COUNT = useMemo(
+    () => (groups[0].totalCurveLength / settings.spacing) * 2,
+    []
+  )
+
+  const array = useMemo(() => {
+    const array = new Float32Array(instanceCount * 2)
+    let currentIndex = 0
+    let lastCurve = 0
+    let curveLength = groups[0].curveEnds[currentIndex] - lastCurve
+    for (let i = 0; i < instanceCount; i++) {
+      if (groups[0].curveEnds[currentIndex] <= i) {
+        currentIndex++
+        lastCurve = groups[0].curveEnds[currentIndex - 1]
+        curveLength = groups[0].curveEnds[currentIndex] - lastCurve
+      }
+      array[i * 2] = (i - lastCurve) / curveLength
+      array[i * 2 + 1] = currentIndex
+    }
+    return array
+  }, [instanceCount])
+
+  useLayoutEffect(() => {
+    if (!meshRef.current) return
+    meshRef.current.children.forEach(child => {
+      child.material.needsUpdate = true
+      child.count = instanceCount
+    })
+  }, [instanceCount])
 
   return (
     <group
@@ -332,7 +342,7 @@ export default function Brush({
           scale={[...group.transform.scale.toArray(), 1]}
           rotation={[0, 0, group.transform.rotate]}
           key={i + now()}
-          count={instanceCount}
+          count={MAX_INSTANCE_COUNT}
           material={materials[i]}>
           <planeGeometry args={lastData.settings.defaults.size}>
             <storageInstancedBufferAttribute

@@ -1,4 +1,4 @@
-import { last, max, min, range, sum } from 'lodash'
+import _, { last, max, min, range, sum } from 'lodash'
 import {
   AnyPixelFormat,
   ClampToEdgeWrapping,
@@ -190,7 +190,6 @@ export default class Builder {
       newCurvePoints.push(
         new PointBuilder(newCurve.getPointAt(u).toArray() as [number, number])
       )
-
       curve.splice(0, curve.length, ...newCurvePoints)
     }
   }
@@ -536,20 +535,32 @@ export default class Builder {
   getRandomWithin(origin: number, variation: number): number
   getRandomWithin(origin: Coordinate, variation: Coordinate): PointBuilder
   getRandomWithin(
+    origin: Coordinate,
+    variation: Coordinate,
+    count: number
+  ): PointBuilder[]
+  getRandomWithin(origin: number, variation: number, count: number): number[]
+  getRandomWithin(
     origin: number | Coordinate,
-    variation: number | Coordinate
-  ): number | PointBuilder {
-    if (typeof origin === 'number' && typeof variation === 'number') {
-      return origin + (Math.random() - 0.5) * 2 * variation
-    } else {
-      return this.toPoint(origin as Coordinate).add(
-        new Vector2()
-          .random()
-          .subScalar(0.5)
-          .multiplyScalar(2)
-          .multiply(this.toPoint(variation as Coordinate))
-      )
+    variation: number | Coordinate,
+    count = 1
+  ): number | PointBuilder | (number | PointBuilder)[] {
+    const random = () => {
+      if (typeof origin === 'number' && typeof variation === 'number') {
+        return origin + (Math.random() - 0.5) * 2 * variation
+      } else {
+        return this.toPoint(origin as Coordinate).add(
+          new Vector2()
+            .random()
+            .subScalar(0.5)
+            .multiplyScalar(2)
+            .multiply(this.toPoint(variation as Coordinate))
+        )
+      }
     }
+    if (count > 1) {
+      return _.range(count).map(() => random())
+    } else return random()
   }
 
   points(
@@ -1031,9 +1042,9 @@ ${g.curves
       ).transform({ translate: [0.5, 0], reset: 'last' })
   }
 
-  repeat(func: (g: this, progress: number) => void, runCount = 1) {
+  repeat(func: (progress: number) => void, runCount = 1) {
     for (let i = 0; i < runCount; i++) {
-      func(this, i)
+      func(i)
     }
 
     return this
