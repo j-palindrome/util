@@ -4,11 +4,13 @@ import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
   atan2,
+  attribute,
   cos,
   float,
   Fn,
   If,
   instanceIndex,
+  log,
   mat2,
   mix,
   PI2,
@@ -25,9 +27,13 @@ import {
   vec3,
   vec4
 } from 'three/tsl'
-import { SpriteNodeMaterial } from 'three/webgpu'
+import {
+  SpriteNodeMaterial,
+  StorageInstancedBufferAttribute
+} from 'three/webgpu'
 import { useEventListener } from '../dom'
 import Builder from './Builder'
+import { extend } from '@react-three/fiber'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -38,6 +44,8 @@ export type Jitter = {
   a?: number
   rotation?: number
 }
+
+extend({ StorageInstancedBufferAttribute })
 
 export default function Brush({
   render
@@ -79,6 +87,8 @@ export default function Brush({
     const newData = keyframes.reInitialize(resolution)
     setLastData(newData)
   }, [lastData])
+
+  const arcLength = 1000 / lastData.settings.spacing
 
   const materials = useMemo(
     () =>
@@ -188,15 +198,17 @@ export default function Brush({
 
         const rotation = float(0).toVar('rotation')
         const thickness = float(10).toVar('thickness')
+        const t = attribute('t')
+
         const main = Fn(() => {
           const i = instanceIndex.div(arcLength)
           const curveI = curveIndexes.element(i)
           const curveProgress = float(curveI).add(0.5).div(dimensionsU.y)
-          const t = instanceIndex
-            .toFloat()
-            .mod(arcLength)
-            .div(arcLength)
-            .toVar()
+          // const t = instanceIndex
+          //   .toFloat()
+          //   .mod(arcLength)
+          //   .div(arcLength)
+          //   .toVar()
           const controlPointsCount = controlPointCounts.element(i)
 
           let point = {
@@ -287,6 +299,7 @@ export default function Brush({
         const vDirection = varying(vec4(), 'colorV')
         material.colorNode = vDirection
 
+        // console.log(material.positionNode);
         return material
       }),
     [lastData]
@@ -303,7 +316,12 @@ export default function Brush({
   //   return () => window.clearTimeout(timeout)
   // }, [])
 
-  const arcLength = 1000 / lastData.settings.spacing
+  const array = new Float32Array(
+    arcLength * groups[0].controlPointCounts.length
+  )
+  for (let i = 0; i < arcLength * groups[0].controlPointCounts.length; i++) {
+    array[i] = (i % arcLength) / arcLength
+  }
 
   return (
     <group
@@ -319,7 +337,12 @@ export default function Brush({
           key={i + now()}
           count={arcLength * group.controlPointCounts.length}
           material={materials[i]}>
-          <planeGeometry args={lastData.settings.defaults.size} />
+          <planeGeometry args={lastData.settings.defaults.size}>
+            <storageInstancedBufferAttribute
+              attach='attributes-t'
+              args={[array, 1]}
+            />
+          </planeGeometry>
         </instancedMesh>
       ))}
     </group>
