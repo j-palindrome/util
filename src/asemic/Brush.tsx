@@ -14,6 +14,7 @@ import {
   PI2,
   pow,
   screenSize,
+  select,
   sin,
   texture,
   uniform,
@@ -78,6 +79,7 @@ export default function Brush({
     const newData = keyframes.reInitialize(resolution)
     setLastData(newData)
   }, [lastData])
+
   const materials = useMemo(
     () =>
       groups.map(group => {
@@ -141,8 +143,26 @@ export default function Brush({
           ).mul(aspectRatio)
         }
 
-        const polyLine = ({ t, p0, p1, p2 }) => {
-          return p0.mul(t.oneMinus()).add(p2.mul(t))
+        const polyLine = ({
+          t,
+          p0,
+          p1,
+          p2
+        }: {
+          t: ReturnType<typeof float>
+          p0: ReturnType<typeof vec2>
+          p1: ReturnType<typeof vec2>
+          p2: ReturnType<typeof vec2>
+        }) => {
+          const l0 = p1.sub(p0).length()
+          const l1 = p2.sub(p1).length()
+          const totalLength = l0.add(l1)
+          const progress = t.mul(totalLength)
+          return select(
+            progress.greaterThan(l0),
+            mix(p1, p2, progress.sub(l0).div(l1)),
+            mix(p0, p1, progress.div(l0))
+          )
         }
 
         // Function to calculate a point on a Bezier curve
@@ -226,7 +246,7 @@ export default function Brush({
             const p0 = texture(keyframesTex, t0).xy.toVar('p0')
             const p1 = texture(keyframesTex, t1).xy.toVar('p1')
             const p2 = texture(keyframesTex, t2).xy.toVar('p2')
-            let strength = float(p1.z)
+            const strength = texture(keyframesTex, t1).z.toVar('strength')
 
             varyingProperty('vec4', 'colorV').assign(texture(colorTex, tt))
             thickness.assign(texture(thicknessTex, tt))
@@ -271,17 +291,17 @@ export default function Brush({
       }),
     [lastData]
   )
-  useEffect(() => {
-    let timeout: number
-    const reinit = () => {
-      reInitialize()
-      keyframesTex.needsUpdate = true
+  // useEffect(() => {
+  //   let timeout: number
+  //   const reinit = () => {
+  //     reInitialize()
+  //     keyframesTex.needsUpdate = true
 
-      timeout = window.setTimeout(reinit, Math.random() ** 2 * 300)
-    }
-    reinit()
-    return () => window.clearTimeout(timeout)
-  }, [])
+  //     timeout = window.setTimeout(reinit, Math.random() ** 2 * 300)
+  //   }
+  //   reinit()
+  //   return () => window.clearTimeout(timeout)
+  // }, [])
 
   const arcLength = 1000 / lastData.settings.spacing
 

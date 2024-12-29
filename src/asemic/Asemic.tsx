@@ -6,8 +6,9 @@ import { now } from 'three/examples/jsm/libs/tween.module.js'
 
 export default function Asemic({
   source,
-  children
-}: { source?: string } & React.PropsWithChildren) {
+  children,
+  className
+}: { source?: string; className?: string } & React.PropsWithChildren) {
   const [frameloop, setFrameloop] = useState<
     'never' | 'always' | 'demand' | undefined
   >('never')
@@ -15,6 +16,7 @@ export default function Asemic({
   return (
     <Canvas
       frameloop={frameloop}
+      className={className}
       style={{ height: '100vh', width: '100vw' }}
       orthographic
       camera={{
@@ -41,9 +43,7 @@ export default function Asemic({
       {source
         ?.split('\n')
         .filter(x => x)
-        .map((x, i) => (
-          <Brush key={i + now()} render={b => b.parse(x)} />
-        ))}
+        .map((x, i) => <Brush key={i + now()} render={b => b.parse(x)} />)}
       {children}
     </Canvas>
   )
