@@ -22,6 +22,7 @@ import {
   mix,
   PI2,
   pow,
+  sampler,
   screenSize,
   select,
   sin,
@@ -42,6 +43,7 @@ import { useEventListener } from '../dom'
 import Builder from './Builder'
 import { extend, useFrame } from '@react-three/fiber'
 import { updateInstanceAttribute } from '../three'
+import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -68,118 +70,33 @@ export default function Brush({
   )
 
   const [lastData, setLastData] = useState(keyframes.reInitialize(resolution))
-  const { groups, transform, dimensions, settings } = lastData
-  const keyframesTexRef = useRef(lastData.keyframesTex)
-  keyframesTexRef.current = lastData.keyframesTex
   const colorTexRef = useRef(lastData.colorTex)
   colorTexRef.current = lastData.colorTex
   const thicknessTexRef = useRef(lastData.thicknessTex)
   thicknessTexRef.current = lastData.thicknessTex
 
   const meshRef = useRef<THREE.Group>(null!)
+
   const material = useMemo(() => {
     const material = new SpriteNodeMaterial({
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     })
+    return material
+  }, [])
 
-    const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
-    const controlPointCounts = uniformArray(
-      groups[0].controlPointCounts as any,
-      'int'
-    )
-    const dimensionsU = uniform(dimensions, 'vec2')
-
-    // Define the Bezier functions
-    const bezier2 = ({ t, p0, p1, p2 }) => {
-      return p0
-        .mul(t.oneMinus().pow(2))
-        .add(p1.mul(t.oneMinus().mul(t).mul(2)))
-        .add(p2.mul(t.pow(2)))
-    }
-
-    const rotate2d = (
-      v: ReturnType<typeof vec2>,
-      a: number | ReturnType<typeof float>
-    ) => {
-      const s = sin(PI2.mul(a))
-      const c = cos(PI2.mul(a))
-      const m = mat2(c, s.mul(-1), s, c)
-      return m.mul(v)
-    }
-
-    const lineTangent = (
-      p0: ReturnType<typeof vec2>,
-      p1: ReturnType<typeof vec2>
-    ) => {
-      return rotate2d(p0.sub(p1).mul(aspectRatio), 0.25)
-    }
-
-    const bezier2Tangent = ({
-      t,
-      p0,
-      p1,
-      p2
-    }: {
-      t: ReturnType<typeof float>
-      p0: ReturnType<typeof vec2>
-      p1: ReturnType<typeof vec2>
-      p2: ReturnType<typeof vec2>
-    }) => {
-      return rotate2d(
-        p1
-          .sub(p0)
-          .mul(float(2).mul(t.oneMinus()))
-          .add(p2.sub(p1).mul(float(2).mul(t))),
-        float(0.25)
-      ).mul(aspectRatio)
-    }
-
-    const polyLine = ({
-      t,
-      p0,
-      p1,
-      p2
-    }: {
-      t: ReturnType<typeof float>
-      p0: ReturnType<typeof vec2>
-      p1: ReturnType<typeof vec2>
-      p2: ReturnType<typeof vec2>
-    }) => {
-      const l0 = p1.sub(p0).length()
-      const l1 = p2.sub(p1).length()
-      const totalLength = l0.add(l1)
-      const progress = t.mul(totalLength)
-      return select(
-        progress.greaterThan(l0),
-        mix(p1, p2, progress.sub(l0).div(l1)),
-        mix(p0, p1, progress.div(l0))
-      )
-    }
-
-    // Function to calculate a point on a Bezier curve
-    const bezierPoint = ({ t, p0, p1, p2, strength }) => {
-      const positionCurve = bezier2({ t, p0, p1, p2 })
-      const positionStraight = polyLine({ t, p0, p1, p2 })
-      const position = mix(positionCurve, positionStraight, pow(strength, 2))
-      const tangent = bezier2Tangent({ t, p0, p1, p2 })
-      const rotation = atan2(tangent.y, tangent.x)
-      return { position, rotation }
-    }
-
-    const multiBezierProgress = ({ t, controlPointsCount }) => {
-      const subdivisions = float(controlPointsCount).sub(2)
-      const start = t.mul(subdivisions).toInt()
-      const cycle = t.mul(subdivisions).fract()
-      return vec2(start, cycle)
-    }
-
+  useMemo(() => {
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
     const t = attribute('t', 'vec2')
-
-    const main = Fn(() => {
+    const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
+    const controlPointCounts = uniformArray(
+      lastData.groups[0].controlPointCounts as any,
+      'int'
+    )
+    const dimensionsU = uniform(lastData.dimensions, 'vec2')
+    const main = Fn(({ keyframesTex }: { keyframesTex: THREE.Texture }) => {
       const curveProgress = t.y.add(0.5).div(dimensionsU.y)
       const controlPointsCount = controlPointCounts.element(t.y)
 
@@ -189,14 +106,14 @@ export default function Brush({
       }
 
       If(controlPointsCount.equal(2), () => {
-        const p0 = texture(keyframesTexRef.current, vec2(0, curveProgress)).xy
+        const p0 = texture(keyframesTex, vec2(0, curveProgress)).xy
         const p1 = texture(
-          keyframesTexRef.current,
+          keyframesTex,
           vec2(float(1).div(dimensionsU.x), curveProgress)
         ).xy
         const progressPoint = mix(p0, p1, t.x)
         point.position.assign(progressPoint)
-        const rotation = lineTangent(p0, p1)
+        const rotation = lineTangent(p0, p1, aspectRatio)
         point.rotation.assign(atan2(rotation.y, rotation.x))
         const textureVector = vec2(
           t.x.add(0.5).div(dimensionsU.x),
@@ -227,12 +144,10 @@ export default function Brush({
             t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
             curveProgress
           )
-        const p0 = texture(keyframesTexRef.current, t0).xy.toVar('p0')
-        const p1 = texture(keyframesTexRef.current, t1).xy.toVar('p1')
-        const p2 = texture(keyframesTexRef.current, t2).xy.toVar('p2')
-        const strength = texture(keyframesTexRef.current, t1).z.toVar(
-          'strength'
-        )
+        const p0 = texture(keyframesTex, t0).xy.toVar('p0')
+        const p1 = texture(keyframesTex, t1).xy.toVar('p1')
+        const p2 = texture(keyframesTex, t2).xy.toVar('p2')
+        const strength = texture(keyframesTex, t1).z.toVar('strength')
 
         varyingProperty('vec4', 'colorV').assign(
           texture(colorTexRef.current, tt)
@@ -250,7 +165,8 @@ export default function Brush({
           p0,
           p1,
           p2,
-          strength
+          strength,
+          aspectRatio
         })
         // point.position.assign(p0)
         point.position.assign(thisPoint.position)
@@ -260,17 +176,15 @@ export default function Brush({
       rotation.assign(vec3(point.rotation, 0, 0))
       return vec4(point.position, 0, 1)
     })
-
-    material.positionNode = main()
+    material.positionNode = main({ keyframesTex: lastData.keyframesTex })
     material.rotationNode = rotation
     const pixel = float(1.414).mul(2).div(resolution.length())
     material.scaleNode = vec2(thickness.mul(pixel), pixel)
 
     const vDirection = varying(vec4(), 'colorV')
     material.colorNode = vDirection
-
-    return material
-  }, [])
+    material.needsUpdate = true
+  }, [lastData])
 
   useFrame(() => {
     const resolution = new Vector2(
@@ -282,47 +196,47 @@ export default function Brush({
   })
 
   const instanceCount = Math.floor(
-    groups[0].totalCurveLength / settings.spacing
+    lastData.groups[0].totalCurveLength / lastData.settings.spacing
   )
   const MAX_INSTANCE_COUNT = useMemo(
-    () => (groups[0].totalCurveLength / settings.spacing) * 2,
+    () => (lastData.groups[0].totalCurveLength / lastData.settings.spacing) * 2,
     []
   )
 
   useLayoutEffect(() => {
     if (!meshRef.current) return
+
     meshRef.current.children.forEach(child => {
       const c = child as THREE.InstancedMesh<
         THREE.PlaneGeometry,
         SpriteNodeMaterial
       >
-      c.material.needsUpdate = true
       c.count = instanceCount
       const bufGeom = c.geometry.getAttribute(
         't'
       ) as StorageInstancedBufferAttribute
       let currentIndex = 0
       let lastCurve = 0
-      let curveLength = groups[0].curveEnds[currentIndex] - lastCurve
+      let curveLength = lastData.groups[0].curveEnds[currentIndex] - lastCurve
       for (let i = 0; i < instanceCount; i++) {
-        if (groups[0].curveEnds[currentIndex] <= i) {
+        if (lastData.groups[0].curveEnds[currentIndex] <= i) {
           currentIndex++
-          lastCurve = groups[0].curveEnds[currentIndex - 1]
-          curveLength = groups[0].curveEnds[currentIndex] - lastCurve
+          lastCurve = lastData.groups[0].curveEnds[currentIndex - 1]
+          curveLength = lastData.groups[0].curveEnds[currentIndex] - lastCurve
         }
         bufGeom.setXY(i, (i - lastCurve) / curveLength, currentIndex)
       }
       bufGeom.needsUpdate = true
     })
-  }, [instanceCount])
+  }, [lastData])
 
   return (
     <group
       ref={meshRef}
-      position={[...transform.translate.toArray(), 0]}
-      scale={[...transform.scale.toArray(), 1]}
-      rotation={[0, 0, transform.rotate]}>
-      {groups.map((group, i) => (
+      position={[...lastData.transform.translate.toArray(), 0]}
+      scale={[...lastData.transform.scale.toArray(), 1]}
+      rotation={[0, 0, lastData.transform.rotate]}>
+      {lastData.groups.map((group, i) => (
         <instancedMesh
           position={[...group.transform.translate.toArray(), 0]}
           scale={[...group.transform.scale.toArray(), 1]}
