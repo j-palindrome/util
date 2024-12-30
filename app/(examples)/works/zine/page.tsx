@@ -45,7 +45,7 @@ export default function DigiRis() {
       </div>
       <Asemic>
         {slides[currentChild]?.asemic?.map((c, i) => (
-          <Brush key={currentChild + i + now()} render={c} />
+          <Brush key={currentChild + i} builder={c} />
         ))}
       </Asemic>
       <div className='text-pink-600 z-10 absolute top-0 left-0 h-full w-full font-mono font-bold'>

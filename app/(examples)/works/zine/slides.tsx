@@ -25,7 +25,7 @@ export const slides: {
         }),
       b =>
         b.repeat(
-          b =>
+          () =>
             b
               .newGroup({
                 translate: [Math.random() * 0.2 + 0.4, 0],
@@ -51,7 +51,7 @@ export const slides: {
         }),
       b =>
         b.transform({ translate: [0, 1], scale: [1, -1], push: true }).repeat(
-          b =>
+          () =>
             b
               .newGroup({
                 reset: 'last',
@@ -88,7 +88,7 @@ export const slides: {
           })
           .newCurve()
           .repeat(
-            b => b.newPoints(b.getRandomWithin([0.5, 0.5], [0.5, 0.5])),
+            () => b.newPoints(b.getRandomWithin([0.5, 0.5], [0.5, 0.5])),
             30
           )
           .set({ strength: 1 })
@@ -278,7 +278,7 @@ early cyberfeminists`,
     asemic: [
       b =>
         b.repeat(
-          b =>
+          () =>
             b
               .newGroup({ reset: true })
               .newCurve([0.5, 0.3], [Math.random(), 1]),
@@ -326,7 +326,7 @@ so that more than a certain count
         ),
       b =>
         b.repeat(
-          b =>
+          () =>
             b
               .newGroup({ reset: true, translate: [0, Math.random()] })
               .newCurve([0, 0], [1, 0]),
