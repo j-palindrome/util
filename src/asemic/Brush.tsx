@@ -17,6 +17,7 @@ import {
   Fn,
   If,
   instanceIndex,
+  ivec2,
   log,
   mat2,
   mix,
@@ -27,6 +28,8 @@ import {
   select,
   sin,
   texture,
+  textureLoad,
+  textureStore,
   uniform,
   uniformArray,
   varying,
@@ -38,6 +41,7 @@ import {
 import {
   SpriteNodeMaterial,
   StorageInstancedBufferAttribute,
+  StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
 import { useEventListener } from '../dom'
@@ -75,6 +79,49 @@ export default function Brush({
   colorTexRef.current = lastData.colorTex
   const thicknessTexRef = useRef(lastData.thicknessTex)
   thicknessTexRef.current = lastData.thicknessTex
+
+  // @ts-ignore
+  const gl = useThree(({ gl }) => gl as WebGPURenderer)
+
+  const storageTexture = new StorageTexture(
+    lastData.dimensions.x,
+    lastData.dimensions.y
+  )
+  storageTexture.type = THREE.FloatType
+  const dimensionsU = uniform(lastData.dimensions, 'vec2')
+
+  useEffect(() => {
+    const advanceControlPoints = Fn(
+      ({
+        keyframesTex,
+        storageTexture,
+        dimensions
+      }: {
+        keyframesTex: THREE.DataTexture
+        storageTexture: StorageTexture
+        dimensions: ReturnType<typeof vec2>
+      }) => {
+        const pointI = instanceIndex.modInt(dimensions.x)
+        const curveI = instanceIndex.div(dimensions.y)
+        const xyz = textureLoad(keyframesTex, ivec2(pointI, curveI)).xyz
+        return textureStore(
+          storageTexture,
+          ivec2(pointI, curveI),
+          vec4(xyz, 1)
+        ).toWriteOnly()
+      }
+    )
+    // @ts-ignore
+    const computeNode = advanceControlPoints({
+      keyframesTex: lastData.keyframesTex,
+      storageTexture,
+      dimensions: vec2(lastData.dimensions)
+      // @ts-ignore
+    }).compute(1000000)
+    gl.computeAsync(computeNode).then(() => {
+      material.needsUpdate = true
+    })
+  }, [lastData])
 
   const meshRef = useRef<THREE.Group>(null!)
 
@@ -180,7 +227,7 @@ export default function Brush({
       rotation.assign(vec3(point.rotation, 0, 0))
       return vec4(point.position, 0, 1)
     })
-    material.positionNode = main({ keyframesTex: lastData.keyframesTex })
+    material.positionNode = main({ keyframesTex: storageTexture })
     material.rotationNode = rotation
     const pixel = float(1.414).mul(2).div(resolution.length())
     material.scaleNode = vec2(thickness.mul(pixel), pixel)
@@ -206,9 +253,6 @@ export default function Brush({
     () => (lastData.groups[0].totalCurveLength / lastData.settings.spacing) * 2,
     []
   )
-
-  // @ts-ignore
-  const gl = useThree(state => state.gl as WebGPURenderer)
 
   const array = useMemo(() => new Float32Array(MAX_INSTANCE_COUNT * 2), [])
 
