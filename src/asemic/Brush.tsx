@@ -107,10 +107,13 @@ export default function Brush({
       }
 
       If(controlPointsCount.equal(2), () => {
-        const p0 = texture(keyframesTex, vec2(0, curveProgress)).xy
+        const p0 = texture(
+          keyframesTex,
+          vec2(float(0.5).div(dimensionsU.x), curveProgress)
+        ).xy
         const p1 = texture(
           keyframesTex,
-          vec2(float(1).div(dimensionsU.x), curveProgress)
+          vec2(float(1.5).div(dimensionsU.x), curveProgress)
         ).xy
         const progressPoint = mix(p0, p1, t.x)
         point.position.assign(progressPoint)

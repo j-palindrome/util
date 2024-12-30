@@ -321,7 +321,8 @@ export default class Builder {
           )
         )
       ),
-      RGBAFormat
+      RGBAFormat,
+      LinearFilter
     )
 
     const colorTex = createTexture(
