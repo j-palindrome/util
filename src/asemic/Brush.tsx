@@ -44,7 +44,7 @@ import {
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { useEventListener } from '../dom'
+import { useEventListener, useInterval } from '../dom'
 import Builder from './Builder'
 import { extend, useFrame, useThree } from '@react-three/fiber'
 import { updateInstanceAttribute } from '../three'
@@ -227,7 +227,7 @@ export default function Brush({
       rotation.assign(vec3(point.rotation, 0, 0))
       return vec4(point.position, 0, 1)
     })
-    material.positionNode = main({ keyframesTex: storageTexture })
+    material.positionNode = main({ keyframesTex: lastData.keyframesTex })
     material.rotationNode = rotation
     const pixel = float(1.414).mul(2).div(resolution.length())
     material.scaleNode = vec2(thickness.mul(pixel), pixel)
@@ -237,14 +237,14 @@ export default function Brush({
     material.needsUpdate = true
   }, [lastData])
 
-  useFrame(() => {
+  useInterval(() => {
     const resolution = new Vector2(
       window.innerWidth * window.devicePixelRatio,
       window.innerHeight * window.devicePixelRatio
     )
     const newData = keyframes.reInitialize(resolution)
     setLastData(newData)
-  })
+  }, 1000)
 
   const instanceCount = Math.floor(
     lastData.groups[0].totalCurveLength / lastData.settings.spacing
@@ -286,27 +286,37 @@ export default function Brush({
   }, [lastData])
 
   return (
-    <group
-      ref={meshRef}
-      position={[...lastData.transform.translate.toArray(), 0]}
-      scale={[...lastData.transform.scale.toArray(), 1]}
-      rotation={[0, 0, lastData.transform.rotate]}>
-      {lastData.groups.map((group, i) => (
-        <instancedMesh
-          position={[...group.transform.translate.toArray(), 0]}
-          scale={[...group.transform.scale.toArray(), 1]}
-          rotation={[0, 0, group.transform.rotate]}
-          key={i}
-          count={MAX_INSTANCE_COUNT}
-          material={material}>
-          <planeGeometry args={lastData.settings.defaults.size}>
-            <storageInstancedBufferAttribute
-              attach='attributes-t'
-              args={[array, 2]}
-            />
-          </planeGeometry>
-        </instancedMesh>
-      ))}
-    </group>
+    <>
+      <mesh position={[0.25, 0.75, 0]}>
+        <meshBasicMaterial map={lastData.keyframesTex} />
+        <planeGeometry args={[0.5, 0.5]} />
+      </mesh>
+      <mesh position={[0.75, 0.75, 0]}>
+        <meshBasicMaterial map={storageTexture} />
+        <planeGeometry args={[0.5, 0.5]} />
+      </mesh>
+      <group
+        ref={meshRef}
+        position={[...lastData.transform.translate.toArray(), 0]}
+        scale={[...lastData.transform.scale.toArray(), 1]}
+        rotation={[0, 0, lastData.transform.rotate]}>
+        {lastData.groups.map((group, i) => (
+          <instancedMesh
+            position={[...group.transform.translate.toArray(), 0]}
+            scale={[...group.transform.scale.toArray(), 1]}
+            rotation={[0, 0, group.transform.rotate]}
+            key={i}
+            count={MAX_INSTANCE_COUNT}
+            material={material}>
+            <planeGeometry args={lastData.settings.defaults.size}>
+              <storageInstancedBufferAttribute
+                attach='attributes-t'
+                args={[array, 2]}
+              />
+            </planeGeometry>
+          </instancedMesh>
+        ))}
+      </group>
+    </>
   )
 }
