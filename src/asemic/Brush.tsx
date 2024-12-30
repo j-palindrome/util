@@ -102,11 +102,11 @@ export default function Brush({
         dimensions: ReturnType<typeof vec2>
       }) => {
         const pointI = instanceIndex.modInt(dimensions.x)
-        const curveI = instanceIndex.div(dimensions.y)
-        const xyz = textureLoad(keyframesTex, ivec2(pointI, curveI)).xyz
+        const curveI = instanceIndex.div(dimensions.x)
+        const xyz = textureLoad(keyframesTex, vec2(pointI, curveI)).xyz
         return textureStore(
           storageTexture,
-          ivec2(pointI, curveI),
+          vec2(pointI, curveI),
           vec4(xyz, 1)
         ).toWriteOnly()
       }
@@ -117,7 +117,7 @@ export default function Brush({
       storageTexture,
       dimensions: vec2(lastData.dimensions)
       // @ts-ignore
-    }).compute(1000000)
+    }).compute(lastData.dimensions.x * lastData.dimensions.y)
     gl.computeAsync(computeNode).then(() => {
       material.needsUpdate = true
     })
