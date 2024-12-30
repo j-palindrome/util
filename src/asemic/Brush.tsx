@@ -141,7 +141,7 @@ export default function Brush({
       lastData.groups[0].controlPointCounts as any,
       'int'
     )
-    const storageTexNode = texture(lastData.keyframesTex)
+    const storageTexNode = texture(storageTexture)
     const main = Fn(() =>
       // { storageTex }: { storageTex: THREE.Texture }
       {
