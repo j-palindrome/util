@@ -17,6 +17,7 @@ import {
   Fn,
   If,
   instanceIndex,
+  ivec2,
   log,
   mat2,
   mix,
@@ -27,20 +28,25 @@ import {
   select,
   sin,
   texture,
+  textureLoad,
+  textureStore,
   uniform,
   uniformArray,
+  uvec2,
   varying,
   varyingProperty,
   vec2,
   vec3,
-  vec4
+  vec4,
+  wgslFn
 } from 'three/tsl'
 import {
   SpriteNodeMaterial,
   StorageInstancedBufferAttribute,
+  StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { useEventListener } from '../dom'
+import { useEventListener, useInterval } from '../dom'
 import Builder from './Builder'
 import { extend, useFrame, useThree } from '@react-three/fiber'
 import { updateInstanceAttribute } from '../three'
@@ -76,6 +82,59 @@ export default function Brush({
   const thicknessTexRef = useRef(lastData.thicknessTex)
   thicknessTexRef.current = lastData.thicknessTex
 
+  // @ts-ignore
+  const gl = useThree(({ gl }) => gl as WebGPURenderer)
+
+  const storageTexture = new StorageTexture(
+    lastData.dimensions.x,
+    lastData.dimensions.y
+  )
+  storageTexture.type = THREE.FloatType
+  storageTexture.minFilter = storageTexture.magFilter = THREE.NearestFilter
+  const dimensionsU = uniform(lastData.dimensions, 'vec2')
+
+  // @ts-ignore
+  const textureLoadFix = wgslFn<{
+    tex: StorageTexture
+    uv: ReturnType<typeof vec2>
+  }>(/*wgsl*/ `
+    fn loadTexture(tex: texture_2d<f32>, uv: vec2<f32>) -> vec4<f32> {
+      return textureLoad(tex, uv, 0);
+    }`)
+
+  useEffect(() => {
+    const advanceControlPoints = Fn(
+      ({
+        keyframesTex,
+        storageTexture,
+        dimensions
+      }: {
+        keyframesTex: THREE.DataTexture
+        storageTexture: StorageTexture
+        dimensions: ReturnType<typeof vec2>
+      }) => {
+        const pointI = instanceIndex.modInt(dimensions.x)
+        const curveI = instanceIndex.div(dimensions.y)
+        const xyz = textureLoad(keyframesTex, ivec2(pointI, curveI)).xyz
+        return textureStore(
+          storageTexture,
+          ivec2(pointI, curveI),
+          vec4(xyz, 1)
+        ).toWriteOnly()
+      }
+    )
+    // @ts-ignore
+    const computeNode = advanceControlPoints({
+      keyframesTex: lastData.keyframesTex,
+      storageTexture,
+      dimensions: vec2(lastData.dimensions)
+      // @ts-ignore
+    }).compute(1000000)
+    gl.computeAsync(computeNode).then(() => {
+      material.needsUpdate = true
+    })
+  }, [lastData])
+
   const meshRef = useRef<THREE.Group>(null!)
 
   const material = useMemo(() => {
@@ -96,22 +155,26 @@ export default function Brush({
       lastData.groups[0].controlPointCounts as any,
       'int'
     )
-    const dimensionsU = uniform(lastData.dimensions, 'vec2')
-    const main = Fn(({ keyframesTex }: { keyframesTex: THREE.Texture }) => {
+
+    const main = Fn(({ storageTex }: { storageTex: THREE.Texture }) => {
+      // TODO: fix instancing...
       const curveProgress = t.y.add(0.5).div(dimensionsU.y)
       const controlPointsCount = controlPointCounts.element(t.y)
 
       let point = {
-        position: vec2(0, 0).toVar(),
-        rotation: float(0).toVar()
+        position: vec2(0, 0).toVar('thisPosition'),
+        rotation: float(0).toVar('thisRotation')
       }
 
       If(controlPointsCount.equal(2), () => {
-        const p0 = texture(keyframesTex, vec2(0, curveProgress)).xy
-        const p1 = texture(
-          keyframesTex,
-          vec2(float(1).div(dimensionsU.x), curveProgress)
-        ).xy
+        const p0 = textureLoadFix({
+          tex: storageTex,
+          uv: ivec2(0, t.y)
+        }).xy.toVar('p0')
+        const p1 = textureLoadFix({
+          tex: storageTex,
+          uv: ivec2(1, t.y)
+        }).xy.toVar('p1')
         const progressPoint = mix(p0, p1, t.x)
         point.position.assign(progressPoint)
         const rotation = lineTangent(p0, p1, aspectRatio)
@@ -129,26 +192,26 @@ export default function Brush({
           t: t.x,
           controlPointsCount
         })
-        const t0 = vec2(
-            pointProgress.x.add(0).add(0.5).div(dimensionsU.x),
-            curveProgress
-          ),
-          t1 = vec2(
-            pointProgress.x.add(1).add(0.5).div(dimensionsU.x),
-            curveProgress
-          ),
-          t2 = vec2(
-            pointProgress.x.add(2).add(0.5).div(dimensionsU.x),
-            curveProgress
-          ),
-          tt = vec2(
-            t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
-            curveProgress
-          )
-        const p0 = texture(keyframesTex, t0).xy.toVar('p0')
-        const p1 = texture(keyframesTex, t1).xy.toVar('p1')
-        const p2 = texture(keyframesTex, t2).xy.toVar('p2')
-        const strength = texture(keyframesTex, t1).z.toVar('strength')
+        const tt = vec2(
+          t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
+          curveProgress
+        )
+        const p0 = textureLoadFix({
+          tex: storageTex,
+          uv: ivec2(pointProgress.x, t.y)
+        }).xy.toVar('p0')
+        const p1 = textureLoadFix({
+          tex: storageTex,
+          uv: ivec2(pointProgress.x.add(1), t.y)
+        }).xy.toVar('p1')
+        const p2 = textureLoadFix({
+          tex: storageTex,
+          uv: ivec2(pointProgress.x.add(2), t.y)
+        }).xy.toVar('p2')
+        const strength = textureLoadFix({
+          tex: storageTex,
+          uv: ivec2(pointProgress.x.add(1), t.y)
+        }).z.toVar('strength')
 
         varyingProperty('vec4', 'colorV').assign(
           texture(colorTexRef.current, tt)
@@ -177,7 +240,8 @@ export default function Brush({
       rotation.assign(vec3(point.rotation, 0, 0))
       return vec4(point.position, 0, 1)
     })
-    material.positionNode = main({ keyframesTex: lastData.keyframesTex })
+
+    material.positionNode = main({ storageTex: storageTexture })
     material.rotationNode = rotation
     const pixel = float(1.414).mul(2).div(resolution.length())
     material.scaleNode = vec2(thickness.mul(pixel), pixel)
@@ -187,15 +251,6 @@ export default function Brush({
     material.needsUpdate = true
   }, [lastData])
 
-  useFrame(() => {
-    const resolution = new Vector2(
-      window.innerWidth * window.devicePixelRatio,
-      window.innerHeight * window.devicePixelRatio
-    )
-    const newData = keyframes.reInitialize(resolution)
-    setLastData(newData)
-  })
-
   const instanceCount = Math.floor(
     lastData.groups[0].totalCurveLength / lastData.settings.spacing
   )
@@ -203,9 +258,6 @@ export default function Brush({
     () => (lastData.groups[0].totalCurveLength / lastData.settings.spacing) * 2,
     []
   )
-
-  // @ts-ignore
-  const gl = useThree(state => state.gl as WebGPURenderer)
 
   const array = useMemo(() => new Float32Array(MAX_INSTANCE_COUNT * 2), [])
 
@@ -238,28 +290,40 @@ export default function Brush({
     })
   }, [lastData])
 
+  console.log(storageTexture.image, lastData.keyframesTex.image)
+
   return (
-    <group
-      ref={meshRef}
-      position={[...lastData.transform.translate.toArray(), 0]}
-      scale={[...lastData.transform.scale.toArray(), 1]}
-      rotation={[0, 0, lastData.transform.rotate]}>
-      {lastData.groups.map((group, i) => (
-        <instancedMesh
-          position={[...group.transform.translate.toArray(), 0]}
-          scale={[...group.transform.scale.toArray(), 1]}
-          rotation={[0, 0, group.transform.rotate]}
-          key={i}
-          count={MAX_INSTANCE_COUNT}
-          material={material}>
-          <planeGeometry args={lastData.settings.defaults.size}>
-            <storageInstancedBufferAttribute
-              attach='attributes-t'
-              args={[array, 2]}
-            />
-          </planeGeometry>
-        </instancedMesh>
-      ))}
-    </group>
+    <>
+      <mesh position={[0.75, 0.75, 0]}>
+        <meshBasicMaterial map={storageTexture} />
+        <planeGeometry args={[0.5, 0.5]} />
+      </mesh>
+      <mesh position={[0.25, 0.75, 0]}>
+        <meshBasicMaterial map={lastData.keyframesTex} />
+        <planeGeometry args={[0.5, 0.5]} />
+      </mesh>
+      <group
+        ref={meshRef}
+        position={[...lastData.transform.translate.toArray(), 0]}
+        scale={[...lastData.transform.scale.toArray(), 1]}
+        rotation={[0, 0, lastData.transform.rotate]}>
+        {lastData.groups.map((group, i) => (
+          <instancedMesh
+            position={[...group.transform.translate.toArray(), 0]}
+            scale={[...group.transform.scale.toArray(), 1]}
+            rotation={[0, 0, group.transform.rotate]}
+            key={i}
+            count={MAX_INSTANCE_COUNT}
+            material={material}>
+            <planeGeometry args={lastData.settings.defaults.size}>
+              <storageInstancedBufferAttribute
+                attach='attributes-t'
+                args={[array, 2]}
+              />
+            </planeGeometry>
+          </instancedMesh>
+        ))}
+      </group>
+    </>
   )
 }
