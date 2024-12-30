@@ -142,7 +142,7 @@ export default function Brush({
       lastData.groups[0].controlPointCounts as any,
       'int'
     )
-    const storageTexNode = texture(storageTexture)
+    const storageTexNode = texture(lastData.keyframesTex)
     const main = Fn(() =>
       // { storageTex }: { storageTex: THREE.Texture }
       {
@@ -177,11 +177,15 @@ export default function Brush({
           )
           thickness.assign(texture(thicknessTexRef.current, textureVector))
         }).Else(() => {
+          const pointProgress = multiBezierProgress({
+            t: t.x,
+            controlPointsCount
+          })
           const tt = vec2(
             t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
             curveProgress
           )
-          const progressX = int(t.x.mul(controlPointsCount.sub(2)))
+          const progressX = t.x.mul(controlPointsCount.sub(2)).floor().toInt()
           // const progressX = int(0)
           const p0 = textureLoadFix({
             tex: storageTexNode,
@@ -205,14 +209,14 @@ export default function Brush({
           )
           thickness.assign(texture(thicknessTexRef.current, tt))
 
-          If(progressX.greaterThan(float(0)), () => {
+          If(pointProgress.x.greaterThan(float(0)), () => {
             p0.assign(mix(p0, p1, float(0.5)))
           })
-          If(progressX.lessThan(float(controlPointsCount).sub(3)), () => {
+          If(pointProgress.x.lessThan(float(controlPointsCount).sub(3)), () => {
             p2.assign(mix(p1, p2, 0.5))
           })
           const thisPoint = bezierPoint({
-            t: t.x.mul(controlPointsCount.sub(2)).fract(),
+            t: pointProgress.y,
             p0,
             p1,
             p2,
