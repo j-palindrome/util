@@ -43,11 +43,8 @@ export default function DigiRis() {
       <div className='h-full w-full absolute top-0 left-0'>
         <canvas ref={canvasRef} className='h-full w-full' />
       </div>
-      <Asemic>
-        {slides[currentChild]?.asemic?.map((c, i) => (
-          <Brush key={`${currentChild}-${i}`} builder={c} />
-        ))}
-      </Asemic>
+      {/* <Asemic builder={slides[currentChild].asemic?.[0] ?? (b) => b}>
+      </Asemic> */}
       <div className='text-pink-600 z-10 absolute top-0 left-0 h-full w-full font-mono font-bold'>
         {slides[currentChild]?.slide}
       </div>
