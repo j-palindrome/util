@@ -9,7 +9,6 @@ import {
   Fn,
   If,
   instanceIndex,
-  int,
   ivec2,
   mix,
   screenSize,
@@ -185,23 +184,21 @@ export default function Brush({
             t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
             curveProgress
           )
-          const progressX = t.x.mul(controlPointsCount.sub(2)).floor().toInt()
-          // const progressX = int(0)
           const p0 = textureLoadFix({
             tex: storageTexNode,
-            uv: ivec2(progressX, t.y)
+            uv: ivec2(pointProgress.x, t.y)
           }).xy.toVar('p0')
           const p1 = textureLoadFix({
             tex: storageTexNode,
-            uv: ivec2(progressX.add(1), t.y)
+            uv: ivec2(pointProgress.x.add(1), t.y)
           }).xy.toVar('p1')
           const p2 = textureLoadFix({
             tex: storageTexNode,
-            uv: ivec2(progressX.add(2), t.y)
+            uv: ivec2(pointProgress.x.add(2), t.y)
           }).xy.toVar('p2')
           const strength = textureLoadFix({
             tex: storageTexNode,
-            uv: ivec2(progressX.add(1), t.y)
+            uv: ivec2(pointProgress.x.add(1), t.y)
           }).z.toVar('strength')
 
           varyingProperty('vec4', 'colorV').assign(
