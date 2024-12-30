@@ -19,13 +19,31 @@ export default function Tests() {
           //     30
           //   )
           //   .set({ strength: 1 })
+          // b
+          //   .repeat(() => {
+          //     b.newGroup().newCurve(
+          //       ...b.getRandomWithin([0.5, 0.5], [0.5, 0.5], 3)
+          //     )
+          //   }, 1000)
+          //   .set({ alpha: 0.05 })
           b
-            .repeat(() => {
-              b.newGroup().newCurve(
-                ...b.getRandomWithin([0.5, 0.5], [0.5, 0.5], 3)
-              )
-            }, 1000)
-            .set({ alpha: 0.05 })
+            .set({
+              rotate: 0.25,
+              translate: [1, 0]
+            })
+            .repeat(
+              () =>
+                b
+                  .newGroup()
+                  .newCurve(
+                    [0, Math.random()],
+                    [0.25, Math.random()],
+                    [0.5, Math.random()],
+                    [0.75, Math.random()],
+                    [1, Math.random()]
+                  ),
+              3
+            )
         }
       />
     </Asemic>
