@@ -1,32 +1,16 @@
-import { isEqual, now } from 'lodash'
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react'
+import { extend, Object3DNode, useThree } from '@react-three/fiber'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
   atan2,
   attribute,
-  cos,
   float,
   Fn,
   If,
   instanceIndex,
-  ivec2,
-  log,
-  mat2,
   mix,
-  PI2,
-  pow,
-  sampler,
   screenSize,
-  select,
-  sin,
   texture,
   textureLoad,
   textureStore,
@@ -44,11 +28,9 @@ import {
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { useEventListener, useInterval } from '../dom'
-import Builder from './Builder'
-import { extend, useFrame, useThree } from '@react-three/fiber'
-import { updateInstanceAttribute } from '../three'
+import { useInterval } from '../dom'
 import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
+import Builder from './Builder'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -61,6 +43,14 @@ export type Jitter = {
 }
 
 extend({ StorageInstancedBufferAttribute })
+declare module '@react-three/fiber' {
+  interface ThreeElements {
+    storageInstancedBufferAttribute: Object3DNode<
+      StorageInstancedBufferAttribute,
+      typeof StorageInstancedBufferAttribute
+    >
+  }
+}
 
 export default function Brush({
   builder
@@ -74,7 +64,9 @@ export default function Brush({
     window.innerHeight * window.devicePixelRatio
   )
 
-  const [lastData, setLastData] = useState(keyframes.reInitialize(resolution))
+  const [lastData, setLastData] = useState(
+    keyframes.reInitialize(resolution)[0]
+  )
   const colorTexRef = useRef(lastData.colorTex)
   colorTexRef.current = lastData.colorTex
   const thicknessTexRef = useRef(lastData.thicknessTex)
@@ -88,7 +80,6 @@ export default function Brush({
     lastData.dimensions.y
   )
   storageTexture.type = THREE.FloatType
-  const dimensionsU = uniform(lastData.dimensions, 'vec2')
 
   useEffect(() => {
     const advanceControlPoints = Fn(
@@ -123,7 +114,9 @@ export default function Brush({
     })
   }, [lastData])
 
-  const meshRef = useRef<THREE.Group>(null!)
+  const meshRef = useRef<
+    THREE.InstancedMesh<THREE.PlaneGeometry, SpriteNodeMaterial>
+  >(null!)
 
   const material = useMemo(() => {
     const material = new SpriteNodeMaterial({
@@ -140,7 +133,7 @@ export default function Brush({
     const t = attribute('t', 'vec2')
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
     const controlPointCounts = uniformArray(
-      lastData.groups[0].controlPointCounts as any,
+      lastData.controlPointCounts as any,
       'int'
     )
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
@@ -242,15 +235,15 @@ export default function Brush({
       window.innerWidth * window.devicePixelRatio,
       window.innerHeight * window.devicePixelRatio
     )
-    const newData = keyframes.reInitialize(resolution)
+    const newData = keyframes.reInitialize(resolution)[0]
     setLastData(newData)
   }, 1000)
 
   const instanceCount = Math.floor(
-    lastData.groups[0].totalCurveLength / lastData.settings.spacing
+    lastData.totalCurveLength / lastData.settings.spacing
   )
   const MAX_INSTANCE_COUNT = useMemo(
-    () => (lastData.groups[0].totalCurveLength / lastData.settings.spacing) * 2,
+    () => (lastData.totalCurveLength / lastData.settings.spacing) * 2,
     []
   )
 
@@ -260,29 +253,24 @@ export default function Brush({
     // ~10ms
     if (!meshRef.current) return
 
-    meshRef.current.children.forEach(child => {
-      const c = child as THREE.InstancedMesh<
-        THREE.PlaneGeometry,
-        SpriteNodeMaterial
-      >
-      c.count = instanceCount
-      const bufGeom = c.geometry.getAttribute(
-        't'
-      ) as StorageInstancedBufferAttribute
-      let currentIndex = 0
-      let lastCurve = 0
-      let curveLength = lastData.groups[0].curveEnds[currentIndex] - lastCurve
-      for (let i = 0; i < instanceCount; i++) {
-        if (lastData.groups[0].curveEnds[currentIndex] <= i) {
-          currentIndex++
-          lastCurve = lastData.groups[0].curveEnds[currentIndex - 1]
-          curveLength = lastData.groups[0].curveEnds[currentIndex] - lastCurve
-        }
-        array[i * 2] = (i - lastCurve) / curveLength
-        array[i * 2 + 1] = currentIndex
+    const c = meshRef.current
+    c.count = instanceCount
+    const bufGeom = c.geometry.getAttribute(
+      't'
+    ) as StorageInstancedBufferAttribute
+    let currentIndex = 0
+    let lastCurve = 0
+    let curveLength = lastData.curveEnds[currentIndex] - lastCurve
+    for (let i = 0; i < instanceCount; i++) {
+      if (lastData.curveEnds[currentIndex] <= i) {
+        currentIndex++
+        lastCurve = lastData.curveEnds[currentIndex - 1]
+        curveLength = lastData.curveEnds[currentIndex] - lastCurve
       }
-      bufGeom.needsUpdate = true
-    })
+      array[i * 2] = (i - lastCurve) / curveLength
+      array[i * 2 + 1] = currentIndex
+    }
+    bufGeom.needsUpdate = true
   }, [lastData])
 
   return (
@@ -295,28 +283,21 @@ export default function Brush({
         <meshBasicMaterial map={storageTexture} />
         <planeGeometry args={[0.5, 0.5]} />
       </mesh>
-      <group
+
+      <instancedMesh
         ref={meshRef}
         position={[...lastData.transform.translate.toArray(), 0]}
         scale={[...lastData.transform.scale.toArray(), 1]}
-        rotation={[0, 0, lastData.transform.rotate]}>
-        {lastData.groups.map((group, i) => (
-          <instancedMesh
-            position={[...group.transform.translate.toArray(), 0]}
-            scale={[...group.transform.scale.toArray(), 1]}
-            rotation={[0, 0, group.transform.rotate]}
-            key={i}
-            count={MAX_INSTANCE_COUNT}
-            material={material}>
-            <planeGeometry args={lastData.settings.defaults.size}>
-              <storageInstancedBufferAttribute
-                attach='attributes-t'
-                args={[array, 2]}
-              />
-            </planeGeometry>
-          </instancedMesh>
-        ))}
-      </group>
+        rotation={[0, 0, lastData.transform.rotate]}
+        count={MAX_INSTANCE_COUNT}
+        material={material}>
+        <planeGeometry args={lastData.settings.defaults.size}>
+          <storageInstancedBufferAttribute
+            attach='attributes-t'
+            args={[array, 2]}
+          />
+        </planeGeometry>
+      </instancedMesh>
     </>
   )
 }

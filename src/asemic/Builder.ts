@@ -241,31 +241,15 @@ export default class Builder {
   }
 
   protected packToTexture(resolution: Vector2) {
-    this.keyframe.groups = [
-      {
-        transform: this.toTransform(),
-        curves: this.keyframe.groups.flatMap(x =>
-          x.curves
-            .filter(x => x.length)
-            .map(curve =>
-              curve.map(point => this.applyTransform(point, x.transform))
-            )
-        )
-      }
-    ]
+    return this.keyframe.groups.map(group => {
+      const hypotenuse = resolution.length()
 
-    const hypotenuse = resolution.length()
+      this.reset(true)
 
-    this.reset(true)
-
-    const width = max(
-      this.keyframe.groups.flatMap(x => x.curves.flatMap(x => x.length))
-    )!
-    const height = sum(this.keyframe.groups.map(x => x.curves.length))
-    const dimensions = new Vector2(width, height)
-    let curveIndex = 0
-
-    const groups = this.keyframe.groups.map((group, groupIndex) => {
+      const width = max(group.curves.flatMap(x => x.length))!
+      const height = group.curves.length
+      const dimensions = new Vector2(width, height)
+      let curveIndex = 0
       const curveEnds = new Float32Array(group.curves.length)
       const curveIndexes = new Float32Array(group.curves.length)
       const controlPointCounts = new Float32Array(group.curves.length)
@@ -286,92 +270,86 @@ export default class Builder {
         curveIndex++
       })
 
+      const createTexture = (
+        array: Float32Array,
+        format: AnyPixelFormat,
+        filter: MagnificationTextureFilter = NearestFilter
+      ) => {
+        const tex = new DataTexture(array, width, height)
+        tex.format = format
+        tex.type = FloatType
+        tex.minFilter = tex.magFilter = filter
+        tex.wrapS = tex.wrapT = ClampToEdgeWrapping
+        tex.needsUpdate = true
+        return tex
+      }
+
+      const keyframesTex = createTexture(
+        new Float32Array(
+          this.keyframe.groups.flatMap(x =>
+            x.curves.flatMap(c =>
+              range(width).flatMap(i => {
+                return c[i]
+                  ? [c[i].x, c[i].y, c[i].strength ?? this.settings.strength, 1]
+                  : [0, 0, 0, 0]
+              })
+            )
+          )
+        ),
+        RGBAFormat,
+        LinearFilter
+      )
+
+      const colorTex = createTexture(
+        new Float32Array(
+          this.keyframe.groups.flatMap(group =>
+            group.curves.flatMap(c =>
+              range(width).flatMap(i => {
+                const point = c[i]
+                return point
+                  ? [
+                      ...(point.color ?? this.settings.color),
+                      point.alpha ?? this.settings.alpha
+                    ]
+                  : [0, 0, 0, 0]
+              })
+            )
+          )
+        ),
+        RGBAFormat,
+        LinearFilter
+      )
+
+      const thicknessTex = createTexture(
+        new Float32Array(
+          this.keyframe.groups.flatMap(group =>
+            group.curves.flatMap(c =>
+              range(width).flatMap(i => {
+                const point = c[i]
+                return point
+                  ? [point.thickness ?? this.settings.thickness]
+                  : [0]
+              })
+            )
+          )
+        ),
+        RedFormat,
+        LinearFilter
+      )
+
       return {
-        transform: this.keyframe.groups[groupIndex].transform,
+        keyframesTex,
+        colorTex,
+        thicknessTex,
+        transform: group.transform,
         curveEnds,
         curveIndexes,
         controlPointCounts,
-        totalCurveLength
+        totalCurveLength,
+        dimensions,
+        settings: this.settings
       }
     })
-
-    const createTexture = (
-      array: Float32Array,
-      format: AnyPixelFormat,
-      filter: MagnificationTextureFilter = NearestFilter
-    ) => {
-      const tex = new DataTexture(array, width, height)
-      tex.format = format
-      tex.type = FloatType
-      tex.minFilter = tex.magFilter = filter
-      tex.wrapS = tex.wrapT = ClampToEdgeWrapping
-      tex.needsUpdate = true
-      return tex
-    }
-
-    const keyframesTex = createTexture(
-      new Float32Array(
-        this.keyframe.groups.flatMap(x =>
-          x.curves.flatMap(c =>
-            range(width).flatMap(i => {
-              return c[i]
-                ? [c[i].x, c[i].y, c[i].strength ?? this.settings.strength, 1]
-                : [0, 0, 0, 0]
-            })
-          )
-        )
-      ),
-      RGBAFormat,
-      LinearFilter
-    )
-
-    const colorTex = createTexture(
-      new Float32Array(
-        this.keyframe.groups.flatMap(group =>
-          group.curves.flatMap(c =>
-            range(width).flatMap(i => {
-              const point = c[i]
-              return point
-                ? [
-                    ...(point.color ?? this.settings.color),
-                    point.alpha ?? this.settings.alpha
-                  ]
-                : [0, 0, 0, 0]
-            })
-          )
-        )
-      ),
-      RGBAFormat,
-      LinearFilter
-    )
-
-    const thicknessTex = createTexture(
-      new Float32Array(
-        this.keyframe.groups.flatMap(group =>
-          group.curves.flatMap(c =>
-            range(width).flatMap(i => {
-              const point = c[i]
-              return point ? [point.thickness ?? this.settings.thickness] : [0]
-            })
-          )
-        )
-      ),
-      RedFormat,
-      LinearFilter
-    )
-
-    const curveCounts = groups.map(x => x.curveIndexes.length)
-
-    return {
-      keyframesTex,
-      colorTex,
-      thicknessTex,
-      transform: this.keyframe.transform,
-      groups,
-      dimensions,
-      curveCounts,
-      settings: this.settings
-    }
   }
 
   protected getTransformAt(
@@ -706,7 +684,7 @@ ${g.curves
   newGroup(transform?: CoordinateData) {
     if (transform) this.transform(transform)
     this.keyframe.groups.push({
-      curves: [[]],
+      curves: [],
       transform: this.toTransform()
     })
     this.target(-1)
@@ -714,9 +692,6 @@ ${g.curves
   }
 
   newCurve(...points: (Coordinate | PointBuilder)[]) {
-    if (this.keyframe.groups[this.targetInfo[1]].curves.length == 0) {
-      return this
-    }
     this.groups(g => {
       g.curves.push([])
     })
@@ -738,7 +713,6 @@ ${g.curves
     let lineCount = 0
     if (warp) this.setting(warp)
     for (let letter of str) {
-      let pickedLetter = letter
       if (this.letters[letter]) {
         this.setTransform({
           scale: [window.innerHeight / window.innerWidth, 1]
