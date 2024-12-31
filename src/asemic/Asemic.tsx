@@ -1,4 +1,4 @@
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { useState } from 'react'
 import { Vector2, WebGPURenderer } from 'three/webgpu'
 import Brush from './Brush'
@@ -15,13 +15,6 @@ export default function Asemic({
   const [frameloop, setFrameloop] = useState<
     'never' | 'always' | 'demand' | undefined
   >('never')
-
-  const keyframes = new Builder(builder)
-  const resolution = new Vector2(
-    window.innerWidth * window.devicePixelRatio,
-    window.innerHeight * window.devicePixelRatio
-  )
-  const lastData = keyframes.reInitialize(resolution)
 
   return (
     <Canvas
@@ -50,10 +43,26 @@ export default function Asemic({
         })
         return renderer
       }}>
+      <Scene builder={builder} />
+      {children}
+    </Canvas>
+  )
+}
+
+function Scene({
+  builder
+}: {
+  builder: (b: Builder) => Builder
+} & React.PropsWithChildren) {
+  const keyframes = new Builder(builder)
+  const resolution = new Vector2()
+  useThree(state => state.gl.getDrawingBufferSize(resolution))
+  const lastData = keyframes.reInitialize(resolution)
+  return (
+    <>
       {lastData.map((lastData, i) => (
         <Brush lastData={lastData} key={i} />
       ))}
-      {children}
-    </Canvas>
+    </>
   )
 }

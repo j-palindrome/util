@@ -18,6 +18,7 @@ import invariant from 'tiny-invariant'
 import { lerp } from '../math'
 import { Jitter } from './Brush'
 import { PointBuilder } from './PointBuilder'
+import { Fn, vec4 } from 'three/tsl'
 
 const SHAPES: Record<string, Coordinate[]> = {
   circle: [
@@ -37,31 +38,6 @@ const SHAPES: Record<string, Coordinate[]> = {
 
 type TargetInfo = [number, number] | number
 export default class Builder {
-  protected settings: {
-    spacing: number
-    defaults: Jitter
-    recalculate: boolean | ((progress: number) => number)
-    modifyPosition: string
-    modifyColor: string
-    modifyIncludes: string
-  } & CoordinateSettings = {
-    defaults: {
-      size: [1, 1],
-      hsl: [100, 100, 100],
-      a: 100,
-      position: [0, 0],
-      rotation: 0
-    },
-    modifyPosition: `return position;`,
-    modifyIncludes: ``,
-    modifyColor: `return color;`,
-    spacing: 1,
-    recalculate: false,
-    strength: 0,
-    thickness: 1,
-    color: [1, 1, 1],
-    alpha: 1
-  }
   protected transformData: TransformData = this.toTransform()
   protected transforms: TransformData[] = []
   protected keyframe: {
@@ -290,7 +266,7 @@ export default class Builder {
             x.curves.flatMap(c =>
               range(width).flatMap(i => {
                 return c[i]
-                  ? [c[i].x, c[i].y, c[i].strength ?? this.settings.strength, 1]
+                  ? [c[i].x, c[i].y, c[i].strength ?? x.settings.strength, 1]
                   : [0, 0, 0, 0]
               })
             )
@@ -308,8 +284,8 @@ export default class Builder {
                 const point = c[i]
                 return point
                   ? [
-                      ...(point.color ?? this.settings.color),
-                      point.alpha ?? this.settings.alpha
+                      ...(point.color ?? group.settings.color),
+                      point.alpha ?? group.settings.alpha
                     ]
                   : [0, 0, 0, 0]
               })
@@ -327,7 +303,7 @@ export default class Builder {
               range(width).flatMap(i => {
                 const point = c[i]
                 return point
-                  ? [point.thickness ?? this.settings.thickness]
+                  ? [point.thickness ?? group.settings.thickness]
                   : [0]
               })
             )
@@ -341,22 +317,18 @@ export default class Builder {
         keyframesTex,
         colorTex,
         thicknessTex,
-        transform: group.transform,
         curveEnds,
         curveIndexes,
         controlPointCounts,
         totalCurveLength,
         dimensions,
-        settings: this.settings
+        transform: group.transform,
+        settings: group.settings
       }
     })
   }
 
-  protected getTransformAt(
-    transforms: TransformData[],
-    progress: number,
-    loop: boolean = false
-  ) {
+  protected getTransformAt(transforms: TransformData[], progress: number) {
     const { t, start } = {
       start: Math.floor(progress * (transforms.length - 1)),
       t: (progress * (transforms.length - 1)) % 1
@@ -399,7 +371,7 @@ export default class Builder {
       return path
     }
     for (let i = 0; i < curve.length - 2; i++) {
-      if ((curve[i + 1].strength ?? this.settings.strength) > 0.5) {
+      if ((curve[i + 1].strength ?? 0) > 0.5) {
         path.add(
           new LineCurve(
             i === 0 ? curve[i] : curve[i].clone().lerp(curve[i + 1], 0.5),
@@ -662,10 +634,13 @@ ${g.curves
     return this
   }
 
+  protected lastGroup(callback: (group: GroupData) => void) {
+    callback(last(this.keyframe.groups)!)
+    return this
+  }
+
   protected lastCurve(callback: (curve: PointBuilder[]) => void) {
-    return this.groups(g => {
-      callback(last(g.curves)!)
-    })
+    return this.lastGroup(g => callback(last(g.curves)!))
   }
 
   /**
@@ -681,11 +656,22 @@ ${g.curves
     })
   }
 
-  newGroup(transform?: CoordinateData) {
-    if (transform) this.transform(transform)
+  newGroup(group?: Partial<GroupData['settings']>) {
     this.keyframe.groups.push({
       curves: [],
-      transform: this.toTransform()
+      transform: this.toTransform(),
+      settings: {
+        strength: 0,
+        thickness: 1,
+        color: [1, 1, 1],
+        alpha: 1,
+        spacing: 1,
+        recalculate: false,
+        pointVert: ({ input }) => input,
+        pointFrag: ({ input }) => input,
+        curveVert: ({ input }) => input,
+        curveFrag: ({ input }) => input
+      }
     })
     this.target(-1)
     return this
@@ -711,7 +697,7 @@ ${g.curves
 
   text(str: string, warp?: CoordinateData) {
     let lineCount = 0
-    if (warp) this.setting(warp)
+    if (warp) this.transform(warp)
     for (let letter of str) {
       if (this.letters[letter]) {
         this.setTransform({
@@ -734,14 +720,11 @@ ${g.curves
         return this.getBounds(g.curves.flat(), g.transform).max.x
       })
     )!
-    this.reset(true)
-    this.groups(
-      group => {
-        group.transform.translate.multiplyScalar(1 / maxX)
-        group.transform.scale.multiplyScalar(1 / maxX)
-      },
-      [0, -1]
-    )
+
+    this.lastGroup(group => {
+      group.transform.translate.multiplyScalar(1 / maxX)
+      group.transform.scale.multiplyScalar(1 / maxX)
+    })
     return this
   }
 
@@ -1025,16 +1008,6 @@ ${g.curves
     return this
   }
 
-  setting(
-    frame: PreTransformData & Partial<CoordinateSettings>,
-    target?: TargetInfo
-  ) {
-    this.target(target)
-    this.combineTransforms(this.keyframe.transform, this.toTransform(frame))
-    this.settings = { ...this.settings, ...frame }
-    return this
-  }
-
   setWarpGroups(
     groups: (PreTransformData & CoordinateSettings)[],
     target?: TargetInfo
@@ -1152,7 +1125,13 @@ ${g.curves
       matchString(/ (?:t|thickness):([\-\d\.\/~]+)/, parsed)
     )
 
-    this.setting({ translate, scale, rotate, thickness }, -1)
+    this.setGroup({ thickness, translate, scale, rotate }, -1)
+    this.lastGroup(group =>
+      this.combineTransforms(
+        group.transform,
+        this.toTransform({ translate, scale, rotate })
+      )
+    )
 
     const groupTranslate = parseCoordinateList(
       matchString(/ \+\[([\-\d\.\/ ]+)\]/, parsed)
@@ -1207,9 +1186,13 @@ ${g.curves
     return this
   }
 
-  set(settings) {
-    Object.assign(this.settings, settings)
-    return this
+  setGroup(settings?: Partial<GroupData['settings']>, target?: TargetInfo) {
+    this.target(target)
+    const transformData = this.toTransform(settings)
+    return this.groups(g => {
+      Object.assign(g.settings, settings)
+      this.combineTransforms(g.transform, transformData)
+    })
   }
 
   reInitialize(resolution: Vector2) {

@@ -83,7 +83,9 @@ export default function Brush({
       }) => {
         const pointI = instanceIndex.modInt(dimensions.x)
         const curveI = instanceIndex.div(dimensions.x)
-        const xyz = textureLoad(keyframesTex, vec2(pointI, curveI)).xyz
+        const xyz = lastData.settings.curveVert({
+          input: textureLoad(keyframesTex, vec2(pointI, curveI))
+        }).xyz
         return textureStore(
           storageTexture,
           vec2(pointI, curveI),
@@ -126,6 +128,7 @@ export default function Brush({
       'int'
     )
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
+
     const main = Fn(({ keyframesTex }: { keyframesTex: THREE.Texture }) => {
       const curveProgress = t.y.add(0.5).div(dimensionsU.y)
       const controlPointsCount = controlPointCounts.element(t.y)
@@ -201,7 +204,6 @@ export default function Brush({
           strength,
           aspectRatio
         })
-        // point.position.assign(p0)
         point.position.assign(thisPoint.position)
         point.rotation.assign(thisPoint.rotation)
       })
@@ -209,7 +211,9 @@ export default function Brush({
       rotation.assign(vec3(point.rotation, 0, 0))
       return vec4(point.position, 0, 1)
     })
-    material.positionNode = main({ keyframesTex: lastData.keyframesTex })
+    material.positionNode = lastData.settings.pointVert({
+      input: main({ keyframesTex: lastData.keyframesTex })
+    })
     material.rotationNode = rotation
     const resolution = new Vector2(
       window.innerWidth * window.devicePixelRatio,
@@ -218,14 +222,15 @@ export default function Brush({
     const pixel = float(1.414).mul(2).div(resolution.length())
     material.scaleNode = vec2(thickness.mul(pixel), pixel)
 
-    const vDirection = varying(vec4(), 'colorV')
-    material.colorNode = vDirection
+    const colorV = varying(vec4(), 'colorV')
+    material.colorNode = lastData.settings.pointFrag({ input: colorV })
     material.needsUpdate = true
   }, [lastData])
 
   const instanceCount = Math.floor(
     lastData.totalCurveLength / lastData.settings.spacing
   )
+
   const MAX_INSTANCE_COUNT = useMemo(
     () => (lastData.totalCurveLength / lastData.settings.spacing) * 2,
     []
@@ -272,7 +277,7 @@ export default function Brush({
         rotation={[0, 0, lastData.transform.rotate]}
         count={MAX_INSTANCE_COUNT}
         material={material}>
-        <planeGeometry args={lastData.settings.defaults.size}>
+        <planeGeometry args={[1, 1]}>
           <storageInstancedBufferAttribute
             attach='attributes-t'
             args={[array, 2]}
