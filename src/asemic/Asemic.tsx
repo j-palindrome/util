@@ -1,17 +1,27 @@
 import { Canvas } from '@react-three/fiber'
 import { useState } from 'react'
-import { WebGPURenderer } from 'three/webgpu'
+import { Vector2, WebGPURenderer } from 'three/webgpu'
 import Brush from './Brush'
-import { now } from 'three/examples/jsm/libs/tween.module.js'
+import Builder from './Builder'
 
 export default function Asemic({
-  source,
   children,
-  className
-}: { source?: string; className?: string } & React.PropsWithChildren) {
+  className,
+  builder
+}: {
+  className?: string
+  builder: (b: Builder) => Builder
+} & React.PropsWithChildren) {
   const [frameloop, setFrameloop] = useState<
     'never' | 'always' | 'demand' | undefined
   >('never')
+
+  const keyframes = new Builder(builder)
+  const resolution = new Vector2(
+    window.innerWidth * window.devicePixelRatio,
+    window.innerHeight * window.devicePixelRatio
+  )
+  const lastData = keyframes.reInitialize(resolution)
 
   return (
     <Canvas
@@ -40,10 +50,9 @@ export default function Asemic({
         })
         return renderer
       }}>
-      {source
-        ?.split('\n')
-        .filter(x => x)
-        .map((x, i) => <Brush key={i + now()} builder={b => b.parse(x)} />)}
+      {lastData.map((lastData, i) => (
+        <Brush lastData={lastData} key={i} />
+      ))}
       {children}
     </Canvas>
   )

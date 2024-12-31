@@ -1,5 +1,5 @@
 import { extend, Object3DNode, useThree } from '@react-three/fiber'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
@@ -28,7 +28,6 @@ import {
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { useInterval } from '../dom'
 import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
 import Builder from './Builder'
 
@@ -53,18 +52,10 @@ declare module '@react-three/fiber' {
 }
 
 export default function Brush({
-  builder
+  lastData
 }: {
-  builder: ConstructorParameters<typeof Builder>[0]
+  lastData: ReturnType<Builder['packToTexture']>[number]
 }) {
-  const keyframes = new Builder(builder)
-
-  const resolution = new Vector2(
-    window.innerWidth * window.devicePixelRatio,
-    window.innerHeight * window.devicePixelRatio
-  )
-
-  const lastData = keyframes.reInitialize(resolution)[0]
   const colorTexRef = useRef(lastData.colorTex)
   colorTexRef.current = lastData.colorTex
   const thicknessTexRef = useRef(lastData.thicknessTex)
@@ -220,6 +211,10 @@ export default function Brush({
     })
     material.positionNode = main({ keyframesTex: lastData.keyframesTex })
     material.rotationNode = rotation
+    const resolution = new Vector2(
+      window.innerWidth * window.devicePixelRatio,
+      window.innerHeight * window.devicePixelRatio
+    )
     const pixel = float(1.414).mul(2).div(resolution.length())
     material.scaleNode = vec2(thickness.mul(pixel), pixel)
 
@@ -227,15 +222,6 @@ export default function Brush({
     material.colorNode = vDirection
     material.needsUpdate = true
   }, [lastData])
-
-  // useInterval(() => {
-  //   const resolution = new Vector2(
-  //     window.innerWidth * window.devicePixelRatio,
-  //     window.innerHeight * window.devicePixelRatio
-  //   )
-  //   const newData = keyframes.reInitialize(resolution)[0]
-  //   setLastData(newData)
-  // }, 1000)
 
   const instanceCount = Math.floor(
     lastData.totalCurveLength / lastData.settings.spacing
@@ -248,9 +234,6 @@ export default function Brush({
   const array = useMemo(() => new Float32Array(MAX_INSTANCE_COUNT * 2), [])
 
   useLayoutEffect(() => {
-    // ~10ms
-    if (!meshRef.current) return
-
     const c = meshRef.current
     c.count = instanceCount
     const bufGeom = c.geometry.getAttribute(
@@ -273,14 +256,14 @@ export default function Brush({
 
   return (
     <>
-      <mesh position={[0.25, 0.75, 0]}>
+      {/* <mesh position={[0.25, 0.75, 0]}>
         <meshBasicMaterial map={lastData.keyframesTex} />
         <planeGeometry args={[0.5, 0.5]} />
       </mesh>
       <mesh position={[0.75, 0.75, 0]}>
         <meshBasicMaterial map={storageTexture} />
         <planeGeometry args={[0.5, 0.5]} />
-      </mesh>
+      </mesh> */}
 
       <instancedMesh
         ref={meshRef}
