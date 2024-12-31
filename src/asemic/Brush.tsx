@@ -1,16 +1,32 @@
-import { extend, useThree } from '@react-three/fiber'
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { isEqual, now } from 'lodash'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
   atan2,
   attribute,
+  cos,
   float,
   Fn,
   If,
   instanceIndex,
+  ivec2,
+  log,
+  mat2,
   mix,
+  PI2,
+  pow,
+  sampler,
   screenSize,
+  select,
+  sin,
   texture,
   textureLoad,
   textureStore,
@@ -28,8 +44,11 @@ import {
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
+import { useEventListener, useInterval } from '../dom'
 import Builder from './Builder'
+import { extend, useFrame, useThree } from '@react-three/fiber'
+import { updateInstanceAttribute } from '../three'
+import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -44,15 +63,18 @@ export type Jitter = {
 extend({ StorageInstancedBufferAttribute })
 
 export default function Brush({
-  lastData
+  builder
 }: {
-  lastData: ReturnType<Builder['packToTexture']>[number]
+  builder: ConstructorParameters<typeof Builder>[0]
 }) {
+  const keyframes = new Builder(builder)
+
   const resolution = new Vector2(
     window.innerWidth * window.devicePixelRatio,
     window.innerHeight * window.devicePixelRatio
   )
 
+  const [lastData, setLastData] = useState(keyframes.reInitialize(resolution))
   const colorTexRef = useRef(lastData.colorTex)
   colorTexRef.current = lastData.colorTex
   const thicknessTexRef = useRef(lastData.thicknessTex)
@@ -66,6 +88,7 @@ export default function Brush({
     lastData.dimensions.y
   )
   storageTexture.type = THREE.FloatType
+  const dimensionsU = uniform(lastData.dimensions, 'vec2')
 
   useEffect(() => {
     const advanceControlPoints = Fn(
@@ -117,7 +140,7 @@ export default function Brush({
     const t = attribute('t', 'vec2')
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
     const controlPointCounts = uniformArray(
-      lastData.controlPointCounts as any,
+      lastData.groups[0].controlPointCounts as any,
       'int'
     )
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
@@ -214,12 +237,20 @@ export default function Brush({
     material.needsUpdate = true
   }, [lastData])
 
-  const instanceCount = Math.floor(
-    lastData.totalCurveLength / lastData.settings.spacing
-  )
+  useInterval(() => {
+    const resolution = new Vector2(
+      window.innerWidth * window.devicePixelRatio,
+      window.innerHeight * window.devicePixelRatio
+    )
+    const newData = keyframes.reInitialize(resolution)
+    setLastData(newData)
+  }, 1000)
 
+  const instanceCount = Math.floor(
+    lastData.groups[0].totalCurveLength / lastData.settings.spacing
+  )
   const MAX_INSTANCE_COUNT = useMemo(
-    () => (lastData.totalCurveLength / lastData.settings.spacing) * 2,
+    () => (lastData.groups[0].totalCurveLength / lastData.settings.spacing) * 2,
     []
   )
 
@@ -240,12 +271,12 @@ export default function Brush({
       ) as StorageInstancedBufferAttribute
       let currentIndex = 0
       let lastCurve = 0
-      let curveLength = lastData.curveEnds[currentIndex] - lastCurve
+      let curveLength = lastData.groups[0].curveEnds[currentIndex] - lastCurve
       for (let i = 0; i < instanceCount; i++) {
-        if (lastData.curveEnds[currentIndex] <= i) {
+        if (lastData.groups[0].curveEnds[currentIndex] <= i) {
           currentIndex++
-          lastCurve = lastData.curveEnds[currentIndex - 1]
-          curveLength = lastData.curveEnds[currentIndex] - lastCurve
+          lastCurve = lastData.groups[0].curveEnds[currentIndex - 1]
+          curveLength = lastData.groups[0].curveEnds[currentIndex] - lastCurve
         }
         array[i * 2] = (i - lastCurve) / curveLength
         array[i * 2 + 1] = currentIndex
@@ -264,21 +295,28 @@ export default function Brush({
         <meshBasicMaterial map={storageTexture} />
         <planeGeometry args={[0.5, 0.5]} />
       </mesh>
-
-      <instancedMesh
+      <group
+        ref={meshRef}
         position={[...lastData.transform.translate.toArray(), 0]}
         scale={[...lastData.transform.scale.toArray(), 1]}
-        rotation={[0, 0, lastData.transform.rotate]}
-        count={MAX_INSTANCE_COUNT}
-        material={material}>
-        <planeGeometry args={lastData.settings.defaults.size}>
-          {/* @ts-ignore */}
-          <storageInstancedBufferAttribute
-            attach='attributes-t'
-            args={[array, 2]}
-          />
-        </planeGeometry>
-      </instancedMesh>
+        rotation={[0, 0, lastData.transform.rotate]}>
+        {lastData.groups.map((group, i) => (
+          <instancedMesh
+            position={[...group.transform.translate.toArray(), 0]}
+            scale={[...group.transform.scale.toArray(), 1]}
+            rotation={[0, 0, group.transform.rotate]}
+            key={i}
+            count={MAX_INSTANCE_COUNT}
+            material={material}>
+            <planeGeometry args={lastData.settings.defaults.size}>
+              <storageInstancedBufferAttribute
+                attach='attributes-t'
+                args={[array, 2]}
+              />
+            </planeGeometry>
+          </instancedMesh>
+        ))}
+      </group>
     </>
   )
 }
