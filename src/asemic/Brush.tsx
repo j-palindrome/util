@@ -5,13 +5,17 @@ import { Vector2 } from 'three'
 import {
   atan2,
   attribute,
+  Break,
   float,
   Fn,
   If,
   instanceIndex,
+  int,
   log,
+  Loop,
   mix,
   screenSize,
+  storage,
   texture,
   textureLoad,
   textureStore,
@@ -21,7 +25,8 @@ import {
   varyingProperty,
   vec2,
   vec3,
-  vec4
+  vec4,
+  wgslFn
 } from 'three/tsl'
 import {
   SpriteNodeMaterial,
@@ -74,7 +79,82 @@ export default function Brush({
     lastData.controlPointCounts as any,
     'int'
   )
+  const instanceCount = Math.floor(
+    lastData.totalCurveLength / lastData.settings.spacing
+  )
+
+  const MAX_INSTANCE_COUNT = useMemo(
+    () => (lastData.totalCurveLength / lastData.settings.spacing) * 2,
+    []
+  )
   const dimensionsU = uniform(lastData.dimensions, 'vec2')
+  const tAttribute = storage(
+    new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2),
+    'vec2',
+    MAX_INSTANCE_COUNT
+  )
+  const curveEnds = uniformArray(lastData.curveEnds as any, 'int').label(
+    'curveEnds'
+  )
+
+  useMemo(() => {
+    // @ts-ignore
+    const computeFn = Fn(() => {
+      const compute = wgslFn(/*wgsl*/ `
+        fn computeFn(curveEnds: array<vec4<i32>,${lastData.curveEnds.length}>, instanceIndex: i32) -> vec2<f32> {
+          var currentIndex = 0;
+          var lastCurve = 0;
+          for (var i = 0; i < 32; i++) {
+            if (curveEnds[i].x > instanceIndex) {
+              currentIndex = i;
+              if (i >= 1) {
+                lastCurve = curveEnds[i - 1].x;
+              }
+              break;
+            }
+          }
+          let progress = f32(instanceIndex)
+            / f32(curveEnds[currentIndex].x - lastCurve);
+          return vec2(progress, f32(currentIndex));
+        }`)
+      // const currentIndex = int(0).toVar('currentIndex')
+      // const lastCurve = int(0).toVar('lastCurve')
+      // Loop(curveEnds.getElementLength(), ({ i }) => {
+      //   If(curveEnds.element(i).greaterThan(instanceIndex), () => {
+      //     currentIndex.assign(i)
+      //     If(i.greaterThanEqual(1), () =>
+      //       lastCurve.assign(curveEnds.element(i.sub(1)))
+      //     )
+      //     Break()
+      //   })
+      // })
+      // const progress = vec2(
+      //   float(instanceIndex).div(
+      //     curveEnds.element(currentIndex).sub(lastCurve).toFloat()
+      //   ),
+      //   float(instanceIndex)
+      // )
+      const progress = compute({ curveEnds, instanceIndex: instanceIndex })
+      tAttribute.element(instanceIndex).assign(progress)
+    })
+
+    gl.computeAsync(
+      // @ts-ignore
+      computeFn().compute(MAX_INSTANCE_COUNT, undefined as any)
+    )
+    // let currentIndex = 0
+    // let lastCurve = 0
+    // let curveLength = lastData.curveEnds[currentIndex] - lastCurve
+    // for (let i = 0; i < instanceCount; i++) {
+    //   if (lastData.curveEnds[currentIndex] <= i) {
+    //     currentIndex++
+    //     lastCurve = lastData.curveEnds[currentIndex - 1]
+    //     curveLength = lastData.curveEnds[currentIndex] - lastCurve
+    //   }
+    //   array[i * 2] = (i - lastCurve) / curveLength
+    //   array[i * 2 + 1] = currentIndex
+    // }
+  }, [])
 
   useEffect(() => {
     const advanceControlPoints = Fn(() => {
@@ -112,34 +192,10 @@ export default function Brush({
     })
   }, [lastData])
 
-  const instanceCount = Math.floor(
-    lastData.totalCurveLength / lastData.settings.spacing
-  )
-
-  const MAX_INSTANCE_COUNT = useMemo(
-    () => (lastData.totalCurveLength / lastData.settings.spacing) * 2,
-    []
-  )
-
-  const array = useMemo(() => new Float32Array(MAX_INSTANCE_COUNT * 2), [])
   useLayoutEffect(() => {
     const c = meshRef.current
     c.count = instanceCount
   }, [])
-
-  const bufGeom = new StorageInstancedBufferAttribute(array, 2)
-  let currentIndex = 0
-  let lastCurve = 0
-  let curveLength = lastData.curveEnds[currentIndex] - lastCurve
-  for (let i = 0; i < instanceCount; i++) {
-    if (lastData.curveEnds[currentIndex] <= i) {
-      currentIndex++
-      lastCurve = lastData.curveEnds[currentIndex - 1]
-      curveLength = lastData.curveEnds[currentIndex] - lastCurve
-    }
-    array[i * 2] = (i - lastCurve) / curveLength
-    array[i * 2 + 1] = currentIndex
-  }
 
   const meshRef = useRef<
     THREE.InstancedMesh<THREE.PlaneGeometry, SpriteNodeMaterial>
@@ -157,7 +213,8 @@ export default function Brush({
   useMemo(() => {
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
-    const t = attribute('t', 'vec2')
+    // @ts-ignore
+    const t = tAttribute.toAttribute()
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
 
     const main = Fn(({ keyframesTex }: { keyframesTex: THREE.Texture }) => {
@@ -272,9 +329,7 @@ export default function Brush({
         rotation={[0, 0, lastData.transform.rotate]}
         count={MAX_INSTANCE_COUNT}
         material={material}>
-        <planeGeometry args={[1, 1]}>
-          <primitive object={bufGeom} attach='attributes-t' />
-        </planeGeometry>
+        <planeGeometry args={[1, 1]} />
       </instancedMesh>
     </>
   )
