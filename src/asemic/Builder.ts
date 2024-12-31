@@ -656,10 +656,10 @@ ${g.curves
     })
   }
 
-  newGroup(group?: Partial<GroupData['settings']>) {
+  newGroup(settings?: Partial<GroupData['settings']>) {
     this.keyframe.groups.push({
       curves: [],
-      transform: this.toTransform(),
+      transform: this.toTransform(settings),
       settings: {
         strength: 0,
         thickness: 1,
@@ -667,10 +667,11 @@ ${g.curves
         alpha: 1,
         spacing: 1,
         recalculate: false,
-        pointVert: ({ input }) => input,
-        pointFrag: ({ input }) => input,
-        curveVert: ({ input }) => input,
-        curveFrag: ({ input }) => input
+        pointVert: input => input,
+        pointFrag: input => input,
+        curveVert: input => input,
+        curveFrag: input => input,
+        ...settings
       }
     })
     this.target(-1)

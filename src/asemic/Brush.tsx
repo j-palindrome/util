@@ -9,6 +9,7 @@ import {
   Fn,
   If,
   instanceIndex,
+  log,
   mix,
   screenSize,
   texture,
@@ -83,9 +84,8 @@ export default function Brush({
       }) => {
         const pointI = instanceIndex.modInt(dimensions.x)
         const curveI = instanceIndex.div(dimensions.x)
-        const xyz = lastData.settings.curveVert({
-          input: textureLoad(keyframesTex, vec2(pointI, curveI))
-        }).xyz
+        const load = textureLoad(keyframesTex, vec2(pointI, curveI))
+        const xyz = lastData.settings.curveVert(vec4(load)).xyz
         return textureStore(
           storageTexture,
           vec2(pointI, curveI),
@@ -209,11 +209,9 @@ export default function Brush({
       })
 
       rotation.assign(vec3(point.rotation, 0, 0))
-      return vec4(point.position, 0, 1)
+      return vec4(lastData.settings.pointVert(point.position), 0, 1)
     })
-    material.positionNode = lastData.settings.pointVert({
-      input: main({ keyframesTex: lastData.keyframesTex })
-    })
+    material.positionNode = main({ keyframesTex: lastData.keyframesTex })
     material.rotationNode = rotation
     const resolution = new Vector2(
       window.innerWidth * window.devicePixelRatio,
@@ -223,7 +221,7 @@ export default function Brush({
     material.scaleNode = vec2(thickness.mul(pixel), pixel)
 
     const colorV = varying(vec4(), 'colorV')
-    material.colorNode = lastData.settings.pointFrag({ input: colorV })
+    material.colorNode = lastData.settings.pointFrag(colorV)
     material.needsUpdate = true
   }, [lastData])
 

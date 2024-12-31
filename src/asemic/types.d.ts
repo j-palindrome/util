@@ -1,8 +1,8 @@
 import { Color, Vector2 } from 'three'
 import { PointBuilder } from './PointBuilder'
-import { Fn, ShaderNodeObject } from 'three/tsl'
+import { Fn, ShaderNodeObject, vec2, vec4 } from 'three/tsl'
 
-const defaultFn = Fn(({ input }: { input: ReturnType<typeof vec4> }) => input)
+const defaultFn = (input: ReturnType<typeof vec4>) => input
 declare global {
   type Coordinate = [number, number, CoordinateData] | [number, number]
 
@@ -32,7 +32,7 @@ declare global {
 
   type ProcessData = {
     recalculate: boolean | ((progress: number) => number)
-    pointVert: typeof defaultFn
+    pointVert: (input: ReturnType<typeof vec2>) => input
     curveVert: typeof defaultFn
     pointFrag: typeof defaultFn
     curveFrag: typeof defaultFn
