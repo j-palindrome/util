@@ -10,8 +10,7 @@ export default function Tests() {
       className='bg-black'
       builder={b =>
         b
-          .newGroup()
-          .set({
+          .newGroup({
             rotate: 0.25,
             translate: [1, 0]
           })
