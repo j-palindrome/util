@@ -1,6 +1,6 @@
 import { Color, Vector2 } from 'three'
 import { PointBuilder } from './PointBuilder'
-import { Fn, ShaderNodeObject, vec2, vec4 } from 'three/tsl'
+import { float, Fn, ShaderNodeObject, vec2, vec4 } from 'three/tsl'
 
 const defaultFn = (input: ReturnType<typeof vec4>) => input
 declare global {
@@ -33,9 +33,24 @@ declare global {
   type ProcessData = {
     recalculate: boolean | ((progress: number) => number)
     pointVert: (input: ReturnType<typeof vec2>) => input
-    curveVert: typeof defaultFn
+    /**
+     * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
+     */
+    curveVert: (
+      input: ReturnType<typeof vec4>,
+      {
+        tPoint,
+        tCurve
+      }: { tPoint: ReturnType<typeof float>; tCurve: ReturnType<typeof float> }
+    ) => input
     pointFrag: typeof defaultFn
-    curveFrag: typeof defaultFn
+    curveFrag: (
+      input: ReturnType<typeof vec4>,
+      {
+        tPoint,
+        tCurve
+      }: { tPoint: ReturnType<typeof float>; tCurve: ReturnType<typeof float> }
+    ) => input
   }
 
   type CoordinateData = PreTransformData & Partial<CoordinateSettings>

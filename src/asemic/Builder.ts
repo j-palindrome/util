@@ -678,12 +678,20 @@ ${g.curves
     return this
   }
 
-  newCurve(...points: (Coordinate | PointBuilder)[]) {
-    this.groups(g => {
-      g.curves.push([])
+  newCurvesBlank(curveCount: number, pointCount: number) {
+    return this.lastGroup(g => {
+      g.curves.push(
+        ...range(curveCount).map(() =>
+          range(pointCount).map(() => new PointBuilder())
+        )
+      )
     })
-    this.lastCurve(c => c.push(...this.toPoints(...points)))
-    return this
+  }
+
+  newCurve(...points: (Coordinate | PointBuilder)[]) {
+    return this.lastGroup(g => {
+      g.curves.push(this.toPoints(...points))
+    })
   }
 
   newPoints(...points: (Coordinate | PointBuilder)[]) {
