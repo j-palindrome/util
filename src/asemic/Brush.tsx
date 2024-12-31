@@ -64,9 +64,7 @@ export default function Brush({
     window.innerHeight * window.devicePixelRatio
   )
 
-  const [lastData, setLastData] = useState(
-    keyframes.reInitialize(resolution)[0]
-  )
+  const lastData = keyframes.reInitialize(resolution)[0]
   const colorTexRef = useRef(lastData.colorTex)
   colorTexRef.current = lastData.colorTex
   const thicknessTexRef = useRef(lastData.thicknessTex)
@@ -230,14 +228,14 @@ export default function Brush({
     material.needsUpdate = true
   }, [lastData])
 
-  useInterval(() => {
-    const resolution = new Vector2(
-      window.innerWidth * window.devicePixelRatio,
-      window.innerHeight * window.devicePixelRatio
-    )
-    const newData = keyframes.reInitialize(resolution)[0]
-    setLastData(newData)
-  }, 1000)
+  // useInterval(() => {
+  //   const resolution = new Vector2(
+  //     window.innerWidth * window.devicePixelRatio,
+  //     window.innerHeight * window.devicePixelRatio
+  //   )
+  //   const newData = keyframes.reInitialize(resolution)[0]
+  //   setLastData(newData)
+  // }, 1000)
 
   const instanceCount = Math.floor(
     lastData.totalCurveLength / lastData.settings.spacing
