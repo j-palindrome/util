@@ -1,8 +1,7 @@
 'use client'
 import Asemic from '@/util/src/asemic/Asemic'
-import Brush from '@/util/src/asemic/Brush'
-import Builder from '@/util/src/asemic/Builder'
-import { Vector2 } from 'three'
+import { Vector3 } from 'three'
+import { range, vec4 } from 'three/tsl'
 
 export default function Tests() {
   return (
@@ -11,18 +10,13 @@ export default function Tests() {
       builder={b =>
         b
           .newGroup({
-            rotate: 0.25,
-            translate: [1, 0]
+            curveVert: (input, { tPoint }) =>
+              input.add(vec4(tPoint, range(0, 1), 0, 0)),
+            curveFrag: input =>
+              vec4(range(new Vector3(0, 0, 0), new Vector3(1, 1, 1)), 1)
           })
           .repeat(
-            () =>
-              b.newCurve(
-                [0, Math.random()],
-                [0.25, Math.random()],
-                [0.5, Math.random()],
-                [0.75, Math.random()],
-                [1, Math.random()]
-              ),
+            () => b.newCurve([0, 0], [0.1, 0], [0.2, 0], [0.3, 0], [0.4, 0]),
             3
           )
       }
