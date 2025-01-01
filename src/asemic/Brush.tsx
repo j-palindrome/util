@@ -12,6 +12,7 @@ import {
   log,
   mix,
   screenSize,
+  storage,
   texture,
   textureLoad,
   textureStore,
@@ -120,6 +121,38 @@ export default function Brush({
       (lastData.totalCurveLength / lastData.settings.spacing) * 2
 
     const array = new Float32Array(MAX_INSTANCE_COUNT * 2)
+    // let currentIndex = 0
+    // let lastCurve = 0
+    // let curveLength = lastData.curveEnds[currentIndex] - lastCurve
+    // for (let i = 0; i < instanceCount; i++) {
+    //   if (lastData.curveEnds[currentIndex] <= i) {
+    //     currentIndex++
+    //     lastCurve = lastData.curveEnds[currentIndex - 1]
+    //     curveLength = lastData.curveEnds[currentIndex] - lastCurve
+    //   }
+    //   array[i * 2] = (i - lastCurve) / curveLength
+    //   array[i * 2 + 1] = currentIndex
+    // }
+
+    const tAttribute = new StorageInstancedBufferAttribute(array, 2)
+    const geometry = new THREE.PlaneGeometry()
+    geometry.setAttribute('t', tAttribute)
+
+    const curveProgress = storage(tAttribute, 'vec2', MAX_INSTANCE_COUNT)
+    // init particles buffers
+    gl.computeAsync(
+      /*#__PURE__*/ Fn(() => {
+        curveProgress
+          .element(instanceIndex)
+          .xy.assign(
+            vec2(
+              instanceIndex.modInt(1000).toFloat().div(1000),
+              instanceIndex.div(1000)
+            )
+          )
+        return undefined as any
+      })().compute(MAX_INSTANCE_COUNT, undefined as any)
+    ).then(() => (tAttribute.needsUpdate = true))
 
     const material = new SpriteNodeMaterial({
       transparent: true,
@@ -129,10 +162,11 @@ export default function Brush({
 
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
-    const t = attribute('t', 'vec2')
+    // @ts-ignore
+    const t = curveProgress.toAttribute()
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
 
-    const main = Fn(({ keyframesTex }: { keyframesTex: THREE.Texture }) => {
+    const main = Fn(() => {
       const curveProgress = t.y.add(0.5).div(dimensionsU.y)
       const controlPointsCount = controlPointCounts.element(t.y)
 
@@ -143,11 +177,11 @@ export default function Brush({
 
       If(controlPointsCount.equal(2), () => {
         const p0 = texture(
-          keyframesTex,
+          curvePositionTex,
           vec2(float(0.5).div(dimensionsU.x), curveProgress)
         ).xy
         const p1 = texture(
-          keyframesTex,
+          curvePositionTex,
           vec2(float(1.5).div(dimensionsU.x), curveProgress)
         ).xy
         const progressPoint = mix(p0, p1, t.x)
@@ -183,10 +217,10 @@ export default function Brush({
             t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
             curveProgress
           )
-        const p0 = texture(keyframesTex, t0).xy.toVar('p0')
-        const p1 = texture(keyframesTex, t1).xy.toVar('p1')
-        const p2 = texture(keyframesTex, t2).xy.toVar('p2')
-        const strength = texture(keyframesTex, t1).z.toVar('strength')
+        const p0 = texture(curvePositionTex, t0).xy.toVar('p0')
+        const p1 = texture(curvePositionTex, t1).xy.toVar('p1')
+        const p2 = texture(curvePositionTex, t2).xy.toVar('p2')
+        const strength = texture(curvePositionTex, t1).z.toVar('strength')
 
         varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
         thickness.assign(texture(lastData.thicknessTex, tt))
@@ -212,7 +246,7 @@ export default function Brush({
       rotation.assign(vec3(point.rotation, 0, 0))
       return vec4(lastData.settings.pointVert(point.position), 0, 1)
     })
-    material.positionNode = main({ keyframesTex: curvePositionTex })
+    material.positionNode = main()
     material.rotationNode = rotation
     const resolution = new Vector2(
       window.innerWidth * window.devicePixelRatio,
@@ -223,34 +257,15 @@ export default function Brush({
 
     const colorV = varying(vec4(), 'colorV')
     material.colorNode = lastData.settings.pointFrag(colorV)
-    material.needsUpdate = true
 
-    const geometry = new THREE.PlaneGeometry()
-    geometry.setAttribute('t', new StorageInstancedBufferAttribute(array, 2))
     const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
-    scene.add(mesh)
     mesh.position.set(...lastData.transform.translate.toArray(), 0)
     mesh.scale.set(...lastData.transform.scale.toArray(), 0)
     mesh.rotation.set(0, 0, lastData.transform.rotate)
 
     mesh.count = instanceCount
-    const bufGeom = mesh.geometry.getAttribute(
-      't'
-    ) as StorageInstancedBufferAttribute
-    let currentIndex = 0
-    let lastCurve = 0
-    let curveLength = lastData.curveEnds[currentIndex] - lastCurve
-    for (let i = 0; i < instanceCount; i++) {
-      if (lastData.curveEnds[currentIndex] <= i) {
-        currentIndex++
-        lastCurve = lastData.curveEnds[currentIndex - 1]
-        curveLength = lastData.curveEnds[currentIndex] - lastCurve
-      }
-      array[i * 2] = (i - lastCurve) / curveLength
-      array[i * 2 + 1] = currentIndex
-    }
-    bufGeom.needsUpdate = true
 
+    scene.add(mesh)
     return () => {
       scene.remove(mesh)
       mesh.dispose()
