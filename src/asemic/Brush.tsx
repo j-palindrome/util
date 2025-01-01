@@ -122,24 +122,27 @@ export default function Brush({
   )
 
   const array = useMemo(() => new Float32Array(MAX_INSTANCE_COUNT * 2), [])
+
   useLayoutEffect(() => {
     const c = meshRef.current
     c.count = instanceCount
-  }, [])
-
-  const bufGeom = new StorageInstancedBufferAttribute(array, 2)
-  let currentIndex = 0
-  let lastCurve = 0
-  let curveLength = lastData.curveEnds[currentIndex] - lastCurve
-  for (let i = 0; i < instanceCount; i++) {
-    if (lastData.curveEnds[currentIndex] <= i) {
-      currentIndex++
-      lastCurve = lastData.curveEnds[currentIndex - 1]
-      curveLength = lastData.curveEnds[currentIndex] - lastCurve
+    const bufGeom = c.geometry.getAttribute(
+      't'
+    ) as StorageInstancedBufferAttribute
+    let currentIndex = 0
+    let lastCurve = 0
+    let curveLength = lastData.curveEnds[currentIndex] - lastCurve
+    for (let i = 0; i < instanceCount; i++) {
+      if (lastData.curveEnds[currentIndex] <= i) {
+        currentIndex++
+        lastCurve = lastData.curveEnds[currentIndex - 1]
+        curveLength = lastData.curveEnds[currentIndex] - lastCurve
+      }
+      array[i * 2] = (i - lastCurve) / curveLength
+      array[i * 2 + 1] = currentIndex
     }
-    array[i * 2] = (i - lastCurve) / curveLength
-    array[i * 2 + 1] = currentIndex
-  }
+    bufGeom.needsUpdate = true
+  }, [lastData])
 
   const meshRef = useRef<
     THREE.InstancedMesh<THREE.PlaneGeometry, SpriteNodeMaterial>
@@ -273,7 +276,10 @@ export default function Brush({
         count={MAX_INSTANCE_COUNT}
         material={material}>
         <planeGeometry args={[1, 1]}>
-          <primitive object={bufGeom} attach='attributes-t' />
+          <storageInstancedBufferAttribute
+            attach='attributes-t'
+            args={[array, 2]}
+          />
         </planeGeometry>
       </instancedMesh>
     </>
