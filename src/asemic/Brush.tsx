@@ -252,6 +252,7 @@ export default function Brush({
     bufGeom.needsUpdate = true
 
     return () => {
+      scene.remove(mesh)
       mesh.dispose()
     }
   }, [])
