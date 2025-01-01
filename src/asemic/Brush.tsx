@@ -59,24 +59,25 @@ export default function Brush({
 }) {
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
-
-  const curvePositionTex = new StorageTexture(
-    lastData.dimensions.x,
-    lastData.dimensions.y
-  )
-  curvePositionTex.type = THREE.FloatType
-  const curveColorTex = new StorageTexture(
-    lastData.dimensions.x,
-    lastData.dimensions.y
-  )
-
-  const controlPointCounts = uniformArray(
-    lastData.controlPointCounts as any,
-    'int'
-  )
-  const dimensionsU = uniform(lastData.dimensions, 'vec2')
+  const scene = useThree(({ scene }) => scene)
 
   useEffect(() => {
+    const curvePositionTex = new StorageTexture(
+      lastData.dimensions.x,
+      lastData.dimensions.y
+    )
+    curvePositionTex.type = THREE.FloatType
+    const curveColorTex = new StorageTexture(
+      lastData.dimensions.x,
+      lastData.dimensions.y
+    )
+
+    const controlPointCounts = uniformArray(
+      lastData.controlPointCounts as any,
+      'int'
+    )
+    const dimensionsU = uniform(lastData.dimensions, 'vec2')
+
     const advanceControlPoints = Fn(() => {
       const pointI = instanceIndex.modInt(lastData.dimensions.x)
       const curveI = instanceIndex.div(lastData.dimensions.x)
@@ -110,54 +111,22 @@ export default function Brush({
     gl.computeAsync(computeNode).then(() => {
       material.needsUpdate = true
     })
-  }, [lastData])
 
-  const instanceCount = Math.floor(
-    lastData.totalCurveLength / lastData.settings.spacing
-  )
+    const instanceCount = Math.floor(
+      lastData.totalCurveLength / lastData.settings.spacing
+    )
 
-  const MAX_INSTANCE_COUNT = useMemo(
-    () => (lastData.totalCurveLength / lastData.settings.spacing) * 2,
-    []
-  )
+    const MAX_INSTANCE_COUNT =
+      (lastData.totalCurveLength / lastData.settings.spacing) * 2
 
-  const array = useMemo(() => new Float32Array(MAX_INSTANCE_COUNT * 2), [])
+    const array = new Float32Array(MAX_INSTANCE_COUNT * 2)
 
-  useLayoutEffect(() => {
-    const c = meshRef.current
-    c.count = instanceCount
-    const bufGeom = c.geometry.getAttribute(
-      't'
-    ) as StorageInstancedBufferAttribute
-    let currentIndex = 0
-    let lastCurve = 0
-    let curveLength = lastData.curveEnds[currentIndex] - lastCurve
-    for (let i = 0; i < instanceCount; i++) {
-      if (lastData.curveEnds[currentIndex] <= i) {
-        currentIndex++
-        lastCurve = lastData.curveEnds[currentIndex - 1]
-        curveLength = lastData.curveEnds[currentIndex] - lastCurve
-      }
-      array[i * 2] = (i - lastCurve) / curveLength
-      array[i * 2 + 1] = currentIndex
-    }
-    bufGeom.needsUpdate = true
-  }, [lastData])
-
-  const meshRef = useRef<
-    THREE.InstancedMesh<THREE.PlaneGeometry, SpriteNodeMaterial>
-  >(null!)
-
-  const material = useMemo(() => {
     const material = new SpriteNodeMaterial({
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     })
-    return material
-  }, [])
 
-  useMemo(() => {
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
     const t = attribute('t', 'vec2')
@@ -255,33 +224,37 @@ export default function Brush({
     const colorV = varying(vec4(), 'colorV')
     material.colorNode = lastData.settings.pointFrag(colorV)
     material.needsUpdate = true
-  }, [lastData])
 
-  return (
-    <>
-      {/* <mesh position={[0.25, 0.75, 0]}>
-        <meshBasicMaterial map={lastData.keyframesTex} />
-        <planeGeometry args={[0.5, 0.5]} />
-      </mesh>
-      <mesh position={[0.75, 0.75, 0]}>
-        <meshBasicMaterial map={storageTexture} />
-        <planeGeometry args={[0.5, 0.5]} />
-      </mesh> */}
+    const geometry = new THREE.PlaneGeometry()
+    geometry.setAttribute('t', new StorageInstancedBufferAttribute(array, 2))
+    const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
+    scene.add(mesh)
+    mesh.position.set(...lastData.transform.translate.toArray(), 0)
+    mesh.scale.set(...lastData.transform.scale.toArray(), 0)
+    mesh.rotation.set(0, 0, lastData.transform.rotate)
 
-      <instancedMesh
-        ref={meshRef}
-        position={[...lastData.transform.translate.toArray(), 0]}
-        scale={[...lastData.transform.scale.toArray(), 1]}
-        rotation={[0, 0, lastData.transform.rotate]}
-        count={MAX_INSTANCE_COUNT}
-        material={material}>
-        <planeGeometry args={[1, 1]}>
-          <storageInstancedBufferAttribute
-            attach='attributes-t'
-            args={[array, 2]}
-          />
-        </planeGeometry>
-      </instancedMesh>
-    </>
-  )
+    mesh.count = instanceCount
+    const bufGeom = mesh.geometry.getAttribute(
+      't'
+    ) as StorageInstancedBufferAttribute
+    let currentIndex = 0
+    let lastCurve = 0
+    let curveLength = lastData.curveEnds[currentIndex] - lastCurve
+    for (let i = 0; i < instanceCount; i++) {
+      if (lastData.curveEnds[currentIndex] <= i) {
+        currentIndex++
+        lastCurve = lastData.curveEnds[currentIndex - 1]
+        curveLength = lastData.curveEnds[currentIndex] - lastCurve
+      }
+      array[i * 2] = (i - lastCurve) / curveLength
+      array[i * 2 + 1] = currentIndex
+    }
+    bufGeom.needsUpdate = true
+
+    return () => {
+      mesh.dispose()
+    }
+  }, [])
+
+  return <></>
 }
