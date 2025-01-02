@@ -32,6 +32,7 @@ declare global {
 
   type ProcessData = {
     recalculate: boolean | ((progress: number) => number)
+    maxLength: number
     pointVert: (input: ReturnType<typeof vec2>) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}

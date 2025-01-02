@@ -67,6 +67,14 @@ export default function Brush({
   const scene = useThree(({ scene }) => scene)
 
   useEffect(() => {
+    const resolution = new Vector2(
+      window.innerWidth * window.devicePixelRatio,
+      window.innerHeight * window.devicePixelRatio
+    )
+    const width = resolution.length()
+    const MAX_INSTANCE_COUNT =
+      lastData.controlPointCounts.length * lastData.settings.maxLength * width
+
     const curvePositionTex = new StorageTexture(
       lastData.dimensions.x,
       lastData.dimensions.y
@@ -117,8 +125,6 @@ export default function Brush({
       material.needsUpdate = true
     })
 
-    const MAX_INSTANCE_COUNT = 10000
-
     const geometry = new THREE.PlaneGeometry()
     const tAttribute = storage(
       new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2),
@@ -126,10 +132,6 @@ export default function Brush({
       MAX_INSTANCE_COUNT
     )
 
-    const resolution = new Vector2(
-      window.innerWidth * window.devicePixelRatio,
-      window.innerHeight * window.devicePixelRatio
-    )
     const pixel = float(1.414).mul(2).div(resolution.length()).toVar('pixel')
     gl.computeAsync(
       /*#__PURE__*/ Fn(() => {
@@ -165,7 +167,7 @@ export default function Brush({
                     )
                   ).xy
                 )
-                thisEnd.addAssign(thisPoint.sub(lastPoint).length().mul(250))
+                thisEnd.addAssign(thisPoint.sub(lastPoint).length().mul(width))
               }
             )
             If(thisEnd.greaterThan(instanceIndex), () => {
@@ -289,6 +291,7 @@ export default function Brush({
 
       return vec4(lastData.settings.pointVert(point.position), 0, 1)
     })
+
     material.positionNode = main()
     material.rotationNode = rotation
     material.scaleNode = vec2(thickness.mul(pixel), pixel)

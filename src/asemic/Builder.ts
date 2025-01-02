@@ -638,6 +638,7 @@ ${g.curves
       curves: [],
       transform: this.toTransform(settings),
       settings: {
+        maxLength: 1,
         strength: 0,
         thickness: 1,
         color: [1, 1, 1],
