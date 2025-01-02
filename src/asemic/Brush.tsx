@@ -124,45 +124,13 @@ export default function Brush({
     const MAX_INSTANCE_COUNT =
       (lastData.totalCurveLength / lastData.settings.spacing) * 2
 
-    // const array = new Float32Array(MAX_INSTANCE_COUNT * 2)
-    // let currentIndex = 0
-    // let lastCurve = 0
-    // let curveLength = lastData.curveEnds[currentIndex] - lastCurve
-    // for (let i = 0; i < instanceCount; i++) {
-    //   if (lastData.curveEnds[currentIndex] <= i) {
-    //     currentIndex++
-    //     lastCurve = lastData.curveEnds[currentIndex - 1]
-    //     curveLength = lastData.curveEnds[currentIndex] - lastCurve
-    //   }
-    //   array[i * 2] = (i - lastCurve) / curveLength
-    //   array[i * 2 + 1] = currentIndex
-    // }
-
     const geometry = new THREE.PlaneGeometry()
-
-    // const curveProgress = storage(tAttribute, 'vec2', MAX_INSTANCE_COUNT)
-    // // init particles buffers
-    // gl.computeAsync(
-    //   /*#__PURE__*/ Fn(() => {
-    //     curveProgress
-    //       .element(instanceIndex)
-    //       .xy.assign(
-    //         vec2(
-    //           instanceIndex.modInt(1000).toFloat().div(1000),
-    //           instanceIndex.div(1000)
-    //         )
-    //       )
-    //     return undefined as any
-    //   })().compute(MAX_INSTANCE_COUNT, undefined as any)
-    // ).then(() => (tAttribute.needsUpdate = true))
-
     const tAttribute = storage(
       new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2),
       'vec2',
       MAX_INSTANCE_COUNT
     )
 
-    // init particles buffers
     gl.computeAsync(
       /*#__PURE__*/ Fn(() => {
         const lastEnd = int(0).toVar('lastEnd')
