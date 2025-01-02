@@ -5,11 +5,14 @@ import { Vector2 } from 'three'
 import {
   atan2,
   attribute,
+  Break,
   float,
   Fn,
   If,
   instanceIndex,
+  int,
   log,
+  Loop,
   mix,
   screenSize,
   storage,
@@ -78,6 +81,7 @@ export default function Brush({
       'int'
     )
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
+    const curveEnds = uniformArray(lastData.curveEnds as any, 'int')
 
     const advanceControlPoints = Fn(() => {
       const pointI = instanceIndex.modInt(lastData.dimensions.x)
@@ -120,7 +124,7 @@ export default function Brush({
     const MAX_INSTANCE_COUNT =
       (lastData.totalCurveLength / lastData.settings.spacing) * 2
 
-    const array = new Float32Array(MAX_INSTANCE_COUNT * 2)
+    // const array = new Float32Array(MAX_INSTANCE_COUNT * 2)
     // let currentIndex = 0
     // let lastCurve = 0
     // let curveLength = lastData.curveEnds[currentIndex] - lastCurve
@@ -134,25 +138,57 @@ export default function Brush({
     //   array[i * 2 + 1] = currentIndex
     // }
 
-    const tAttribute = new StorageInstancedBufferAttribute(array, 2)
     const geometry = new THREE.PlaneGeometry()
-    geometry.setAttribute('t', tAttribute)
 
-    const curveProgress = storage(tAttribute, 'vec2', MAX_INSTANCE_COUNT)
+    // const curveProgress = storage(tAttribute, 'vec2', MAX_INSTANCE_COUNT)
+    // // init particles buffers
+    // gl.computeAsync(
+    //   /*#__PURE__*/ Fn(() => {
+    //     curveProgress
+    //       .element(instanceIndex)
+    //       .xy.assign(
+    //         vec2(
+    //           instanceIndex.modInt(1000).toFloat().div(1000),
+    //           instanceIndex.div(1000)
+    //         )
+    //       )
+    //     return undefined as any
+    //   })().compute(MAX_INSTANCE_COUNT, undefined as any)
+    // ).then(() => (tAttribute.needsUpdate = true))
+
+    const tAttribute = storage(
+      new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2),
+      'vec2',
+      MAX_INSTANCE_COUNT
+    )
+
     // init particles buffers
     gl.computeAsync(
       /*#__PURE__*/ Fn(() => {
-        curveProgress
+        const lastEnd = int(0).toVar('lastEnd')
+        const thisEnd = int(0).toVar('thisEnd')
+        const thisIndex = int(0).toVar('thisIndex')
+        Loop(lastData.curveEnds.length, ({ i }) => {
+          If(curveEnds.element(i).greaterThan(instanceIndex), () => {
+            thisIndex.assign(i)
+            thisEnd.assign(curveEnds.element(i))
+            If(i.greaterThan(0), () => {
+              lastEnd.assign(curveEnds.element(i.sub(1)))
+            })
+            Break()
+          })
+        })
+        tAttribute
           .element(instanceIndex)
           .xy.assign(
             vec2(
-              instanceIndex.modInt(1000).toFloat().div(1000),
-              instanceIndex.div(1000)
+              instanceIndex.toFloat().sub(lastEnd).div(thisEnd.sub(lastEnd)),
+              thisIndex
             )
           )
         return undefined as any
-      })().compute(MAX_INSTANCE_COUNT, undefined as any)
-    ).then(() => (tAttribute.needsUpdate = true))
+      })().compute(lastData.totalCurveLength, undefined as any)
+    )
 
     const material = new SpriteNodeMaterial({
       transparent: true,
@@ -162,11 +198,11 @@ export default function Brush({
 
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
-    // @ts-ignore
-    const t = curveProgress.toAttribute()
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
 
     const main = Fn(() => {
+      // @ts-ignore
+      const t = tAttribute.toAttribute()
       const curveProgress = t.y.add(0.5).div(dimensionsU.y)
       const controlPointsCount = controlPointCounts.element(t.y)
 
