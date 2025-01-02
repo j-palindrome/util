@@ -35,6 +35,7 @@ import {
 } from 'three/webgpu'
 import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
 import Builder from './Builder'
+import { join } from 'path'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -81,7 +82,6 @@ export default function Brush({
       'int'
     )
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
-    const curveEnds = uniformArray(lastData.curveEnds as any, 'int')
 
     const advanceControlPoints = Fn(() => {
       const pointI = instanceIndex.modInt(lastData.dimensions.x)
@@ -117,12 +117,7 @@ export default function Brush({
       material.needsUpdate = true
     })
 
-    const instanceCount = Math.floor(
-      lastData.totalCurveLength / lastData.settings.spacing
-    )
-
-    const MAX_INSTANCE_COUNT =
-      (lastData.totalCurveLength / lastData.settings.spacing) * 2
+    const MAX_INSTANCE_COUNT = 10000
 
     const geometry = new THREE.PlaneGeometry()
     const tAttribute = storage(
@@ -131,31 +126,70 @@ export default function Brush({
       MAX_INSTANCE_COUNT
     )
 
+    const resolution = new Vector2(
+      window.innerWidth * window.devicePixelRatio,
+      window.innerHeight * window.devicePixelRatio
+    )
+    const pixel = float(1.414).mul(2).div(resolution.length()).toVar('pixel')
     gl.computeAsync(
       /*#__PURE__*/ Fn(() => {
         const lastEnd = int(0).toVar('lastEnd')
         const thisEnd = int(0).toVar('thisEnd')
         const thisIndex = int(0).toVar('thisIndex')
-        Loop(lastData.curveEnds.length, ({ i }) => {
-          If(curveEnds.element(i).greaterThan(instanceIndex), () => {
-            thisIndex.assign(i)
-            thisEnd.assign(curveEnds.element(i))
-            If(i.greaterThan(0), () => {
-              lastEnd.assign(curveEnds.element(i.sub(1)))
-            })
-            Break()
-          })
-        })
-        tAttribute
-          .element(instanceIndex)
-          .xy.assign(
-            vec2(
-              instanceIndex.toFloat().sub(lastEnd).div(thisEnd.sub(lastEnd)),
-              thisIndex
+        const found = int(0).toVar('found')
+        Loop(
+          { end: lastData.controlPointCounts.length, type: 'float' },
+          ({ i }) => {
+            lastEnd.assign(thisEnd)
+            const lastPoint = vec2(0, 0).toVar('lastPoint')
+            const thisPoint = vec2(0, 0).toVar('thisPoint')
+            thisPoint.assign(
+              texture(
+                curvePositionTex,
+                vec2(
+                  float(0.5).div(dimensionsU.x),
+                  i.add(0.5).div(dimensionsU.y)
+                )
+              ).xy
             )
-          )
+            Loop(
+              { start: 1, end: controlPointCounts.element(i), type: 'float' },
+              ({ i: j }) => {
+                lastPoint.assign(thisPoint)
+                thisPoint.assign(
+                  texture(
+                    curvePositionTex,
+                    vec2(
+                      j.add(0.5).div(dimensionsU.x),
+                      i.add(0.5).div(dimensionsU.y)
+                    )
+                  ).xy
+                )
+                thisEnd.addAssign(thisPoint.sub(lastPoint).length().mul(250))
+              }
+            )
+            If(thisEnd.greaterThan(instanceIndex), () => {
+              thisIndex.assign(i)
+              found.assign(1)
+              Break()
+            })
+          }
+        )
+        If(found.equal(0), () => {
+          tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
+        }).Else(() => {
+          tAttribute
+            .element(instanceIndex)
+            .xy.assign(
+              vec2(
+                instanceIndex.toFloat().sub(lastEnd).div(thisEnd.sub(lastEnd)),
+                thisIndex
+              )
+            )
+        })
+
         return undefined as any
-      })().compute(lastData.totalCurveLength, undefined as any)
+      })().compute(MAX_INSTANCE_COUNT, undefined as any)
     )
 
     const material = new SpriteNodeMaterial({
@@ -179,84 +213,84 @@ export default function Brush({
         rotation: float(0).toVar()
       }
 
-      If(controlPointsCount.equal(2), () => {
-        const p0 = texture(
-          curvePositionTex,
-          vec2(float(0.5).div(dimensionsU.x), curveProgress)
-        ).xy
-        const p1 = texture(
-          curvePositionTex,
-          vec2(float(1.5).div(dimensionsU.x), curveProgress)
-        ).xy
-        const progressPoint = mix(p0, p1, t.x)
-        point.position.assign(progressPoint)
-        const rotation = lineTangent(p0, p1, aspectRatio)
-        point.rotation.assign(atan2(rotation.y, rotation.x))
-        const textureVector = vec2(
-          t.x.add(0.5).div(dimensionsU.x),
-          curveProgress
-        )
-        varyingProperty('vec4', 'colorV').assign(
-          texture(curveColorTex, textureVector)
-        )
-        thickness.assign(texture(lastData.thicknessTex, textureVector))
+      If(t.x.equal(-1), () => {
+        varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
       }).Else(() => {
-        const pointProgress = multiBezierProgress({
-          t: t.x,
-          controlPointsCount
-        })
-        const t0 = vec2(
-            pointProgress.x.add(0).add(0.5).div(dimensionsU.x),
-            curveProgress
-          ),
-          t1 = vec2(
-            pointProgress.x.add(1).add(0.5).div(dimensionsU.x),
-            curveProgress
-          ),
-          t2 = vec2(
-            pointProgress.x.add(2).add(0.5).div(dimensionsU.x),
-            curveProgress
-          ),
-          tt = vec2(
-            t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
+        If(controlPointsCount.equal(2), () => {
+          const p0 = texture(
+            curvePositionTex,
+            vec2(float(0.5).div(dimensionsU.x), curveProgress)
+          ).xy
+          const p1 = texture(
+            curvePositionTex,
+            vec2(float(1.5).div(dimensionsU.x), curveProgress)
+          ).xy
+          const progressPoint = mix(p0, p1, t.x)
+          point.position.assign(progressPoint)
+          const rotation = lineTangent(p0, p1, aspectRatio)
+          point.rotation.assign(atan2(rotation.y, rotation.x))
+          const textureVector = vec2(
+            t.x.add(0.5).div(dimensionsU.x),
             curveProgress
           )
-        const p0 = texture(curvePositionTex, t0).xy.toVar('p0')
-        const p1 = texture(curvePositionTex, t1).xy.toVar('p1')
-        const p2 = texture(curvePositionTex, t2).xy.toVar('p2')
-        const strength = texture(curvePositionTex, t1).z.toVar('strength')
+          varyingProperty('vec4', 'colorV').assign(
+            texture(curveColorTex, textureVector)
+          )
+          thickness.assign(texture(lastData.thicknessTex, textureVector))
+        }).Else(() => {
+          const pointProgress = multiBezierProgress({
+            t: t.x,
+            controlPointsCount
+          })
+          const t0 = vec2(
+              pointProgress.x.add(0).add(0.5).div(dimensionsU.x),
+              curveProgress
+            ),
+            t1 = vec2(
+              pointProgress.x.add(1).add(0.5).div(dimensionsU.x),
+              curveProgress
+            ),
+            t2 = vec2(
+              pointProgress.x.add(2).add(0.5).div(dimensionsU.x),
+              curveProgress
+            ),
+            tt = vec2(
+              t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
+              curveProgress
+            )
+          const p0 = texture(curvePositionTex, t0).xy.toVar('p0')
+          const p1 = texture(curvePositionTex, t1).xy.toVar('p1')
+          const p2 = texture(curvePositionTex, t2).xy.toVar('p2')
+          const strength = texture(curvePositionTex, t1).z.toVar('strength')
 
-        varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
-        thickness.assign(texture(lastData.thicknessTex, tt))
+          varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
+          thickness.assign(texture(lastData.thicknessTex, tt))
 
-        If(pointProgress.x.greaterThan(float(0)), () => {
-          p0.assign(mix(p0, p1, float(0.5)))
+          If(pointProgress.x.greaterThan(float(0)), () => {
+            p0.assign(mix(p0, p1, float(0.5)))
+          })
+          If(pointProgress.x.lessThan(float(controlPointsCount).sub(3)), () => {
+            p2.assign(mix(p1, p2, 0.5))
+          })
+          const thisPoint = bezierPoint({
+            t: pointProgress.y,
+            p0,
+            p1,
+            p2,
+            strength,
+            aspectRatio
+          })
+          point.position.assign(thisPoint.position)
+          point.rotation.assign(thisPoint.rotation)
         })
-        If(pointProgress.x.lessThan(float(controlPointsCount).sub(3)), () => {
-          p2.assign(mix(p1, p2, 0.5))
-        })
-        const thisPoint = bezierPoint({
-          t: pointProgress.y,
-          p0,
-          p1,
-          p2,
-          strength,
-          aspectRatio
-        })
-        point.position.assign(thisPoint.position)
-        point.rotation.assign(thisPoint.rotation)
+
+        rotation.assign(vec3(point.rotation, 0, 0))
       })
 
-      rotation.assign(vec3(point.rotation, 0, 0))
       return vec4(lastData.settings.pointVert(point.position), 0, 1)
     })
     material.positionNode = main()
     material.rotationNode = rotation
-    const resolution = new Vector2(
-      window.innerWidth * window.devicePixelRatio,
-      window.innerHeight * window.devicePixelRatio
-    )
-    const pixel = float(1.414).mul(2).div(resolution.length())
     material.scaleNode = vec2(thickness.mul(pixel), pixel)
 
     const colorV = varying(vec4(), 'colorV')
@@ -267,7 +301,8 @@ export default function Brush({
     mesh.scale.set(...lastData.transform.scale.toArray(), 0)
     mesh.rotation.set(0, 0, lastData.transform.rotate)
 
-    mesh.count = instanceCount
+    // TODO: add back instance counts
+    // mesh.count = instanceCount
 
     scene.add(mesh)
     return () => {

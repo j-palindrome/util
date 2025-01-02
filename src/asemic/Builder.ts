@@ -216,34 +216,14 @@ export default class Builder {
     return vector
   }
 
-  protected packToTexture(resolution: Vector2) {
+  protected packToTexture() {
     return this.keyframe.groups.map(group => {
-      const hypotenuse = resolution.length()
-
-      this.reset(true)
-
       const width = max(group.curves.flatMap(x => x.length))!
       const height = group.curves.length
       const dimensions = new Vector2(width, height)
-      let curveIndex = 0
-      const curveEnds = new Float32Array(group.curves.length)
-      const curveIndexes = new Float32Array(group.curves.length)
       const controlPointCounts = new Float32Array(group.curves.length)
-      let totalCurveLength = 0
       group.curves.forEach((curve, i) => {
-        // shortcut for Bezier lengths
-        let curveLength = 0
-        for (let i = 1; i < curve.length; i++) {
-          curveLength += curve[i - 1].distanceTo(curve[i])
-        }
-
-        curveLength *=
-          (hypotenuse / 1.414) * (group.transform.scale.length() / 1.414)
-        totalCurveLength += curveLength
-        curveEnds[i] = totalCurveLength
-        curveIndexes[i] = curveIndex
         controlPointCounts[i] = curve.length
-        curveIndex++
       })
 
       const createTexture = (
@@ -317,10 +297,7 @@ export default class Builder {
         keyframesTex,
         colorTex,
         thicknessTex,
-        curveEnds,
-        curveIndexes,
         controlPointCounts,
-        totalCurveLength,
         dimensions,
         transform: group.transform,
         settings: group.settings
@@ -1209,7 +1186,7 @@ ${g.curves
     this.target([0, 0])
     this.keyframe = this.defaultKeyframe()
     this.initialize(this)
-    return this.packToTexture(resolution)
+    return this.packToTexture()
   }
 
   constructor(initialize: (builder: Builder) => Builder | void) {
