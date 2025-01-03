@@ -12,6 +12,7 @@ import {
   If,
   instanceIndex,
   int,
+  ivec2,
   log,
   Loop,
   mix,
@@ -26,7 +27,8 @@ import {
   varyingProperty,
   vec2,
   vec3,
-  vec4
+  vec4,
+  wgslFn
 } from 'three/tsl'
 import {
   SpriteNodeMaterial,
@@ -37,6 +39,7 @@ import {
 import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
 import Builder from './Builder'
 import { join } from 'path'
+import { textureLoadFix } from '../tsl/utility'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -79,9 +82,8 @@ export default function Brush({
         : lastData.settings.spacingType === 'width'
           ? (lastData.controlPointCounts.length *
               lastData.settings.maxLength *
-              width *
-              resolution.x) /
-            lastData.settings.spacing
+              width) /
+            (lastData.settings.spacing * width)
           : lastData.settings.spacingType === 'count'
             ? lastData.controlPointCounts.length * width
             : 0
@@ -134,16 +136,17 @@ export default function Brush({
     )
 
     const updateCurveLengths = /*#__PURE__*/ Fn(() => {
-      const lastEnd = int(0).toVar('lastEnd')
-      const thisEnd = int(0).toVar('thisEnd')
-      const thisIndex = int(0).toVar('thisIndex')
+      const lastEnd = float(0).toVar('lastEnd')
+      const thisEnd = float(0).toVar('thisEnd')
+      const thisIndex = float(0).toVar('thisIndex')
       const found = int(0).toVar('found')
       const generateSpacing = () => {
         switch (lastData.settings.spacingType) {
           case 'pixel':
-            return instanceIndex.mul(lastData.settings.spacing)
+            return instanceIndex.toFloat().mul(lastData.settings.spacing)
           case 'width':
             return instanceIndex
+              .toFloat()
               .mul(lastData.settings.spacing)
               .mul(screenSize.x)
           case 'count':
@@ -168,26 +171,14 @@ export default function Brush({
             const lastPoint = vec2(0, 0).toVar('lastPoint')
             const thisPoint = vec2(0, 0).toVar('thisPoint')
             thisPoint.assign(
-              texture(
-                curvePositionTex,
-                vec2(
-                  float(0.5).div(dimensionsU.x),
-                  i.add(0.5).div(dimensionsU.y)
-                )
-              ).xy
+              textureLoadFix(texture(curvePositionTex), ivec2(0, i)).xy
             )
             Loop(
               { start: 1, end: controlPointCounts.element(i), type: 'float' },
               ({ i: j }) => {
                 lastPoint.assign(thisPoint)
                 thisPoint.assign(
-                  texture(
-                    curvePositionTex,
-                    vec2(
-                      j.add(0.5).div(dimensionsU.x),
-                      i.add(0.5).div(dimensionsU.y)
-                    )
-                  ).xy
+                  textureLoadFix(texture(curvePositionTex), ivec2(j, i)).xy
                 )
                 thisEnd.addAssign(thisPoint.sub(lastPoint).length().mul(width))
               }
@@ -238,7 +229,6 @@ export default function Brush({
       // @ts-ignore
       const t = tAttribute.toAttribute()
       // dimU = 9 t.y = 8.5/9
-      const curveProgress = t.y.add(0.5).div(dimensionsU.y)
       const controlPointsCount = controlPointCounts.element(t.y)
 
       let point = {
@@ -246,25 +236,21 @@ export default function Brush({
         rotation: float(0).toVar()
       }
 
+      const curvePositionTexU = texture(curvePositionTex)
+
       If(t.x.equal(-1), () => {
         varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
       }).Else(() => {
         If(controlPointsCount.equal(2), () => {
-          const p0 = texture(
-            curvePositionTex,
-            vec2(float(0.5).div(dimensionsU.x), curveProgress)
-          ).xy
-          const p1 = texture(
-            curvePositionTex,
-            vec2(float(1.5).div(dimensionsU.x), curveProgress)
-          ).xy
+          const p0 = textureLoadFix(curvePositionTexU, ivec2(0, t.y)).xy
+          const p1 = textureLoadFix(curvePositionTexU, ivec2(1, t.y)).xy
           const progressPoint = mix(p0, p1, t.x)
           point.position.assign(progressPoint)
           const rotation = lineTangent(p0, p1)
           point.rotation.assign(atan2(rotation.y, rotation.x))
           const textureVector = vec2(
             t.x.add(0.5).div(dimensionsU.x),
-            curveProgress
+            t.y.add(0.5).div(dimensionsU.y)
           )
           varyingProperty('vec4', 'colorV').assign(
             texture(curveColorTex, textureVector)
@@ -275,26 +261,27 @@ export default function Brush({
             t: t.x,
             controlPointsCount
           })
-          const t0 = vec2(
-              pointProgress.x.add(0).add(0.5).div(dimensionsU.x),
-              curveProgress
-            ),
-            t1 = vec2(
-              pointProgress.x.add(1).add(0.5).div(dimensionsU.x),
-              curveProgress
-            ),
-            t2 = vec2(
-              pointProgress.x.add(2).add(0.5).div(dimensionsU.x),
-              curveProgress
-            ),
-            tt = vec2(
-              t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
-              curveProgress
-            )
-          const p0 = texture(curvePositionTex, t0).xy.toVar('p0')
-          const p1 = texture(curvePositionTex, t1).xy.toVar('p1')
-          const p2 = texture(curvePositionTex, t2).xy.toVar('p2')
-          const strength = texture(curvePositionTex, t1).z.toVar('strength')
+          const tt = vec2(
+            // 2 points: 0.5-1.5
+            t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
+            t.y.add(0.5).div(dimensionsU.y)
+          )
+          const p0 = textureLoadFix(
+            curvePositionTexU,
+            ivec2(pointProgress.x, t.y)
+          ).xy.toVar('p0')
+          const p1 = textureLoadFix(
+            curvePositionTexU,
+            ivec2(pointProgress.x.add(1), t.y)
+          ).xy.toVar('p1')
+          const p2 = textureLoadFix(
+            curvePositionTexU,
+            ivec2(pointProgress.x.add(2), t.y)
+          ).xy.toVar('p2')
+          const strength = textureLoadFix(
+            curvePositionTexU,
+            ivec2(pointProgress.x.add(1), t.y)
+          ).z.toVar('strength')
 
           varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
           thickness.assign(texture(lastData.thicknessTex, tt))
