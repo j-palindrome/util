@@ -58,7 +58,6 @@ function Scene({
 }: {
   builder: (b: Builder) => Builder
 } & React.PropsWithChildren) {
-  const keyframes = new Builder(builder)
   const resolution = new Vector2()
 
   useThree(state => {
@@ -70,7 +69,8 @@ function Scene({
 
     camera.updateProjectionMatrix()
   })
-  const lastData = keyframes.reInitialize(resolution)
+  const keyframes = new Builder(builder, resolution)
+  const lastData = keyframes.reInitialize()
   return (
     <>
       {lastData.map((lastData, i) => (

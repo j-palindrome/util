@@ -7,6 +7,7 @@ import {
   attribute,
   Break,
   float,
+  floor,
   Fn,
   If,
   instanceIndex,
@@ -70,11 +71,20 @@ export default function Brush({
     const resolution = new Vector2()
     const width = gl.getDrawingBufferSize(resolution).x
     const MAX_INSTANCE_COUNT =
-      (lastData.controlPointCounts.length *
-        lastData.settings.maxLength *
-        width) /
-      lastData.settings.spacing
-    console.log('instances:', MAX_INSTANCE_COUNT)
+      lastData.settings.spacingType === 'pixel'
+        ? (lastData.controlPointCounts.length *
+            lastData.settings.maxLength *
+            width) /
+          lastData.settings.spacing
+        : lastData.settings.spacingType === 'width'
+          ? (lastData.controlPointCounts.length *
+              lastData.settings.maxLength *
+              width *
+              resolution.x) /
+            lastData.settings.spacing
+          : lastData.settings.spacingType === 'count'
+            ? lastData.controlPointCounts.length * width
+            : 0
 
     const curvePositionTex = new StorageTexture(
       lastData.dimensions.x,
@@ -128,59 +138,87 @@ export default function Brush({
       const thisEnd = int(0).toVar('thisEnd')
       const thisIndex = int(0).toVar('thisIndex')
       const found = int(0).toVar('found')
-      const pixelProgress = instanceIndex.mul(lastData.settings.spacing)
-      Loop(
-        { end: lastData.controlPointCounts.length, type: 'float' },
-        ({ i }) => {
-          lastEnd.assign(thisEnd)
-          const lastPoint = vec2(0, 0).toVar('lastPoint')
-          const thisPoint = vec2(0, 0).toVar('thisPoint')
-          thisPoint.assign(
-            texture(
-              curvePositionTex,
-              vec2(float(0.5).div(dimensionsU.x), i.add(0.5).div(dimensionsU.y))
-            ).xy
-          )
-          Loop(
-            { start: 1, end: controlPointCounts.element(i), type: 'float' },
-            ({ i: j }) => {
-              lastPoint.assign(thisPoint)
-              thisPoint.assign(
-                texture(
-                  curvePositionTex,
-                  vec2(
-                    j.add(0.5).div(dimensionsU.x),
-                    i.add(0.5).div(dimensionsU.y)
-                  )
-                ).xy
-              )
-              thisEnd.addAssign(thisPoint.sub(lastPoint).length().mul(width))
-            }
-          )
-          If(thisEnd.greaterThan(pixelProgress), () => {
-            thisIndex.assign(i)
-            found.assign(1)
-            Break()
-          })
+      const generateSpacing = () => {
+        switch (lastData.settings.spacingType) {
+          case 'pixel':
+            return instanceIndex.mul(lastData.settings.spacing)
+          case 'width':
+            return instanceIndex
+              .mul(lastData.settings.spacing)
+              .mul(screenSize.x)
+          case 'count':
+            return instanceIndex.toFloat().div(lastData.settings.spacing)
         }
-      )
-      If(found.equal(0), () => {
-        tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
-      }).Else(() => {
-        tAttribute
-          .element(instanceIndex)
-          .xy.assign(
-            vec2(
-              pixelProgress.toFloat().sub(lastEnd).div(thisEnd.sub(lastEnd)),
-              thisIndex
+      }
+      const pixelProgress = generateSpacing()
+      if (lastData.settings.spacingType === 'count') {
+        If(pixelProgress.greaterThanEqual(dimensionsU.y.add(1)), () => {
+          tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
+          found.assign(0)
+        }).Else(() => {
+          tAttribute
+            .element(instanceIndex)
+            .xy.assign(vec2(pixelProgress.fract(), pixelProgress.floor()))
+        })
+      } else {
+        Loop(
+          { end: lastData.controlPointCounts.length, type: 'float' },
+          ({ i }) => {
+            lastEnd.assign(thisEnd)
+            const lastPoint = vec2(0, 0).toVar('lastPoint')
+            const thisPoint = vec2(0, 0).toVar('thisPoint')
+            thisPoint.assign(
+              texture(
+                curvePositionTex,
+                vec2(
+                  float(0.5).div(dimensionsU.x),
+                  i.add(0.5).div(dimensionsU.y)
+                )
+              ).xy
             )
-          )
-      })
+            Loop(
+              { start: 1, end: controlPointCounts.element(i), type: 'float' },
+              ({ i: j }) => {
+                lastPoint.assign(thisPoint)
+                thisPoint.assign(
+                  texture(
+                    curvePositionTex,
+                    vec2(
+                      j.add(0.5).div(dimensionsU.x),
+                      i.add(0.5).div(dimensionsU.y)
+                    )
+                  ).xy
+                )
+                thisEnd.addAssign(thisPoint.sub(lastPoint).length().mul(width))
+              }
+            )
+
+            If(thisEnd.greaterThan(pixelProgress), () => {
+              thisIndex.assign(i)
+              found.assign(1)
+              Break()
+            })
+          }
+        )
+        If(found.equal(0), () => {
+          tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
+        }).Else(() => {
+          tAttribute
+            .element(instanceIndex)
+            .xy.assign(
+              vec2(
+                pixelProgress.toFloat().sub(lastEnd).div(thisEnd.sub(lastEnd)),
+                thisIndex
+              )
+            )
+        })
+      }
 
       return undefined as any
     })().compute(MAX_INSTANCE_COUNT, undefined as any)
 
     const geometry = new THREE.PlaneGeometry()
+    geometry.translate(-0.5, 0, 0)
     const tAttribute = storage(
       new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2),
       'vec2',
@@ -199,6 +237,7 @@ export default function Brush({
     const main = Fn(() => {
       // @ts-ignore
       const t = tAttribute.toAttribute()
+      // dimU = 9 t.y = 8.5/9
       const curveProgress = t.y.add(0.5).div(dimensionsU.y)
       const controlPointsCount = controlPointCounts.element(t.y)
 
@@ -302,17 +341,26 @@ export default function Brush({
 
     scene.add(mesh)
 
+    if (lastData.settings.spacingType === 'count') {
+      gl.computeAsync(updateCurveLengths)
+    }
     const update = () => {
       let done = 0
-      const finish = () => {
-        done++
-        if (done == 2) {
-          material.needsUpdate = true
-          updating = requestAnimationFrame(update)
+      if (lastData.settings.spacingType === 'count') {
+        gl.computeAsync(advanceControlPoints)
+        material.needsUpdate = true
+        updating = requestAnimationFrame(update)
+      } else {
+        const finish = () => {
+          done++
+          if (done == 2) {
+            material.needsUpdate = true
+            updating = requestAnimationFrame(update)
+          }
         }
+        gl.computeAsync(advanceControlPoints).then(finish)
+        gl.computeAsync(updateCurveLengths).then(finish)
       }
-      gl.computeAsync(advanceControlPoints).then(finish)
-      gl.computeAsync(updateCurveLengths).then(finish)
     }
     let updating = requestAnimationFrame(update)
     return () => {

@@ -38,6 +38,7 @@ const SHAPES: Record<string, Coordinate[]> = {
 
 type TargetInfo = [number, number] | number
 export default class Builder {
+  h: number
   protected randomTable?: number[]
   protected transformData: TransformData = this.toTransform()
   protected transforms: TransformData[] = []
@@ -657,6 +658,7 @@ ${g.curves
         alpha: 1,
         spacing: 1,
         recalculate: false,
+        spacingType: 'pixel',
         pointVert: input => input,
         pointFrag: input => input,
         curveVert: input => input,
@@ -676,6 +678,16 @@ ${g.curves
         )
       )
     })
+  }
+
+  newCurves(count: number, ...points: (Coordinate | PointBuilder)[]) {
+    const curve = this.toPoints(...points)
+    for (let i = 0; i < count; i++) {
+      this.lastGroup(g => {
+        g.curves.push(curve.map(x => x.clone()))
+      })
+    }
+    return this
   }
 
   newCurve(...points: (Coordinate | PointBuilder)[]) {
@@ -1195,7 +1207,7 @@ ${g.curves
     })
   }
 
-  reInitialize(resolution: Vector2) {
+  reInitialize() {
     this.reset(true)
     this.target([0, 0])
     this.keyframe = this.defaultKeyframe()
@@ -1203,7 +1215,11 @@ ${g.curves
     return this.packToTexture()
   }
 
-  constructor(initialize: (builder: Builder) => Builder | void) {
+  constructor(
+    initialize: (builder: Builder) => Builder | void,
+    resolution: Vector2
+  ) {
     this.initialize = initialize
+    this.h = resolution.y / resolution.x
   }
 }
