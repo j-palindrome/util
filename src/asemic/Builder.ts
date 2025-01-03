@@ -290,7 +290,10 @@ export default class Builder {
         controlPointCounts,
         dimensions,
         transform: group.transform,
-        settings: group.settings
+        settings: {
+          ...group.settings,
+          maxLength: group.settings.maxLength + 0.01
+        }
       }
     })
   }

@@ -133,63 +133,57 @@ export default function Brush({
 
     // TODO: compute the lengths before adding this together
     const updateCurveLengths = /*#__PURE__*/ Fn(() => {
-      const curveMaxLength = lastData.settings.maxLength * width
       const generateSpacing = () => {
         switch (lastData.settings.spacingType) {
           case 'pixel':
-            return instanceIndex.toFloat().mul(lastData.settings.spacing)
+            return int(lastData.settings.maxLength * width).div(
+              lastData.settings.spacing
+            )
           case 'width':
-            return instanceIndex
-              .toFloat()
-              .mul(lastData.settings.spacing)
-              .mul(screenSize.x)
+            return int(lastData.settings.maxLength * width).div(
+              int(float(lastData.settings.spacing).mul(screenSize.x))
+            )
           case 'count':
-            return instanceIndex.toFloat().div(lastData.settings.spacing)
+            return instanceIndex.mul(lastData.settings.spacing)
         }
       }
-      const pixelProgress = generateSpacing()
-      if (lastData.settings.spacingType === 'count') {
-        If(pixelProgress.greaterThanEqual(dimensionsU.y.add(1)), () => {
-          tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
-        }).Else(() => {
-          tAttribute
-            .element(instanceIndex)
-            .xy.assign(vec2(pixelProgress.fract(), pixelProgress.floor()))
-        })
-      } else {
-        const pointProgress = pixelProgress.mod(curveMaxLength)
-        const curveProgress = pixelProgress.div(curveMaxLength).toInt()
 
-        const thisEnd = float(0).toVar('thisEnd')
-        const lastPoint = vec2(0, 0).toVar('lastPoint')
-        const thisPoint = vec2(0, 0).toVar('thisPoint')
-        thisPoint.assign(
-          textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
-        )
-        Loop(
-          {
-            start: 1,
-            end: controlPointCounts.element(curveProgress),
-            type: 'float'
-          },
-          ({ i: j }) => {
-            lastPoint.assign(thisPoint)
-            thisPoint.assign(
-              textureLoadFix(texture(curvePositionTex), ivec2(j, curveProgress))
-                .xy
-            )
-            thisEnd.addAssign(thisPoint.sub(lastPoint).length())
-          }
-        )
-        thisEnd.mulAssign(width)
-        If(pointProgress.greaterThan(thisEnd), () => {
-          tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
-        }).Else(() => {
-          tAttribute
-            .element(instanceIndex)
-            .xy.assign(vec2(pointProgress.div(thisEnd), curveProgress))
-        })
-      }
+      const instancesPerCurve = generateSpacing()
+      const curveProgress = instanceIndex.div(instancesPerCurve)
+      const pointProgress = instanceIndex
+        .modInt(instancesPerCurve)
+        .toFloat()
+        .div(instancesPerCurve.toFloat())
+        .mul(lastData.settings.maxLength)
+
+      const thisEnd = float(0).toVar('thisEnd')
+      const lastPoint = vec2(0, 0).toVar('lastPoint')
+      const thisPoint = vec2(0, 0).toVar('thisPoint')
+      thisPoint.assign(
+        textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
+      )
+      Loop(
+        {
+          start: 1,
+          end: controlPointCounts.element(curveProgress),
+          type: 'float'
+        },
+        ({ i: j }) => {
+          lastPoint.assign(thisPoint)
+          thisPoint.assign(
+            textureLoadFix(texture(curvePositionTex), ivec2(j, curveProgress))
+              .xy
+          )
+          thisEnd.addAssign(thisPoint.sub(lastPoint).length())
+        }
+      )
+      If(pointProgress.greaterThan(thisEnd), () => {
+        tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
+      }).Else(() => {
+        tAttribute
+          .element(instanceIndex)
+          .xy.assign(vec2(pointProgress.div(thisEnd), curveProgress))
+      })
 
       return undefined as any
     })().compute(MAX_INSTANCE_COUNT, undefined as any)
@@ -333,17 +327,17 @@ export default function Brush({
       }
     }
     let updating = requestAnimationFrame(update)
-    window.setTimeout(
-      () =>
-        gl.getArrayBufferAsync(tArray).then(buffer =>
-          console.log(
-            Array.from(new Float32Array(buffer))
-              .flatMap((x, i) => (i % 2 ? [] : x.toFixed(4)))
-              .join(' ')
-          )
-        ),
-      500
-    )
+    // window.setTimeout(
+    //   () =>
+    //     gl.getArrayBufferAsync(tArray).then(buffer =>
+    //       console.log(
+    //         Array.from(new Float32Array(buffer))
+    //           .flatMap((x, i) => (i % 2 ? [] : x.toFixed(4)))
+    //           .join(' ')
+    //       )
+    //     ),
+    //   500
+    // )
     return () => {
       scene.remove(mesh)
       mesh.dispose()
