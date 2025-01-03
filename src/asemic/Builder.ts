@@ -1,4 +1,4 @@
-import _, { last, max, min, range, sum } from 'lodash'
+import _, { last, max, min, random, range, sum } from 'lodash'
 import {
   AnyPixelFormat,
   ClampToEdgeWrapping,
@@ -38,6 +38,7 @@ const SHAPES: Record<string, Coordinate[]> = {
 
 type TargetInfo = [number, number] | number
 export default class Builder {
+  protected randomTable?: number[]
   protected transformData: TransformData = this.toTransform()
   protected transforms: TransformData[] = []
   protected keyframe: {
@@ -633,6 +634,17 @@ ${g.curves
     })
   }
 
+  /**
+   * i: int 1-100
+   */
+  hash(i: number, reseed: boolean = false) {
+    if (!this.randomTable || reseed)
+      this.randomTable = range(100).map(() => random())
+    const first = this.randomTable[Math.floor(i)]
+    const second = this.randomTable[Math.ceil(i)]
+    return first + (second - first) * (i % 1)
+  }
+
   newGroup(settings?: Partial<GroupData['settings']>) {
     this.keyframe.groups.push({
       curves: [],
@@ -987,9 +999,10 @@ ${g.curves
       ).transform({ translate: [0.5, 0], reset: 'last' })
   }
 
-  repeat(func: (progress: number) => void, runCount = 1) {
+  repeat(func: (progress: number, index: number) => void, runCount = 1) {
+    const div = runCount - 1
     for (let i = 0; i < runCount; i++) {
-      func(i)
+      func(i / (div || 1), i)
     }
 
     return this

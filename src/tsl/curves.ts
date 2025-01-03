@@ -31,24 +31,21 @@ export const rotate2d = (
 
 export const lineTangent = (
   p0: ReturnType<typeof vec2>,
-  p1: ReturnType<typeof vec2>,
-  aspectRatio: ReturnType<typeof vec2>
+  p1: ReturnType<typeof vec2>
 ) => {
-  return rotate2d(p0.sub(p1).mul(aspectRatio), 0.25)
+  return rotate2d(p0.sub(p1), 0.25)
 }
 
 export const bezier2Tangent = ({
   t,
   p0,
   p1,
-  p2,
-  aspectRatio
+  p2
 }: {
   t: ReturnType<typeof float>
   p0: ReturnType<typeof vec2>
   p1: ReturnType<typeof vec2>
   p2: ReturnType<typeof vec2>
-  aspectRatio: ReturnType<typeof vec2>
 }) => {
   return rotate2d(
     p1
@@ -56,7 +53,7 @@ export const bezier2Tangent = ({
       .mul(float(2).mul(t.oneMinus()))
       .add(p2.sub(p1).mul(float(2).mul(t))),
     float(0.25)
-  ).mul(aspectRatio)
+  )
 }
 
 export const polyLine = ({
@@ -82,11 +79,11 @@ export const polyLine = ({
 }
 
 // Function to calculate a point on a Bezier curve
-export const bezierPoint = ({ t, p0, p1, p2, strength, aspectRatio }) => {
+export const bezierPoint = ({ t, p0, p1, p2, strength }) => {
   const positionCurve = bezier2({ t, p0, p1, p2 })
   const positionStraight = polyLine({ t, p0, p1, p2 })
   const position = mix(positionCurve, positionStraight, pow(strength, 2))
-  const tangent = bezier2Tangent({ t, p0, p1, p2, aspectRatio })
+  const tangent = bezier2Tangent({ t, p0, p1, p2 })
   const rotation = atan2(tangent.y, tangent.x)
   return { position, rotation }
 }

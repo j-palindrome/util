@@ -1,15 +1,19 @@
 import { Canvas, useThree } from '@react-three/fiber'
 import { useState } from 'react'
-import { Vector2, WebGPURenderer } from 'three/webgpu'
+import { OrthographicCamera, Vector2, WebGPURenderer } from 'three/webgpu'
 import Brush from './Brush'
 import Builder from './Builder'
 
 export default function Asemic({
   children,
   className,
-  builder
+  builder,
+  dimensions: [width, height] = ['100%', '100%'],
+  style
 }: {
   className?: string
+  dimensions?: [number | string, number | string]
+  style?: React.CSSProperties
   builder: (b: Builder) => Builder
 } & React.PropsWithChildren) {
   const [frameloop, setFrameloop] = useState<
@@ -18,17 +22,17 @@ export default function Asemic({
 
   return (
     <Canvas
+      style={{ height: height ?? '100%', width: width ?? '100%', ...style }}
       frameloop={frameloop}
       className={className}
-      style={{ height: '100vh', width: '100vw' }}
       orthographic
       camera={{
         near: 0,
         far: 1,
         left: 0,
         right: 1,
-        top: 1,
-        bottom: 0,
+        top: 0,
+        bottom: -1,
         position: [0, 0, 0]
       }}
       gl={canvas => {
@@ -56,7 +60,16 @@ function Scene({
 } & React.PropsWithChildren) {
   const keyframes = new Builder(builder)
   const resolution = new Vector2()
-  useThree(state => state.gl.getDrawingBufferSize(resolution))
+
+  useThree(state => {
+    state.gl.getDrawingBufferSize(resolution)
+    const camera = state.camera as OrthographicCamera
+    // @ts-ignore
+    const gl = state.gl as WebGPURenderer
+    camera.bottom = -resolution.height / resolution.width
+
+    camera.updateProjectionMatrix()
+  })
   const lastData = keyframes.reInitialize(resolution)
   return (
     <>

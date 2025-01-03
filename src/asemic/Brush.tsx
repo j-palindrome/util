@@ -67,13 +67,14 @@ export default function Brush({
   const scene = useThree(({ scene }) => scene)
 
   useEffect(() => {
-    const resolution = new Vector2(
-      window.innerWidth * window.devicePixelRatio,
-      window.innerHeight * window.devicePixelRatio
-    )
-    const width = resolution.length()
+    const resolution = new Vector2()
+    const width = gl.getDrawingBufferSize(resolution).x
     const MAX_INSTANCE_COUNT =
-      lastData.controlPointCounts.length * lastData.settings.maxLength * width
+      (lastData.controlPointCounts.length *
+        lastData.settings.maxLength *
+        width) /
+      lastData.settings.spacing
+    console.log('instances:', MAX_INSTANCE_COUNT)
 
     const curvePositionTex = new StorageTexture(
       lastData.dimensions.x,
@@ -90,108 +91,100 @@ export default function Brush({
       'int'
     )
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
+    const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
 
     const advanceControlPoints = Fn(() => {
       const pointI = instanceIndex.modInt(lastData.dimensions.x)
       const curveI = instanceIndex.div(lastData.dimensions.x)
 
       const load = textureLoad(lastData.keyframesTex, vec2(pointI, curveI))
-      const point = lastData.settings.curveVert(vec4(load), {
-        tPoint: pointI
-          .toFloat()
-          .div(float(controlPointCounts.element(pointI).sub(1))),
-        tCurve: curveI
-          .toFloat()
-          .div(float(controlPointCounts.getElementLength()))
-      })
+      const point = lastData.settings.curveVert(
+        vec4(load),
+        vec2(
+          pointI.toFloat().div(controlPointCounts.element(curveI)),
+          curveI.toFloat().div(lastData.controlPointCounts.length)
+        ),
+        aspectRatio.y
+      )
       textureStore(curvePositionTex, vec2(pointI, curveI), point).toWriteOnly()
 
       const colorLoad = textureLoad(lastData.colorTex, vec2(pointI, curveI))
       const color = lastData.settings.curveFrag(vec4(colorLoad), {
         tPoint: pointI.toFloat().div(controlPointCounts.element(curveI)),
-        tCurve: curveI.toFloat().div(controlPointCounts.getElementLength())
+        tCurve: curveI.toFloat().div(lastData.controlPointCounts.length)
       })
       return textureStore(
         curveColorTex,
         vec2(pointI, curveI),
         color
       ).toWriteOnly()
-    })
-    // @ts-ignore
-    const computeNode = advanceControlPoints().compute(
-      lastData.dimensions.x * lastData.dimensions.y
+    })().compute(
+      lastData.dimensions.x * lastData.dimensions.y,
+      undefined as any
     )
-    gl.computeAsync(computeNode).then(() => {
-      material.needsUpdate = true
-    })
+
+    const updateCurveLengths = /*#__PURE__*/ Fn(() => {
+      const lastEnd = int(0).toVar('lastEnd')
+      const thisEnd = int(0).toVar('thisEnd')
+      const thisIndex = int(0).toVar('thisIndex')
+      const found = int(0).toVar('found')
+      const pixelProgress = instanceIndex.mul(lastData.settings.spacing)
+      Loop(
+        { end: lastData.controlPointCounts.length, type: 'float' },
+        ({ i }) => {
+          lastEnd.assign(thisEnd)
+          const lastPoint = vec2(0, 0).toVar('lastPoint')
+          const thisPoint = vec2(0, 0).toVar('thisPoint')
+          thisPoint.assign(
+            texture(
+              curvePositionTex,
+              vec2(float(0.5).div(dimensionsU.x), i.add(0.5).div(dimensionsU.y))
+            ).xy
+          )
+          Loop(
+            { start: 1, end: controlPointCounts.element(i), type: 'float' },
+            ({ i: j }) => {
+              lastPoint.assign(thisPoint)
+              thisPoint.assign(
+                texture(
+                  curvePositionTex,
+                  vec2(
+                    j.add(0.5).div(dimensionsU.x),
+                    i.add(0.5).div(dimensionsU.y)
+                  )
+                ).xy
+              )
+              thisEnd.addAssign(thisPoint.sub(lastPoint).length().mul(width))
+            }
+          )
+          If(thisEnd.greaterThan(pixelProgress), () => {
+            thisIndex.assign(i)
+            found.assign(1)
+            Break()
+          })
+        }
+      )
+      If(found.equal(0), () => {
+        tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
+      }).Else(() => {
+        tAttribute
+          .element(instanceIndex)
+          .xy.assign(
+            vec2(
+              pixelProgress.toFloat().sub(lastEnd).div(thisEnd.sub(lastEnd)),
+              thisIndex
+            )
+          )
+      })
+
+      return undefined as any
+    })().compute(MAX_INSTANCE_COUNT, undefined as any)
 
     const geometry = new THREE.PlaneGeometry()
     const tAttribute = storage(
       new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2),
       'vec2',
       MAX_INSTANCE_COUNT
-    )
-
-    const pixel = float(1.414).mul(2).div(resolution.length()).toVar('pixel')
-    gl.computeAsync(
-      /*#__PURE__*/ Fn(() => {
-        const lastEnd = int(0).toVar('lastEnd')
-        const thisEnd = int(0).toVar('thisEnd')
-        const thisIndex = int(0).toVar('thisIndex')
-        const found = int(0).toVar('found')
-        Loop(
-          { end: lastData.controlPointCounts.length, type: 'float' },
-          ({ i }) => {
-            lastEnd.assign(thisEnd)
-            const lastPoint = vec2(0, 0).toVar('lastPoint')
-            const thisPoint = vec2(0, 0).toVar('thisPoint')
-            thisPoint.assign(
-              texture(
-                curvePositionTex,
-                vec2(
-                  float(0.5).div(dimensionsU.x),
-                  i.add(0.5).div(dimensionsU.y)
-                )
-              ).xy
-            )
-            Loop(
-              { start: 1, end: controlPointCounts.element(i), type: 'float' },
-              ({ i: j }) => {
-                lastPoint.assign(thisPoint)
-                thisPoint.assign(
-                  texture(
-                    curvePositionTex,
-                    vec2(
-                      j.add(0.5).div(dimensionsU.x),
-                      i.add(0.5).div(dimensionsU.y)
-                    )
-                  ).xy
-                )
-                thisEnd.addAssign(thisPoint.sub(lastPoint).length().mul(width))
-              }
-            )
-            If(thisEnd.greaterThan(instanceIndex), () => {
-              thisIndex.assign(i)
-              found.assign(1)
-              Break()
-            })
-          }
-        )
-        If(found.equal(0), () => {
-          tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
-        }).Else(() => {
-          tAttribute
-            .element(instanceIndex)
-            .xy.assign(
-              vec2(
-                instanceIndex.toFloat().sub(lastEnd).div(thisEnd.sub(lastEnd)),
-                thisIndex
-              )
-            )
-        })
-
-        return undefined as any
-      })().compute(MAX_INSTANCE_COUNT, undefined as any)
     )
 
     const material = new SpriteNodeMaterial({
@@ -202,7 +195,6 @@ export default function Brush({
 
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
-    const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
 
     const main = Fn(() => {
       // @ts-ignore
@@ -229,7 +221,7 @@ export default function Brush({
           ).xy
           const progressPoint = mix(p0, p1, t.x)
           point.position.assign(progressPoint)
-          const rotation = lineTangent(p0, p1, aspectRatio)
+          const rotation = lineTangent(p0, p1)
           point.rotation.assign(atan2(rotation.y, rotation.x))
           const textureVector = vec2(
             t.x.add(0.5).div(dimensionsU.x),
@@ -279,8 +271,7 @@ export default function Brush({
             p0,
             p1,
             p2,
-            strength,
-            aspectRatio
+            strength
           })
           point.position.assign(thisPoint.position)
           point.rotation.assign(thisPoint.rotation)
@@ -294,6 +285,8 @@ export default function Brush({
 
     material.positionNode = main()
     material.rotationNode = rotation
+
+    const pixel = 1 / width
     material.scaleNode = vec2(thickness.mul(pixel), pixel)
 
     const colorV = varying(vec4(), 'colorV')
@@ -308,11 +301,26 @@ export default function Brush({
     // mesh.count = instanceCount
 
     scene.add(mesh)
+
+    const update = () => {
+      let done = 0
+      const finish = () => {
+        done++
+        if (done == 2) {
+          material.needsUpdate = true
+          updating = requestAnimationFrame(update)
+        }
+      }
+      gl.computeAsync(advanceControlPoints).then(finish)
+      gl.computeAsync(updateCurveLengths).then(finish)
+    }
+    let updating = requestAnimationFrame(update)
     return () => {
       scene.remove(mesh)
       mesh.dispose()
+      cancelAnimationFrame(updating)
     }
-  }, [])
+  }, [lastData])
 
   return <></>
 }

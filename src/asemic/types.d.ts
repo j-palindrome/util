@@ -39,10 +39,8 @@ declare global {
      */
     curveVert: (
       input: ReturnType<typeof vec4>,
-      {
-        tPoint,
-        tCurve
-      }: { tPoint: ReturnType<typeof float>; tCurve: ReturnType<typeof float> }
+      pointCurve: ReturnType<typeof vec2>,
+      aspectRatio: ReturnType<typeof float>
     ) => input
     pointFrag: typeof defaultFn
     curveFrag: (
