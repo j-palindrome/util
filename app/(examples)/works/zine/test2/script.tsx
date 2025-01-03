@@ -53,7 +53,7 @@ const scenePointer = new THREE.Vector3()
 const raycastPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0)
 const raycaster = new THREE.Raycaster()
 
-const MAX_PARTICLE_COUNT = 1000
+const MAX_INSTANCE_COUNT = 1000
 
 const timeScale = uniform(1.0)
 const particleLifetime = uniform(0.5)
@@ -106,49 +106,50 @@ export function init() {
 
   // Particles
   // storage buffers
-  const particlePositions = storage(
-    new StorageInstancedBufferAttribute(MAX_PARTICLE_COUNT, 2),
+  const curveProgress = storage(
+    new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2),
     'vec2',
-    MAX_PARTICLE_COUNT
+    MAX_INSTANCE_COUNT
   )
 
   // init particles buffers
   renderer.computeAsync(
     /*#__PURE__*/ Fn(() => {
-      particlePositions
+      curveProgress
         .element(instanceIndex)
         .xy.assign(
           vec2(
-            instanceIndex.toFloat().div(MAX_PARTICLE_COUNT),
-            instanceIndex.toFloat().div(MAX_PARTICLE_COUNT)
+            instanceIndex.toFloat().div(MAX_INSTANCE_COUNT),
+            instanceIndex.toFloat().div(MAX_INSTANCE_COUNT)
           )
         )
       return undefined as any
-    })().compute(MAX_PARTICLE_COUNT, undefined as any)
+    })().compute(MAX_INSTANCE_COUNT, undefined as any)
   )
 
   // particles output
   const particleGeom = new THREE.PlaneGeometry()
 
-  const particleMaterial = new SpriteNodeMaterial()
-  particleMaterial.transparent = true
-  particleMaterial.blending = THREE.AdditiveBlending
-  particleMaterial.depthWrite = false
-  particleMaterial.positionNode = Fn(() => {
+  const material = new SpriteNodeMaterial()
+  material.positionNode = Fn(() => {
     // @ts-ignore
-    const t = particlePositions.toAttribute()
+    const t = curveProgress.toAttribute()
     return vec3(t.xy, 0)
   })()
-  particleMaterial.scaleNode = vec2(particleSize)
-  particleMaterial.rotationNode = float(0)
+  material.transparent = true
+  material.blending = THREE.AdditiveBlending
+  material.depthWrite = false
 
-  particleMaterial.colorNode = /*#__PURE__*/ vec3(1, 1, 1)
-  particleMaterial.opacityNode = float(1)
+  material.scaleNode = vec2(particleSize)
+  material.rotationNode = float(0)
+
+  material.colorNode = /*#__PURE__*/ vec3(1, 1, 1)
+  material.opacityNode = float(1)
 
   const particleMesh = new THREE.InstancedMesh(
     particleGeom,
-    particleMaterial,
-    MAX_PARTICLE_COUNT
+    material,
+    MAX_INSTANCE_COUNT
   )
   // particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
   // particleMesh.frustumCulled = false
@@ -184,7 +185,7 @@ function animate() {
   // compute particles
 
   // update particle index for next spawn
-  spawnIndex.value = (spawnIndex.value + nbToSpawn.value) % MAX_PARTICLE_COUNT
+  spawnIndex.value = (spawnIndex.value + nbToSpawn.value) % MAX_INSTANCE_COUNT
 
   // update raycast plane to face camera
   raycastPlane.normal.applyEuler(camera.rotation)
