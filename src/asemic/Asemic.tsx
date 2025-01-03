@@ -47,7 +47,7 @@ export default function Asemic({
         })
         return renderer
       }}>
-      <Scene builder={builder} />
+      {frameloop === 'always' && <Scene builder={builder} />}
       {children}
     </Canvas>
   )
