@@ -1,19 +1,16 @@
 import { extend, Object3DNode, useThree } from '@react-three/fiber'
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
   atan2,
-  attribute,
   Break,
   float,
-  floor,
   Fn,
   If,
   instanceIndex,
   int,
   ivec2,
-  log,
   Loop,
   mix,
   screenSize,
@@ -27,8 +24,7 @@ import {
   varyingProperty,
   vec2,
   vec3,
-  vec4,
-  wgslFn
+  vec4
 } from 'three/tsl'
 import {
   SpriteNodeMaterial,
@@ -37,9 +33,8 @@ import {
   WebGPURenderer
 } from 'three/webgpu'
 import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
-import Builder from './Builder'
-import { join } from 'path'
 import { textureLoadFix } from '../tsl/utility'
+import Builder from './Builder'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -109,7 +104,7 @@ export default function Brush({
       const pointI = instanceIndex.modInt(lastData.dimensions.x)
       const curveI = instanceIndex.div(lastData.dimensions.x)
 
-      const load = textureLoad(lastData.keyframesTex, vec2(pointI, curveI))
+      const load = textureLoad(lastData.positionTex, vec2(pointI, curveI))
       const point = lastData.settings.curveVert(
         vec4(load),
         vec2(
@@ -255,7 +250,7 @@ export default function Brush({
           varyingProperty('vec4', 'colorV').assign(
             texture(curveColorTex, textureVector)
           )
-          thickness.assign(texture(lastData.thicknessTex, textureVector))
+          thickness.assign(texture(curvePositionTex, textureVector).w)
         }).Else(() => {
           const pointProgress = multiBezierProgress({
             t: t.x,
@@ -284,7 +279,7 @@ export default function Brush({
           ).z.toVar('strength')
 
           varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
-          thickness.assign(texture(lastData.thicknessTex, tt))
+          thickness.assign(texture(lastData.positionTex, tt))
 
           If(pointProgress.x.greaterThan(float(0)), () => {
             p0.assign(mix(p0, p1, float(0.5)))

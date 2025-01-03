@@ -242,13 +242,19 @@ export default class Builder {
         return tex
       }
 
-      const keyframesTex = createTexture(
+      const positionTex = createTexture(
         new Float32Array(
           this.keyframe.groups.flatMap(x =>
             x.curves.flatMap(c =>
               range(width).flatMap(i => {
-                return c[i]
-                  ? [c[i].x, c[i].y, c[i].strength ?? x.settings.strength, 1]
+                const point = c[i]
+                return point
+                  ? [
+                      point.x,
+                      point.y,
+                      point.strength ?? x.settings.strength,
+                      point.thickness ?? group.settings.thickness
+                    ]
                   : [0, 0, 0, 0]
               })
             )
@@ -278,27 +284,9 @@ export default class Builder {
         LinearFilter
       )
 
-      const thicknessTex = createTexture(
-        new Float32Array(
-          this.keyframe.groups.flatMap(group =>
-            group.curves.flatMap(c =>
-              range(width).flatMap(i => {
-                const point = c[i]
-                return point
-                  ? [point.thickness ?? group.settings.thickness]
-                  : [0]
-              })
-            )
-          )
-        ),
-        RedFormat,
-        LinearFilter
-      )
-
       return {
-        keyframesTex,
+        positionTex,
         colorTex,
-        thicknessTex,
         controlPointCounts,
         dimensions,
         transform: group.transform,
