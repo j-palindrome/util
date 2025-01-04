@@ -144,7 +144,7 @@ export default function Brush({
               int(float(lastData.settings.spacing).mul(screenSize.x))
             )
           case 'count':
-            return instanceIndex.mul(lastData.settings.spacing)
+            return int(lastData.settings.spacing)
         }
       }
 
@@ -305,26 +305,35 @@ export default function Brush({
 
     scene.add(mesh)
 
-    if (lastData.settings.spacingType === 'count') {
-      gl.computeAsync(updateCurveLengths)
-    }
+    // if (lastData.settings.spacingType === 'count') {
+    //   gl.computeAsync(updateCurveLengths)
+    // }
     const update = () => {
       let done = 0
-      if (lastData.settings.spacingType === 'count') {
-        gl.computeAsync(advanceControlPoints)
-        material.needsUpdate = true
-        updating = requestAnimationFrame(update)
-      } else {
-        const finish = () => {
-          done++
-          if (done == 2) {
-            material.needsUpdate = true
-            updating = requestAnimationFrame(update)
-          }
+      const finish = () => {
+        done++
+        if (done == 2) {
+          material.needsUpdate = true
+          updating = requestAnimationFrame(update)
         }
-        gl.computeAsync(advanceControlPoints).then(finish)
-        gl.computeAsync(updateCurveLengths).then(finish)
       }
+      gl.computeAsync(advanceControlPoints).then(finish)
+      gl.computeAsync(updateCurveLengths).then(finish)
+      // if (lastData.settings.spacingType === 'count') {
+      //   gl.computeAsync(advanceControlPoints)
+      //   material.needsUpdate = true
+      //   updating = requestAnimationFrame(update)
+      // } else {
+      //   const finish = () => {
+      //     done++
+      //     if (done == 2) {
+      //       material.needsUpdate = true
+      //       updating = requestAnimationFrame(update)
+      //     }
+      //   }
+      //   gl.computeAsync(advanceControlPoints).then(finish)
+      //   gl.computeAsync(updateCurveLengths).then(finish)
+      // }
     }
     let updating = requestAnimationFrame(update)
     // window.setTimeout(
