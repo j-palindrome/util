@@ -69,17 +69,19 @@ export default function Brush({
   useEffect(() => {
     const resolution = new Vector2()
     const width = gl.getDrawingBufferSize(resolution).x
+    const pixel = 1 / width
+    const totalSpace = lastData.settings.spacing + lastData.settings.gap
     const MAX_INSTANCE_COUNT =
       lastData.settings.spacingType === 'pixel'
         ? (lastData.controlPointCounts.length *
             lastData.settings.maxLength *
             width) /
-          lastData.settings.spacing
+          totalSpace
         : lastData.settings.spacingType === 'width'
           ? (lastData.controlPointCounts.length *
               lastData.settings.maxLength *
               width) /
-            (lastData.settings.spacing * width)
+            (totalSpace * width)
           : lastData.settings.spacingType === 'count'
             ? lastData.controlPointCounts.length * width
             : 0
@@ -136,15 +138,13 @@ export default function Brush({
       const generateSpacing = () => {
         switch (lastData.settings.spacingType) {
           case 'pixel':
-            return int(lastData.settings.maxLength * width).div(
-              lastData.settings.spacing
-            )
+            return int(lastData.settings.maxLength * width).div(totalSpace)
           case 'width':
             return int(lastData.settings.maxLength * width).div(
-              int(float(lastData.settings.spacing).mul(screenSize.x))
+              int(float(totalSpace).mul(screenSize.x))
             )
           case 'count':
-            return int(lastData.settings.spacing)
+            return int(totalSpace)
         }
       }
 
@@ -189,7 +189,7 @@ export default function Brush({
     })().compute(MAX_INSTANCE_COUNT, undefined as any)
 
     const geometry = new THREE.PlaneGeometry()
-    geometry.translate(-0.5, 0, 0)
+    geometry.translate(-0.5, -0.5, 0)
     const tArray = new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2)
     const tAttribute = storage(tArray, 'vec2', MAX_INSTANCE_COUNT)
 
@@ -261,7 +261,7 @@ export default function Brush({
           ).z.toVar('strength')
 
           varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
-          thickness.assign(texture(lastData.positionTex, tt))
+          thickness.assign(texture(curvePositionTex, tt).w)
 
           If(pointProgress.x.greaterThan(float(0)), () => {
             p0.assign(mix(p0, p1, float(0.5)))
@@ -289,8 +289,10 @@ export default function Brush({
     material.positionNode = main()
     material.rotationNode = rotation
 
-    const pixel = 1 / width
-    material.scaleNode = vec2(thickness.mul(pixel), pixel)
+    material.scaleNode = vec2(
+      thickness.mul(pixel),
+      lastData.settings.spacing * pixel
+    ).div(vec2(lastData.transform.scale))
 
     const colorV = varying(vec4(), 'colorV')
     material.colorNode = lastData.settings.pointFrag(colorV)

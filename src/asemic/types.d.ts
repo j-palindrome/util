@@ -28,6 +28,7 @@ declare global {
     color: [number, number, number]
     alpha: number
     spacing: number
+    gap: number
   }
 
   type ProcessData = {
