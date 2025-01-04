@@ -4,6 +4,8 @@ import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
   atan2,
+  Break,
+  ceil,
   float,
   Fn,
   If,
@@ -18,6 +20,7 @@ import {
   textureLoad,
   textureStore,
   uniform,
+  uniformArray,
   varying,
   varyingProperty,
   vec2,
@@ -26,14 +29,13 @@ import {
 } from 'three/tsl'
 import {
   SpriteNodeMaterial,
-  StorageBufferAttribute,
   StorageInstancedBufferAttribute,
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
 import { bezierPoint, lineTangent, multiBezierProgress } from '../tsl/curves'
 import { textureLoadFix } from '../tsl/utility'
-import { GroupBuilder } from './Builder'
+import Builder from './Builder'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -55,7 +57,11 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function Brush({ builder }: { builder: GroupBuilder }) {
+export default function Brush({
+  lastData
+}: {
+  lastData: ReturnType<Builder['packToTexture']>[number]
+}) {
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
   const scene = useThree(({ scene }) => scene)
@@ -63,9 +69,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   useEffect(() => {
     const resolution = new Vector2()
     const width = gl.getDrawingBufferSize(resolution).x
-    const lastData = builder.reInitialize(resolution)
-    console.log(lastData)
-
     const pixel = 1 / width
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
     const MAX_INSTANCE_COUNT =
@@ -93,11 +96,10 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       lastData.dimensions.y
     )
 
-    // const controlPointCounts = storage(
-    //   new StorageBufferAttribute(lastData.controlPointCounts, 1),
-    //   'int'
-    // )
-
+    const controlPointCounts = uniformArray(
+      lastData.controlPointCounts as any,
+      'int'
+    )
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
 
@@ -106,24 +108,21 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       const curveI = instanceIndex.div(lastData.dimensions.x)
 
       const load = textureLoad(lastData.positionTex, vec2(pointI, curveI))
-      // const textureVector = vec2(pointI.toFloat().div(controlPointCounts.element(curveI)), curveI.toFloat().div(lastData.controlPointCounts.length))
-      const textureVector = vec2(
-        pointI.toFloat().div(3),
-        curveI.toFloat().div(lastData.controlPointCounts.length)
-      )
       const point = lastData.settings.curveVert(
         vec4(load),
-        textureVector,
+        vec2(
+          pointI.toFloat().div(controlPointCounts.element(curveI)),
+          curveI.toFloat().div(lastData.controlPointCounts.length)
+        ),
         aspectRatio.y
       )
       textureStore(curvePositionTex, vec2(pointI, curveI), point).toWriteOnly()
 
       const colorLoad = textureLoad(lastData.colorTex, vec2(pointI, curveI))
-      const color = lastData.settings.curveFrag(
-        vec4(colorLoad),
-        textureVector,
-        aspectRatio.y
-      )
+      const color = lastData.settings.curveFrag(vec4(colorLoad), {
+        tPoint: pointI.toFloat().div(controlPointCounts.element(curveI)),
+        tCurve: curveI.toFloat().div(lastData.controlPointCounts.length)
+      })
       return textureStore(
         curveColorTex,
         vec2(pointI, curveI),
@@ -166,8 +165,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       Loop(
         {
           start: 1,
-          // end: controlPointCounts.element(curveProgress),
-          end: 3,
+          end: controlPointCounts.element(curveProgress),
           type: 'float'
         },
         ({ i: j }) => {
@@ -208,8 +206,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       // @ts-ignore
       const t = tAttribute.toAttribute()
       // dimU = 9 t.y = 8.5/9
-      // const controlPointsCount = controlPointCounts.element(t.y)
-      const controlPointsCount = int(3)
+      const controlPointsCount = controlPointCounts.element(t.y)
 
       let point = {
         position: vec2(0, 0).toVar(),
@@ -352,13 +349,12 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     //     ),
     //   500
     // )
-
     return () => {
       scene.remove(mesh)
       mesh.dispose()
       cancelAnimationFrame(updating)
     }
-  }, [builder])
+  }, [lastData])
 
   return <></>
 }

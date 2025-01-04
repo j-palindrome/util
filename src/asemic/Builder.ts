@@ -1,4 +1,4 @@
-import _, { last, max, min, random, range } from 'lodash'
+import _, { last, max, min, random, range, sample, sum } from 'lodash'
 import {
   AnyPixelFormat,
   ClampToEdgeWrapping,
@@ -10,35 +10,48 @@ import {
   MagnificationTextureFilter,
   NearestFilter,
   QuadraticBezierCurve,
+  RedFormat,
   RGBAFormat,
   Vector2
 } from 'three'
 import invariant from 'tiny-invariant'
 import { lerp } from '../math'
+import { Jitter } from './Brush'
 import { PointBuilder } from './PointBuilder'
+import { Fn, vec4 } from 'three/tsl'
 
-export class GroupBuilder {
+const SHAPES: Record<string, Coordinate[]> = {
+  circle: [
+    [1, 0],
+    [1, 0.236],
+    [0.707, 0.707],
+    [0, 1],
+    [-0.707, 0.707],
+    [-1, 0],
+    [-0.707, -0.707],
+    [0, -1],
+    [0.707, -0.707],
+    [1, -0.236],
+    [1, 0]
+  ]
+}
+
+type TargetInfo = [number, number] | number
+export default class Builder {
   h: number
   protected randomTable?: number[]
   protected transformData: TransformData = this.toTransform()
   protected transforms: TransformData[] = []
-  protected curves: PointBuilder[][] = []
-  protected settings: GroupData['settings'] = {
-    maxLength: 1,
-    strength: 0,
-    thickness: 1,
-    color: [1, 1, 1],
-    alpha: 1,
-    spacing: 3,
-    gap: 0,
-    recalculate: false,
-    spacingType: 'pixel',
-    pointVert: input => input,
-    pointFrag: input => input,
-    curveVert: input => input,
-    curveFrag: input => input
+  protected keyframe: {
+    groups: GroupData[]
+    transform: TransformData
+  } = this.defaultKeyframe()
+  protected targetInfo: [number, number] = [0, 0]
+  protected initialize: (t: Builder) => Builder | void
+
+  protected defaultKeyframe() {
+    return { groups: [], transform: this.toTransform(), settings: {} }
   }
-  protected initialize: (t: GroupBuilder) => GroupBuilder | void
 
   protected reset(clear = false) {
     this.transformData.scale = new PointBuilder([1, 1])
@@ -49,17 +62,36 @@ export class GroupBuilder {
     return this
   }
 
-  getPoint(index: number = -1, curve: number = -1) {
-    if (curve < 0) curve += this.curves.length
-    if (index < 0) index += this.curves[curve].length
-    return this.fromPoint(this.curves[curve][index])
+  protected target(groups?: TargetInfo) {
+    const TargetInfo = (from: number, to?: number) => {
+      if (from < 0) from += this.keyframe.groups.length
+      if (to === undefined) to = from
+      else if (to < 0) to += this.keyframe.groups.length
+      this.targetInfo = [from, to]
+      return this
+    }
+    if (typeof groups !== 'undefined') {
+      if (typeof groups === 'number') TargetInfo(groups)
+      else TargetInfo(groups[0], groups[1])
+    }
   }
 
-  getIntersect(progress: number, curve: number = -1) {
-    if (curve < 0) curve += this.curves.length
+  getPoint(index: number = -1, curve: number = -1, group: number = -1) {
+    if (group < 0) group += this.keyframe.groups.length
+    if (curve < 0) curve += this.keyframe.groups[group].curves.length
+
+    if (index < 0) index += this.keyframe.groups[group].curves[curve].length
+    return this.fromPoint(this.keyframe.groups[group].curves[curve][index])
+  }
+
+  getIntersect(progress: number, curve: number = -1, group: number = -1) {
+    if (group < 0) group += this.keyframe.groups.length
+    if (curve < 0) curve += this.keyframe.groups[group].curves.length
     if (progress < 0) progress += 1
 
-    const curvePath = this.makeCurvePath(this.curves[curve])
+    const curvePath = this.makeCurvePath(
+      this.keyframe.groups[group].curves[curve]
+    )
     return this.fromPoint(curvePath.getPointAt(progress))
   }
 
@@ -100,6 +132,17 @@ export class GroupBuilder {
 
   toPoints(...coordinates: (Coordinate | PointBuilder)[]) {
     return coordinates.map(x => this.toPoint(x))
+  }
+
+  getLastPoint(index: number = -1, curve: number = -1, group: number = -1) {
+    if (group < 0) group += this.keyframe.groups.length
+    if (curve < 0) curve += this.keyframe.groups[group].curves.length
+
+    if (index < 0) {
+      index += this.keyframe.groups[group].curves[curve].length
+    }
+
+    return this.keyframe.groups[group].curves[curve][index]
   }
 
   toPoint(coordinate: Coordinate | PointBuilder) {
@@ -177,78 +220,80 @@ export class GroupBuilder {
   }
 
   protected packToTexture() {
-    const width = max(this.curves.flatMap(x => x.length))!
-    const height = this.curves.length
+    return this.keyframe.groups.map(group => {
+      const width = max(group.curves.flatMap(x => x.length))!
+      const height = group.curves.length
 
-    const dimensions = new Vector2(width, height)
-    const controlPointCounts = new Int16Array(this.curves.length)
-    this.curves.forEach((curve, i) => {
-      controlPointCounts[i] = curve.length
-    })
+      const dimensions = new Vector2(width, height)
+      const controlPointCounts = new Float32Array(group.curves.length)
+      group.curves.forEach((curve, i) => {
+        controlPointCounts[i] = curve.length
+      })
 
-    const createTexture = (
-      array: Float32Array,
-      format: AnyPixelFormat,
-      filter: MagnificationTextureFilter = NearestFilter
-    ) => {
-      const tex = new DataTexture(array, width, height)
-      tex.format = format
-      tex.type = FloatType
-      tex.minFilter = tex.magFilter = filter
-      tex.wrapS = tex.wrapT = ClampToEdgeWrapping
-      tex.needsUpdate = true
-      return tex
-    }
-
-    const positionTex = createTexture(
-      new Float32Array(
-        this.curves.flatMap(c =>
-          range(width).flatMap(i => {
-            const point = c[i]
-            return point
-              ? [
-                  point.x,
-                  point.y,
-                  point.strength ?? this.settings.strength,
-                  point.thickness ?? this.settings.thickness
-                ]
-              : [0, 0, 0, 0]
-          })
-        )
-      ),
-      RGBAFormat,
-      LinearFilter
-    )
-
-    const colorTex = createTexture(
-      new Float32Array(
-        this.curves.flatMap(c =>
-          range(width).flatMap(i => {
-            const point = c[i]
-            return point
-              ? [
-                  ...(point.color ?? this.settings.color),
-                  point.alpha ?? this.settings.alpha
-                ]
-              : [0, 0, 0, 0]
-          })
-        )
-      ),
-      RGBAFormat,
-      LinearFilter
-    )
-
-    return {
-      positionTex,
-      colorTex,
-      controlPointCounts,
-      dimensions,
-      transform: this.transformData,
-      settings: {
-        ...this.settings,
-        maxLength: this.settings.maxLength + 0.01
+      const createTexture = (
+        array: Float32Array,
+        format: AnyPixelFormat,
+        filter: MagnificationTextureFilter = NearestFilter
+      ) => {
+        const tex = new DataTexture(array, width, height)
+        tex.format = format
+        tex.type = FloatType
+        tex.minFilter = tex.magFilter = filter
+        tex.wrapS = tex.wrapT = ClampToEdgeWrapping
+        tex.needsUpdate = true
+        return tex
       }
-    }
+
+      const positionTex = createTexture(
+        new Float32Array(
+          group.curves.flatMap(c =>
+            range(width).flatMap(i => {
+              const point = c[i]
+              return point
+                ? [
+                    point.x,
+                    point.y,
+                    point.strength ?? group.settings.strength,
+                    point.thickness ?? group.settings.thickness
+                  ]
+                : [0, 0, 0, 0]
+            })
+          )
+        ),
+        RGBAFormat,
+        LinearFilter
+      )
+
+      const colorTex = createTexture(
+        new Float32Array(
+          group.curves.flatMap(c =>
+            range(width).flatMap(i => {
+              const point = c[i]
+              return point
+                ? [
+                    ...(point.color ?? group.settings.color),
+                    point.alpha ?? group.settings.alpha
+                  ]
+                : [0, 0, 0, 0]
+            })
+          )
+        ),
+        RGBAFormat,
+        LinearFilter
+      )
+
+      return {
+        positionTex,
+        colorTex,
+        controlPointCounts,
+        dimensions,
+        transform: group.transform,
+        settings: {
+          ...group.settings,
+          maxLength: group.settings.maxLength + 0.01
+        }
+      }
+    })
   }
 
   protected getTransformAt(transforms: TransformData[], progress: number) {
@@ -324,7 +369,7 @@ export class GroupBuilder {
     return path
   }
 
-  protected getBounds(points: PointBuilder[], transform?: TransformData) {
+  getBounds(points: PointBuilder[], transform?: TransformData) {
     const flatX = points.map(x => x.x)
     const flatY = points.map(y => y.y)
     const minCoord = new Vector2(min(flatX)!, min(flatY)!)
@@ -341,43 +386,59 @@ export class GroupBuilder {
     }
   }
 
-  protected toRad(rotation: number) {
+  along(points: Coordinate[]) {
+    const curve = this.makeCurvePath(points.map(x => this.toPoint(x)))
+    return this.groups((g, { groupProgress }) => {
+      const curveProgress = curve.getPointAt(groupProgress)
+      const { min } = this.getBounds(g.curves.flat(), g.transform)
+      g.curves.flat().forEach(p => {
+        p.add({ x: curveProgress.x - min[0], y: curveProgress.y - min[1] })
+      })
+    })
+  }
+
+  toRad(rotation: number) {
     return rotation * Math.PI * 2
   }
 
-  protected fromRad(rotation: number) {
+  fromRad(rotation: number) {
     return rotation / Math.PI / 2
   }
 
-  randomize({
-    translate,
-    rotate,
-    scale
-  }: {
-    translate?: [Coordinate, Coordinate]
-    rotate?: [number, number]
-    scale?: [Coordinate, Coordinate]
-  }) {
-    let translatePoint = translate
-      ? this.toPoint(translate[0])
-          .lerpRandom(this.toPoint(translate[1]))
-          .toArray()
-      : undefined
-    let rotatePoint = rotate
-      ? lerp(this.toRad(rotate[0]), this.toRad(rotate[1]), Math.random())
-      : undefined
-    let scalePoint = scale
-      ? this.toPoint(scale[0]).lerpRandom(this.toPoint(scale[1])).toArray()
-      : undefined
-    const transform = this.toTransform({
-      translate: translatePoint,
-      scale: scalePoint,
-      rotate: rotatePoint
-    })
-    this.curves.flat().forEach(p => {
-      this.applyTransform(p, transform)
-    })
-
+  randomize(
+    {
+      translate,
+      rotate,
+      scale
+    }: {
+      translate?: [Coordinate, Coordinate]
+      rotate?: [number, number]
+      scale?: [Coordinate, Coordinate]
+    },
+    groups: TargetInfo = [0, -1],
+    frames?: TargetInfo
+  ) {
+    this.groups(g => {
+      let translatePoint = translate
+        ? this.toPoint(translate[0])
+            .lerpRandom(this.toPoint(translate[1]))
+            .toArray()
+        : undefined
+      let rotatePoint = rotate
+        ? lerp(this.toRad(rotate[0]), this.toRad(rotate[1]), Math.random())
+        : undefined
+      let scalePoint = scale
+        ? this.toPoint(scale[0]).lerpRandom(this.toPoint(scale[1])).toArray()
+        : undefined
+      const transform = this.toTransform({
+        translate: translatePoint,
+        scale: scalePoint,
+        rotate: rotatePoint
+      })
+      g.curves.flat().forEach(p => {
+        this.applyTransform(p, transform)
+      })
+    }, groups)
     return this
   }
 
@@ -421,12 +482,92 @@ export class GroupBuilder {
     } else return random()
   }
 
-  debug() {
+  points(
+    callback: (
+      point: PointBuilder,
+      {
+        groupProgress,
+        curveProgress,
+        pointProgress
+      }: {
+        groupProgress: number
+        curveProgress: number
+        pointProgress: number
+      }
+    ) => void,
+    groups?: TargetInfo
+  ) {
+    this.target(groups)
+    return this.curves((curve, { groupProgress, curveProgress }) => {
+      curve.forEach((point, i) =>
+        callback(point, {
+          groupProgress,
+          curveProgress,
+          pointProgress: i / curve.length
+        })
+      )
+    })
+  }
+
+  curves(
+    callback: (
+      curve: PointBuilder[],
+      {
+        groupProgress
+      }: {
+        groupProgress: number
+        curveProgress: number
+      }
+    ) => void,
+    groups?: [number, number] | number
+  ) {
+    this.target(groups)
+    return this.groups((group, { groupProgress }) => {
+      group.curves.forEach((curve, i) =>
+        callback(curve, {
+          groupProgress,
+          curveProgress: i / group.curves.length
+        })
+      )
+    })
+  }
+
+  groups(
+    callback: (
+      group: GroupData,
+      {
+        groupProgress,
+        bounds
+      }: {
+        groupProgress: number
+        bounds: ReturnType<Builder['getBounds']>
+      }
+    ) => void,
+    groups?: [number, number] | number
+  ) {
+    this.target(groups)
+    const groupCount = this.keyframe.groups.length
+
+    for (let i = this.targetInfo[0]; i <= this.targetInfo[1]; i++) {
+      callback(this.keyframe.groups[i], {
+        groupProgress: i / groupCount,
+        bounds: this.getBounds(this.keyframe.groups[i].curves.flat())
+      })
+    }
+    return this
+  }
+
+  debug(target?: TargetInfo) {
+    this.target(target)
     console.log(
-      `*${this.transformData.scale.toArray().map(x => x.toFixed(2))} @${
-        this.transformData.rotate / Math.PI / 2
-      } +${this.transformData.translate.toArray().map(x => x.toFixed(2))}
-${this.curves
+      this.keyframe.groups
+        .slice(this.targetInfo[0], this.targetInfo[1] + 1)
+        .map(
+          g =>
+            `*${g.transform.scale.toArray().map(x => x.toFixed(2))} @${
+              g.transform.rotate / Math.PI / 2
+            } +${g.transform.translate.toArray().map(x => x.toFixed(2))}
+${g.curves
   .map(c =>
     c
       .map(
@@ -439,6 +580,8 @@ ${this.curves
       .join(' ')
   )
   .join('\n')}`
+        )
+        .join('\n\n')
     )
     return this
   }
@@ -458,19 +601,23 @@ ${this.curves
     return this
   }
 
-  protected lastCurve(callback: (curve: PointBuilder[]) => void, curves = 1) {
-    callback(this.curves[this.curves.length - curves])
+  protected lastGroup(callback: (group: GroupData) => void) {
+    callback(last(this.keyframe.groups)!)
     return this
+  }
+
+  protected lastCurve(callback: (curve: PointBuilder[]) => void, curves = 1) {
+    return this.lastGroup(g => callback(g.curves[g.curves.length - curves]))
   }
 
   protected lastCurves(
     callback: (curves: PointBuilder[][]) => void,
     curves: number
   ) {
-    let newCurves: PointBuilder[][] = this.curves.slice(
-      this.curves.length - curves
-    )
-    callback(newCurves)
+    return this.lastGroup(g => {
+      let newCurves: PointBuilder[][] = g.curves.slice(g.curves.length - curves)
+      callback(newCurves)
+    })
   }
 
   /**
@@ -497,30 +644,65 @@ ${this.curves
     return first + (second - first) * (i % 1)
   }
 
-  newCurvesBlank(curveCount: number, pointCount: number) {
-    this.curves.push(
-      ...range(curveCount).map(() =>
-        range(pointCount).map(() => new PointBuilder())
-      )
-    )
+  newGroup(settings?: Partial<GroupData['settings']>) {
+    this.keyframe.groups.push({
+      curves: [],
+      transform: this.toTransform(settings),
+      settings: {
+        maxLength: 1,
+        strength: 0,
+        thickness: 1,
+        color: [1, 1, 1],
+        alpha: 1,
+        spacing: 3,
+        gap: 0,
+        recalculate: false,
+        spacingType: 'pixel',
+        pointVert: input => input,
+        pointFrag: input => input,
+        curveVert: input => input,
+        curveFrag: input => input,
+        ...settings
+      }
+    })
+    this.target(-1)
     return this
+  }
+
+  newCurvesBlank(curveCount: number, pointCount: number) {
+    return this.lastGroup(g => {
+      g.curves.push(
+        ...range(curveCount).map(() =>
+          range(pointCount).map(() => new PointBuilder())
+        )
+      )
+    })
   }
 
   newCurves(count: number, ...points: (Coordinate | PointBuilder)[]) {
     const curve = this.toPoints(...points)
     for (let i = 0; i < count; i++) {
-      this.curves.push(curve.map(x => x.clone()))
+      this.lastGroup(g => {
+        g.curves.push(curve.map(x => x.clone()))
+      })
     }
     return this
   }
 
   newCurve(...points: (Coordinate | PointBuilder)[]) {
-    this.curves.push(this.toPoints(...points))
-    return this
+    return this.lastGroup(g => {
+      g.curves.push(this.toPoints(...points))
+    })
   }
 
   newPoints(...points: (Coordinate | PointBuilder)[]) {
     return this.lastCurve(c => c.push(...this.toPoints(...points)))
+  }
+
+  length(copyCount: number) {
+    return this.lastCurve(curve =>
+      curve.push(...range(copyCount).map(() => curve[0].clone()))
+    )
   }
 
   randomString(count: number) {
@@ -543,6 +725,7 @@ ${this.curves
 
   text(str: string) {
     let lineCount = 0
+    const currentCurve = last(this.keyframe.groups)!.curves.length
     for (let letter of str) {
       if (this.letters[letter]) {
         this.transform({ translate: [0.1, 0], push: true })
@@ -560,7 +743,7 @@ ${this.curves
     return this
   }
 
-  transform(transform: Partial<GroupBuilder['settings']>) {
+  transform(transform: CoordinateData) {
     if (transform.reset) {
       switch (transform.reset) {
         case 'pop':
@@ -569,6 +752,11 @@ ${this.curves
         case 'last':
           this.transformData = this.cloneTransform(
             last(this.transforms) ?? this.toTransform()
+          )
+          break
+        case 'group':
+          this.transformData = this.cloneTransform(
+            last(this.keyframe.groups)?.transform ?? this.toTransform()
           )
           break
         case true:
@@ -586,12 +774,17 @@ ${this.curves
       this.transforms.push(this.cloneTransform(this.transformData))
     }
 
-    Object.assign(this.settings, transform)
-
     return this
   }
 
-  protected letters: Record<string, () => GroupBuilder> = {
+  newShape(type: keyof typeof SHAPES, transform?: PreTransformData) {
+    if (transform) this.transform(transform)
+    return this.lastCurve(c => {
+      c.push(...SHAPES[type].map(x => this.toPoint(x)))
+    })
+  }
+
+  protected letters: Record<string, () => Builder> = {
     ' ': () => this.transform({ translate: [0.5, 0], push: true }),
     '\t': () => this.transform({ translate: [2, 0], push: true }),
     a: () =>
@@ -723,14 +916,9 @@ ${this.curves
         [1, 0]
       ).transform({ translate: [0.5, 0], reset: 'last' }),
     o: () =>
-      this.newCurve(
-        [0, 0, { scale: [0.2, 0.25], translate: [0.25, 0.25] }],
-        [-0.5, 0],
-        [-0.5, 1],
-        [0.5, 1],
-        [0, 0.5],
-        [0, 0]
-      ).transform({ reset: 'last', translate: [0.5, 0] }),
+      this.newCurve()
+        .newShape('circle', { scale: [0.2, 0.25], translate: [0.25, 0.25] })
+        .transform({ reset: 'last', translate: [0.5, 0] }),
     p: () =>
       this.newCurve([0, 0, { translate: [0, -0.5] }], [0, 1])
         .newCurve(
@@ -827,38 +1015,206 @@ ${this.curves
     return this
   }
 
-  reInitialize(resolution: Vector2) {
-    this.reset(true)
-    this.curves = []
-    this.h = resolution.y / resolution.x
-    this.initialize(this)
-    return this.packToTexture()
+  setWarpGroups(
+    groups: (PreTransformData & CoordinateSettings)[],
+    target?: TargetInfo
+  ) {
+    this.target(target)
+    const transforms = groups.map(x => this.toTransform(x))
+    return this.groups((g, { groupProgress }) => {
+      this.combineTransforms(
+        g.transform,
+        this.getTransformAt(transforms, groupProgress)
+      )
+    })
   }
 
-  constructor(initialize: (builder: GroupBuilder) => GroupBuilder | void) {
-    this.initialize = initialize
-    this.h = 0
-  }
-}
+  parse(value: string) {
+    let parsed = value
+    const matchString = (match: RegExp, string: string) => {
+      const find = string.match(match)?.[1] ?? ''
+      return find
+    }
 
-export default class Builder {
-  groups: GroupBuilder[] = []
+    const detectRange = <T extends number | Coordinate>(
+      range: string,
+      callback: (string: string) => T
+    ): T => {
+      if (range.includes('~')) {
+        const p = range.split('~')
+        let r = p.map(c => callback(c))
+        if (r[0] instanceof Array) {
+          invariant(r instanceof Array)
+          const points = r.map(x => this.toPoint(x as Coordinate))
+          if (points.length === 2) {
+            return new Vector2()
+              .lerpVectors(points[0], points[1], Math.random())
+              .toArray() as T
+          } else {
+            return this.makeCurvePath(points)
+              .getPoint(Math.random())
+              .toArray() as T
+          }
+        } else if (typeof r[0] === 'number') {
+          if (r.length === 2) {
+            return lerp(r[0], r[1] as number, Math.random()) as T
+          } else {
+            return this.makeCurvePath(
+              r.map(x => this.toPoint([x as number, 0]))
+            ).getPoint(Math.random()).x as T
+          }
+        }
+      }
+      return callback(range)
+    }
 
-  newGroup(render: (g: GroupBuilder) => GroupBuilder | void) {
-    this.groups.push(new GroupBuilder(render))
-    return this
-  }
+    const parseCoordinate = (
+      c: string,
+      defaultArg: 'same' | number = 'same'
+    ): Coordinate | undefined => {
+      if (!c) return undefined
+      return detectRange(c, c => {
+        if (!c.includes(',')) {
+          return [
+            parseNumber(c)!,
+            defaultArg === 'same' ? parseNumber(c)! : defaultArg
+          ] as [number, number]
+        } else {
+          // if (c[2]) {
+          //   const translate = parseCoordinate(
+          //     matchString(/\+([\-\d\.,\/~]+)/, c[2])
+          //   )
+          //   const scale = parseCoordinate(
+          //     matchString(/\*([\-\d\.,\/~]+)/, c[2])
+          //   )
+          //   const rotate = parseNumber(matchString(/@([\-\d\.\/~]+)/, c[2]))
+          // }
+          return c.split(',', 2).map(x => parseNumber(x)) as [number, number]
+        }
+      })
+    }
 
-  repeat(func: (progress: number, index: number) => void, runCount = 1) {
-    const div = runCount - 1
-    for (let i = 0; i < runCount; i++) {
-      func(i / (div || 1), i)
+    const parseNumber = (coordinate: string): number | undefined => {
+      if (!coordinate) return undefined
+      return detectRange(coordinate, c => {
+        if (c.includes('/')) {
+          const split = c.split('/')
+          return Number(split[0]) / Number(split[1])
+        }
+        return Number(c)
+      })
+    }
+
+    const parseArgs = (name: string, argString: string) => {
+      const args = argString.split(' ')
+    }
+
+    const parseCoordinateList = (
+      argString: string,
+      defaultArg: 'same' | number = 'same'
+    ) =>
+      !argString
+        ? undefined
+        : argString.split(' ').map(x => parseCoordinate(x, defaultArg)!)
+
+    const text = matchString(/(.*?)( [\+\-*@]|$|\{)/, parsed)
+    parsed = parsed.replace(text, '')
+    this.text(text)
+
+    const translate = parseCoordinate(
+      matchString(/ \+([\-\d\.,\/~]+)/, parsed)
+    ) as [number, number]
+    const scale = parseCoordinate(
+      matchString(/ \*([\-\d\.,\/~]+)/, parsed)
+    ) as [number, number]
+    const rotate = parseNumber(matchString(/ @([\-\d\.\/~]+)/, parsed))
+    const thickness = parseNumber(
+      matchString(/ (?:t|thickness):([\-\d\.\/~]+)/, parsed)
+    )
+
+    this.setGroup({ thickness, translate, scale, rotate }, -1)
+    this.lastGroup(group =>
+      this.combineTransforms(
+        group.transform,
+        this.toTransform({ translate, scale, rotate })
+      )
+    )
+
+    const groupTranslate = parseCoordinateList(
+      matchString(/ \+\[([\-\d\.\/ ]+)\]/, parsed)
+    )
+    const groupScale = parseCoordinateList(
+      matchString(/ \*\[([\-\d\.\/ ]+)\]/, parsed)
+    )
+    const groupRotate = parseCoordinateList(
+      matchString(/ @\[([\-\d\.\/ ]+)\]/, parsed),
+      0
+    )
+
+    if (groupTranslate || groupScale || groupRotate) {
+      const translationPath = groupTranslate
+        ? this.makeCurvePath(groupTranslate.map(x => this.toPoint(x)))
+        : undefined
+      const rotationPath = groupRotate
+        ? this.makeCurvePath(
+            groupRotate.map(x => new PointBuilder([this.toRad(x[0]), 0]))
+          )
+        : undefined
+      const scalePath = groupScale
+        ? this.makeCurvePath(groupScale.map(x => this.toPoint(x)))
+        : undefined
+      this.groups(
+        (g, { groupProgress }) => {
+          this.combineTransforms(g.transform, {
+            translate: new PointBuilder().copy(
+              translationPath?.getPoint(groupProgress) ?? new Vector2(0, 0)
+            ),
+            scale: new PointBuilder().copy(
+              scalePath?.getPoint(groupProgress) ?? new Vector2(1, 1)
+            ),
+            rotate: rotationPath?.getPoint(groupProgress).x ?? 0
+          })
+        },
+        [0, -1]
+      )
+    }
+
+    const functionMatch = /\\(\w+) ([^\\]*?)/
+    let thisCall = parsed.match(functionMatch)
+    while (thisCall) {
+      // TODO: create a function to parse arguments
+      let name = thisCall[1]
+      let args = thisCall[2]
+      // if (!parseArgs[name]) throw new Error(`Unknown function ${name}`)
+      parsed = parsed.replace(functionMatch, '')
+      thisCall = parsed.match(functionMatch)
     }
 
     return this
   }
 
-  constructor(initialize: (b: Builder) => Builder) {
-    initialize(this)
+  setGroup(settings?: Partial<GroupData['settings']>, target?: TargetInfo) {
+    this.target(target)
+    const transformData = this.toTransform(settings)
+    return this.groups(g => {
+      Object.assign(g.settings, settings)
+      this.combineTransforms(g.transform, transformData)
+    })
+  }
+
+  reInitialize() {
+    this.reset(true)
+    this.target([0, 0])
+    this.keyframe = this.defaultKeyframe()
+    this.initialize(this)
+    return this.packToTexture()
+  }
+
+  constructor(
+    initialize: (builder: Builder) => Builder | void,
+    resolution: Vector2
+  ) {
+    this.initialize = initialize
+    this.h = resolution.y / resolution.x
   }
 }
