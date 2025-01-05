@@ -1,5 +1,5 @@
 import { extend, Object3DNode, useThree } from '@react-three/fiber'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
@@ -18,6 +18,7 @@ import {
   textureLoad,
   textureStore,
   uniform,
+  uniformArray,
   varying,
   varyingProperty,
   vec2,
@@ -59,13 +60,18 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
   const scene = useThree(({ scene }) => scene)
+  const resolution = new Vector2()
+  const width = gl.getDrawingBufferSize(resolution).x
+
+  const reInitialize = () => {
+    const lastData = builder.reInitialize(resolution)
+    return lastData
+  }
+  const [lastData, setLastData] = useState(reInitialize())
+
+  const {} = useMemo(() => {})
 
   useEffect(() => {
-    const resolution = new Vector2()
-    const width = gl.getDrawingBufferSize(resolution).x
-    const lastData = builder.reInitialize(resolution)
-    console.log(lastData)
-
     const pixel = 1 / width
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
     const MAX_INSTANCE_COUNT =
@@ -92,11 +98,10 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       lastData.dimensions.x,
       lastData.dimensions.y
     )
-
-    // const controlPointCounts = storage(
-    //   new StorageBufferAttribute(lastData.controlPointCounts, 1),
-    //   'int'
-    // )
+    const controlPointCounts = storage(
+      new StorageBufferAttribute(lastData.controlPointCounts, 1),
+      'int'
+    )
 
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
@@ -106,11 +111,14 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       const curveI = instanceIndex.div(lastData.dimensions.x)
 
       const load = textureLoad(lastData.positionTex, vec2(pointI, curveI))
-      // const textureVector = vec2(pointI.toFloat().div(controlPointCounts.element(curveI)), curveI.toFloat().div(lastData.controlPointCounts.length))
       const textureVector = vec2(
-        pointI.toFloat().div(3),
+        pointI.toFloat().div(controlPointCounts.element(curveI)),
         curveI.toFloat().div(lastData.controlPointCounts.length)
       )
+      // const textureVector = vec2(
+      //   pointI.toFloat().div(3),
+      //   curveI.toFloat().div(lastData.controlPointCounts.length)
+      // )
       const point = lastData.settings.curveVert(
         vec4(load),
         textureVector,
@@ -166,8 +174,8 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       Loop(
         {
           start: 1,
-          // end: controlPointCounts.element(curveProgress),
-          end: 3,
+          end: controlPointCounts.element(curveProgress),
+          // end: 3,
           type: 'float'
         },
         ({ i: j }) => {
@@ -208,8 +216,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       // @ts-ignore
       const t = tAttribute.toAttribute()
       // dimU = 9 t.y = 8.5/9
-      // const controlPointsCount = controlPointCounts.element(t.y)
-      const controlPointsCount = int(3)
+      const controlPointsCount = controlPointCounts.element(t.y)
 
       let point = {
         position: vec2(0, 0).toVar(),
@@ -310,55 +317,45 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
 
     scene.add(mesh)
 
-    // if (lastData.settings.spacingType === 'count') {
-    //   gl.computeAsync(updateCurveLengths)
-    // }
+    if (lastData.settings.spacingType === 'count') {
+      gl.computeAsync(updateCurveLengths)
+    }
     const update = () => {
-      let done = 0
-      const finish = () => {
-        done++
-        if (done == 2) {
+      if (lastData.settings.spacingType === 'count') {
+        gl.computeAsync(advanceControlPoints)
+        material.needsUpdate = true
+        updating = requestAnimationFrame(update)
+      } else {
+        Promise.all([
+          gl.computeAsync(advanceControlPoints),
+          gl.computeAsync(updateCurveLengths)
+        ]).then(() => {
           material.needsUpdate = true
           updating = requestAnimationFrame(update)
-        }
+        })
       }
-      gl.computeAsync(advanceControlPoints).then(finish)
-      gl.computeAsync(updateCurveLengths).then(finish)
-      // if (lastData.settings.spacingType === 'count') {
-      //   gl.computeAsync(advanceControlPoints)
-      //   material.needsUpdate = true
-      //   updating = requestAnimationFrame(update)
-      // } else {
-      //   const finish = () => {
-      //     done++
-      //     if (done == 2) {
-      //       material.needsUpdate = true
-      //       updating = requestAnimationFrame(update)
-      //     }
-      //   }
-      //   gl.computeAsync(advanceControlPoints).then(finish)
-      //   gl.computeAsync(updateCurveLengths).then(finish)
-      // }
     }
     let updating = requestAnimationFrame(update)
-    // window.setTimeout(
-    //   () =>
-    //     gl.getArrayBufferAsync(tArray).then(buffer =>
-    //       console.log(
-    //         Array.from(new Float32Array(buffer))
-    //           .flatMap((x, i) => (i % 2 ? [] : x.toFixed(4)))
-    //           .join(' ')
-    //       )
-    //     ),
-    //   500
-    // )
 
     return () => {
       scene.remove(mesh)
       mesh.dispose()
       cancelAnimationFrame(updating)
     }
-  }, [builder])
+  }, [lastData])
+
+  useEffect(() => {
+    let timeout
+    if (lastData.settings.recalculate) {
+      const r = lastData.settings.recalculate
+      const waitTime =
+        typeof r === 'boolean' ? 40 : typeof r === 'number' ? r : r()
+      console.log('recalculate', waitTime)
+
+      timeout = setTimeout(() => setLastData(reInitialize()), waitTime)
+    }
+    return () => clearTimeout(timeout)
+  }, [lastData])
 
   return <></>
 }

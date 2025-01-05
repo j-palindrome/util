@@ -33,7 +33,7 @@ declare global {
 
   type ProcessData = {
     spacingType: 'count' | 'pixel' | 'width'
-    recalculate: boolean | ((progress: number) => number)
+    recalculate: boolean | number | (() => number)
     maxLength: number
     pointVert: (input: ReturnType<typeof vec2>) => input
     /**

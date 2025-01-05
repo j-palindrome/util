@@ -243,7 +243,7 @@ export class GroupBuilder {
       colorTex,
       controlPointCounts,
       dimensions,
-      transform: this.transformData,
+      transform: this.toTransform(),
       settings: {
         ...this.settings,
         maxLength: this.settings.maxLength + 0.01
@@ -423,9 +423,7 @@ export class GroupBuilder {
 
   debug() {
     console.log(
-      `*${this.transformData.scale.toArray().map(x => x.toFixed(2))} @${
-        this.transformData.rotate / Math.PI / 2
-      } +${this.transformData.translate.toArray().map(x => x.toFixed(2))}
+      `
 ${this.curves
   .map(c =>
     c
@@ -452,6 +450,23 @@ ${this.curves
       const bounds = this.getBounds(curves)
       curves.forEach(p => {
         p.sub(bounds.min).divide(bounds.size).multiply(size).add(fromV)
+      })
+    }, curves)
+
+    return this
+  }
+
+  withinX(from: number, to: number, curves: number) {
+    const size = to - from
+
+    this.lastCurves(g => {
+      const curves = g.flat()
+      const bounds = this.getBounds(curves)
+      curves.forEach(p => {
+        p.sub(bounds.min)
+          .divide({ x: bounds.size.x, y: bounds.size.x })
+          .multiply({ x: size, y: size })
+          .add({ x: from, y: bounds.min.y })
       })
     }, curves)
 
@@ -557,6 +572,7 @@ ${this.curves
         })
       }
     }
+    this.withinX(0, 1, this.curves.length)
     return this
   }
 
@@ -586,9 +602,11 @@ ${this.curves
       this.transforms.push(this.cloneTransform(this.transformData))
     }
 
-    Object.assign(this.settings, transform)
-
     return this
+  }
+
+  set(settings: Partial<GroupBuilder['settings']>) {
+    Object.assign(this.settings, settings)
   }
 
   protected letters: Record<string, () => GroupBuilder> = {
@@ -721,7 +739,10 @@ ${this.curves
         [0, 1],
         [1, 1],
         [1, 0]
-      ).transform({ translate: [0.5, 0], reset: 'last' }),
+      ).transform({
+        translate: [0.5, 0],
+        reset: 'last'
+      }),
     o: () =>
       this.newCurve(
         [0, 0, { scale: [0.2, 0.25], translate: [0.25, 0.25] }],

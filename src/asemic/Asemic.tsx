@@ -31,8 +31,8 @@ export default function Asemic({
         far: 1,
         left: 0,
         right: 1,
-        top: 0,
-        bottom: -1,
+        top: 1,
+        bottom: 0,
         position: [0, 0, 0]
       }}
       gl={canvas => {
@@ -65,8 +65,7 @@ function Scene({
     const camera = state.camera as OrthographicCamera
     // @ts-ignore
     const gl = state.gl as WebGPURenderer
-    camera.bottom = -resolution.height / resolution.width
-
+    camera.top = resolution.height / resolution.width
     camera.updateProjectionMatrix()
   })
   const b = new Builder(builder)
