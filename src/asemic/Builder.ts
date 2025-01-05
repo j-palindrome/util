@@ -181,7 +181,7 @@ export class GroupBuilder {
     const height = this.curves.length
 
     const dimensions = new Vector2(width, height)
-    const controlPointCounts = new Int16Array(this.curves.length)
+    const controlPointCounts = new Float32Array(this.curves.length)
     this.curves.forEach((curve, i) => {
       controlPointCounts[i] = curve.length
     })
