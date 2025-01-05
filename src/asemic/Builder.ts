@@ -538,22 +538,6 @@ ${this.curves
     return this.lastCurve(c => c.push(...this.toPoints(...points)))
   }
 
-  randomString(count: number) {
-    let string = ''
-    const letters = 'abcdefghijklmnopqrstuvwxyz'
-    const punctuation = '".,?!/:;()&-'
-    const space = ' '
-    for (let i = 0; i < count; i++) {
-      const random = Math.random()
-      if (random < 0.75 || i === 0) {
-        string += letters[Math.floor(Math.random() * letters.length)]
-      } else {
-        string += space
-      }
-    }
-    return string
-  }
-
   text(str: string) {
     let lineCount = 0
     for (let letter of str) {
