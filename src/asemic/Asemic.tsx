@@ -69,12 +69,11 @@ function Scene({
 
     camera.updateProjectionMatrix()
   })
-  const keyframes = new Builder(builder, resolution)
-  const lastData = keyframes.reInitialize()
+  const b = new Builder(builder)
   return (
     <>
-      {lastData.map((lastData, i) => (
-        <Brush lastData={lastData} key={i} />
+      {b.groups.map((group, i) => (
+        <Brush builder={group} key={i} />
       ))}
     </>
   )
