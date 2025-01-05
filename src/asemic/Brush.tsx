@@ -1,5 +1,5 @@
 import { extend, Object3DNode, useThree } from '@react-three/fiber'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
@@ -69,10 +69,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   }
   const [lastData, setLastData] = useState(reInitialize())
 
-  const {} = useMemo(() => {})
-
-  useEffect(() => {
-    const pixel = 1 / width
+  const { mesh, material, MAX_INSTANCE_COUNT } = useMemo(() => {
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
     const MAX_INSTANCE_COUNT =
       lastData.settings.spacingType === 'pixel'
@@ -88,6 +85,23 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
           : lastData.settings.spacingType === 'count'
             ? lastData.controlPointCounts.length * width
             : 0
+    const geometry = new THREE.PlaneGeometry()
+    geometry.translate(-0.5, -0.5, 0)
+    const material = new SpriteNodeMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    })
+    const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
+    mesh.position.set(...lastData.transform.translate.toArray(), 0)
+    mesh.scale.set(...lastData.transform.scale.toArray(), 0)
+    mesh.rotation.set(0, 0, lastData.transform.rotate)
+    return { mesh, material, MAX_INSTANCE_COUNT }
+  }, [])
+
+  const { advanceControlPoints, updateCurveLengths } = useMemo(() => {
+    const pixel = 1 / width
+    const totalSpace = lastData.settings.spacing + lastData.settings.gap
 
     const curvePositionTex = new StorageTexture(
       lastData.dimensions.x,
@@ -198,16 +212,8 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       return undefined as any
     })().compute(MAX_INSTANCE_COUNT, undefined as any)
 
-    const geometry = new THREE.PlaneGeometry()
-    geometry.translate(-0.5, -0.5, 0)
     const tArray = new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2)
     const tAttribute = storage(tArray, 'vec2', MAX_INSTANCE_COUNT)
-
-    const material = new SpriteNodeMaterial({
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending
-    })
 
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
@@ -307,16 +313,18 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     const colorV = varying(vec4(), 'colorV')
     material.colorNode = lastData.settings.pointFrag(colorV)
 
-    const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
-    mesh.position.set(...lastData.transform.translate.toArray(), 0)
-    mesh.scale.set(...lastData.transform.scale.toArray(), 0)
-    mesh.rotation.set(0, 0, lastData.transform.rotate)
+    return { advanceControlPoints, updateCurveLengths }
+  }, [lastData])
 
-    // TODO: add back instance counts
-    // mesh.count = instanceCount
-
+  useEffect(() => {
     scene.add(mesh)
+    return () => {
+      scene.remove(mesh)
+      mesh.dispose()
+    }
+  }, [])
 
+  useEffect(() => {
     if (lastData.settings.spacingType === 'count') {
       gl.computeAsync(updateCurveLengths)
     }
@@ -338,8 +346,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     let updating = requestAnimationFrame(update)
 
     return () => {
-      scene.remove(mesh)
-      mesh.dispose()
       cancelAnimationFrame(updating)
     }
   }, [lastData])
@@ -350,7 +356,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       const r = lastData.settings.recalculate
       const waitTime =
         typeof r === 'boolean' ? 40 : typeof r === 'number' ? r : r()
-      console.log('recalculate', waitTime)
 
       timeout = setTimeout(() => setLastData(reInitialize()), waitTime)
     }

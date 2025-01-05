@@ -541,14 +541,12 @@ ${this.curves
   randomString(count: number) {
     let string = ''
     const letters = 'abcdefghijklmnopqrstuvwxyz'
-    const punctuation = '\'".,?!/:;()&-'
+    const punctuation = '".,?!/:;()&-'
     const space = ' '
     for (let i = 0; i < count; i++) {
       const random = Math.random()
-      if (random < 0.5) {
+      if (random < 0.75 || i === 0) {
         string += letters[Math.floor(Math.random() * letters.length)]
-      } else if (random < 0.75) {
-        string += letters[Math.floor(Math.random() * punctuation.length)]
       } else {
         string += space
       }
@@ -572,7 +570,7 @@ ${this.curves
         })
       }
     }
-    this.withinX(0, 1, this.curves.length)
+
     return this
   }
 
