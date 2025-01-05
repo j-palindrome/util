@@ -99,7 +99,18 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     return { mesh, material, MAX_INSTANCE_COUNT }
   }, [])
 
-  const { advanceControlPoints, updateCurveLengths } = useMemo(() => {
+  const {
+    advanceControlPoints,
+    updateCurveLengths,
+    tAttribute,
+    controlPointCounts,
+    pixel,
+    dimensionsU,
+    curvePositionTex,
+    curveColorTex,
+    curvePositionLoadU,
+    curveColorLoadU
+  } = useMemo(() => {
     const pixel = 1 / width
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
 
@@ -119,30 +130,31 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
 
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
+    const tArray = new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2)
+    const tAttribute = storage(tArray, 'vec2', MAX_INSTANCE_COUNT)
+
+    const pointI = instanceIndex.modInt(lastData.dimensions.x)
+    const curveI = instanceIndex.div(lastData.dimensions.x)
+    const curvePositionLoadU = textureLoad(
+      lastData.positionTex,
+      vec2(pointI, curveI)
+    )
+    const curveColorLoadU = textureLoad(lastData.colorTex, vec2(pointI, curveI))
 
     const advanceControlPoints = Fn(() => {
-      const pointI = instanceIndex.modInt(lastData.dimensions.x)
-      const curveI = instanceIndex.div(lastData.dimensions.x)
-
-      const load = textureLoad(lastData.positionTex, vec2(pointI, curveI))
       const textureVector = vec2(
         pointI.toFloat().div(controlPointCounts.element(curveI)),
         curveI.toFloat().div(lastData.controlPointCounts.length)
       )
-      // const textureVector = vec2(
-      //   pointI.toFloat().div(3),
-      //   curveI.toFloat().div(lastData.controlPointCounts.length)
-      // )
       const point = lastData.settings.curveVert(
-        vec4(load),
+        vec4(curvePositionLoadU),
         textureVector,
         aspectRatio.y
       )
       textureStore(curvePositionTex, vec2(pointI, curveI), point).toWriteOnly()
 
-      const colorLoad = textureLoad(lastData.colorTex, vec2(pointI, curveI))
       const color = lastData.settings.curveFrag(
-        vec4(colorLoad),
+        vec4(curveColorLoadU),
         textureVector,
         aspectRatio.y
       )
@@ -212,11 +224,40 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       return undefined as any
     })().compute(MAX_INSTANCE_COUNT, undefined as any)
 
-    const tArray = new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2)
-    const tAttribute = storage(tArray, 'vec2', MAX_INSTANCE_COUNT)
+    return {
+      advanceControlPoints,
+      updateCurveLengths,
+      tAttribute,
+      controlPointCounts,
+      pixel,
+      dimensionsU,
+      curvePositionTex,
+      curveColorTex,
+      curvePositionLoadU,
+      curveColorLoadU
+    }
+  }, [])
 
+  useMemo(() => {
+    curvePositionLoadU.value = lastData.positionTex
+    curveColorLoadU.value = lastData.colorTex
+    const newControlPoints = storage(
+      new StorageBufferAttribute(lastData.controlPointCounts, 1),
+      'int'
+    )
+    const updateCurveCounts = Fn(() => {
+      controlPointCounts
+        .element(instanceIndex)
+        .assign(newControlPoints.element(instanceIndex))
+      return undefined as any
+    })().compute(lastData.controlPointCounts.length, undefined as any)
+    gl.computeAsync(updateCurveCounts)
+  }, [lastData])
+
+  useMemo(() => {
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
+    const curvePositionTexU = texture(curvePositionTex)
 
     const main = Fn(() => {
       // @ts-ignore
@@ -228,8 +269,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         position: vec2(0, 0).toVar(),
         rotation: float(0).toVar()
       }
-
-      const curvePositionTexU = texture(curvePositionTex)
 
       If(t.x.equal(-1), () => {
         varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
@@ -312,9 +351,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
 
     const colorV = varying(vec4(), 'colorV')
     material.colorNode = lastData.settings.pointFrag(colorV)
-
-    return { advanceControlPoints, updateCurveLengths }
-  }, [lastData])
+  }, [])
 
   useEffect(() => {
     scene.add(mesh)
