@@ -64,25 +64,18 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   const width = gl.getDrawingBufferSize(resolution).x
 
   const lastData = builder.reInitialize(resolution)
-  const newControlPoints = useRef(
-    uniformArray(lastData.controlPointCounts as any)
-  )
 
   const { mesh, material, MAX_INSTANCE_COUNT } = useMemo(() => {
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
     const MAX_INSTANCE_COUNT =
       lastData.settings.spacingType === 'pixel'
-        ? (lastData.controlPointCounts.length *
-            lastData.settings.maxLength *
-            width) /
+        ? (lastData.dimensions.y * lastData.settings.maxLength * width) /
           totalSpace
         : lastData.settings.spacingType === 'width'
-          ? (lastData.controlPointCounts.length *
-              lastData.settings.maxLength *
-              width) /
+          ? (lastData.dimensions.y * lastData.settings.maxLength * width) /
             (totalSpace * width)
           : lastData.settings.spacingType === 'count'
-            ? lastData.controlPointCounts.length * width
+            ? lastData.dimensions.y * width
             : 0
     const geometry = new THREE.PlaneGeometry()
     geometry.translate(-0.5, -0.5, 0)
@@ -123,7 +116,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       lastData.dimensions.y
     )
     const controlPointCounts = storage(
-      new StorageBufferAttribute(lastData.controlPointCounts, 1),
+      new StorageBufferAttribute(new Int16Array(lastData.dimensions.y), 1),
       'int'
     )
 
@@ -143,7 +136,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     const advanceControlPoints = Fn(() => {
       const textureVector = vec2(
         pointI.toFloat().div(controlPointCounts.element(curveI)),
-        curveI.toFloat().div(lastData.controlPointCounts.length)
+        curveI.toFloat().div(lastData.dimensions.y)
       )
       const point = lastData.settings.curveVert(
         vec4(curvePositionLoadU),
@@ -228,7 +221,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       updateCurveLengths,
       tAttribute,
       controlPointCounts,
-      newControlPoints,
       pixel,
       dimensionsU,
       curvePositionTex,
@@ -343,6 +335,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   const reInitialize = () => {
     lastData.colorTex.dispose()
     lastData.positionTex.dispose()
+    lastData.countTex.dispose()
     const newData = builder.reInitialize(resolution)
     curvePositionLoadU.value = newData.positionTex
     curveColorLoadU.value = newData.colorTex
@@ -350,9 +343,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     const updateCurveCounts = Fn(() => {
       controlPointCounts
         .element(instanceIndex)
-        .assign(newControlPoints.current.element(instanceIndex))
+        .assign(textureLoad(newData.countTex, ivec2(0, instanceIndex)))
       return undefined as any
-    })().compute(newData.controlPointCounts.length, undefined as any)
+    })().compute(newData.dimensions.y, undefined as any)
     gl.computeAsync(updateCurveCounts).catch(() => {
       console.log('out of memory')
       setRendering(false)

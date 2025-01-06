@@ -10,6 +10,7 @@ import {
   MagnificationTextureFilter,
   NearestFilter,
   QuadraticBezierCurve,
+  RedFormat,
   RGBAFormat,
   Vector2
 } from 'three'
@@ -181,10 +182,6 @@ export class GroupBuilder {
     const height = this.curves.length
 
     const dimensions = new Vector2(width, height)
-    const controlPointCounts = new Int16Array(this.curves.length)
-    this.curves.forEach((curve, i) => {
-      controlPointCounts[i] = curve.length
-    })
 
     const createTexture = (
       array: Float32Array,
@@ -238,10 +235,23 @@ export class GroupBuilder {
       LinearFilter
     )
 
+    const countTex = createTexture(
+      new Float32Array(
+        this.curves.flatMap(c =>
+          range(width).flatMap(i => {
+            const point = c[i]
+            return point ? [c.length] : [0]
+          })
+        )
+      ),
+      RedFormat,
+      LinearFilter
+    )
+
     return {
       positionTex,
       colorTex,
-      controlPointCounts,
+      countTex,
       dimensions,
       transform: this.toTransform(),
       settings: {
