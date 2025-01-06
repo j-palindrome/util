@@ -60,15 +60,13 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   const [rendering, setRendering] = useState(true)
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
-  const scene = useThree(({ scene }) => scene)
   const resolution = new Vector2()
   const width = gl.getDrawingBufferSize(resolution).x
 
-  const reInitialize = () => {
-    const lastData = builder.reInitialize(resolution)
-    return lastData
-  }
-  const [lastData, setLastData] = useState(reInitialize())
+  const lastData = builder.reInitialize(resolution)
+  const newControlPoints = useRef(
+    uniformArray(lastData.controlPointCounts as any)
+  )
 
   const { mesh, material, MAX_INSTANCE_COUNT } = useMemo(() => {
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
@@ -98,11 +96,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     mesh.scale.set(...lastData.transform.scale.toArray(), 0)
     mesh.rotation.set(0, 0, lastData.transform.rotate)
     return { mesh, material, MAX_INSTANCE_COUNT }
-  }, [])
-
-  const newControlPoints = useRef(
-    uniformArray(lastData.controlPointCounts as any)
-  )
+  }, [builder])
 
   const {
     advanceControlPoints,
@@ -245,23 +239,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   }, [builder])
 
   useMemo(() => {
-    curvePositionLoadU.value = lastData.positionTex
-    curveColorLoadU.value = lastData.colorTex
-    newControlPoints.current.dispose()
-    newControlPoints.current = uniformArray(lastData.controlPointCounts as any)
-    const updateCurveCounts = Fn(() => {
-      controlPointCounts
-        .element(instanceIndex)
-        .assign(newControlPoints.current.element(instanceIndex))
-      return undefined as any
-    })().compute(lastData.controlPointCounts.length, undefined as any)
-    gl.computeAsync(updateCurveCounts).catch(() => {
-      console.log('out of memory')
-      setRendering(false)
-    })
-  }, [lastData])
-
-  useMemo(() => {
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
     const curvePositionTexU = texture(curvePositionTex)
@@ -360,46 +337,72 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     material.colorNode = lastData.settings.pointFrag(colorV)
   }, [builder])
 
-  useEffect(() => {
-    if (lastData.settings.spacingType === 'count' && rendering) {
+  let timeout: number
+  let updating: number
+
+  const reInitialize = () => {
+    lastData.colorTex.dispose()
+    lastData.positionTex.dispose()
+    const newData = builder.reInitialize(resolution)
+    curvePositionLoadU.value = newData.positionTex
+    curveColorLoadU.value = newData.colorTex
+
+    const updateCurveCounts = Fn(() => {
+      controlPointCounts
+        .element(instanceIndex)
+        .assign(newControlPoints.current.element(instanceIndex))
+      return undefined as any
+    })().compute(newData.controlPointCounts.length, undefined as any)
+    gl.computeAsync(updateCurveCounts).catch(() => {
+      console.log('out of memory')
+      setRendering(false)
+    })
+    if (newData.settings.spacingType === 'count' && rendering) {
       gl.computeAsync(updateCurveLengths)
     }
-    let updating: number
-    const update = () => {
-      if (lastData.settings.spacingType === 'count') {
-        gl.computeAsync(advanceControlPoints)
+
+    if (newData.settings.recalculate) {
+      const r = newData.settings.recalculate
+      const waitTime =
+        typeof r === 'boolean' ? 40 : typeof r === 'number' ? r : r()
+
+      timeout = window.setTimeout(reInitialize, waitTime)
+    }
+  }
+
+  const update = () => {
+    if (lastData.settings.spacingType === 'count') {
+      gl.computeAsync(advanceControlPoints)
+      material.needsUpdate = true
+      updating = requestAnimationFrame(update)
+    } else {
+      Promise.all([
+        gl.computeAsync(advanceControlPoints),
+        gl.computeAsync(updateCurveLengths)
+      ]).then(() => {
         material.needsUpdate = true
         updating = requestAnimationFrame(update)
-      } else {
-        Promise.all([
-          gl.computeAsync(advanceControlPoints),
-          gl.computeAsync(updateCurveLengths)
-        ]).then(() => {
-          material.needsUpdate = true
-          updating = requestAnimationFrame(update)
-        })
-      }
+      })
     }
-    if (rendering) {
-      updating = requestAnimationFrame(update)
-    }
-
-    return () => {
-      cancelAnimationFrame(updating)
-    }
-  }, [lastData, builder, rendering])
+  }
 
   useEffect(() => {
-    let timeout
     if (lastData.settings.recalculate) {
       const r = lastData.settings.recalculate
       const waitTime =
         typeof r === 'boolean' ? 40 : typeof r === 'number' ? r : r()
 
-      timeout = setTimeout(() => setLastData(reInitialize()), waitTime)
+      timeout = window.setTimeout(reInitialize, waitTime)
     }
-    return () => clearTimeout(timeout)
-  }, [lastData])
+
+    if (rendering) {
+      updating = requestAnimationFrame(update)
+    }
+    return () => {
+      clearTimeout(timeout)
+      cancelAnimationFrame(updating)
+    }
+  }, [builder])
 
   return <>{rendering && <primitive object={mesh} />}</>
 }
