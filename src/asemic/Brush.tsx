@@ -353,6 +353,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         .assign(textureLoad(newData.countTex, ivec2(0, instanceIndex)))
       return undefined as any
     })().compute(newData.dimensions.y, undefined as any)
+
     gl.computeAsync(updateCurveCounts)
       .catch(() => {
         console.log('out of memory')
@@ -364,7 +365,8 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         lastData.countTex.dispose()
         curvePositionLoadU.value = newData.positionTex
         curveColorLoadU.value = newData.colorTex
-        // gl.computeAsync(updateCurveLengths)
+        gl.computeAsync(advanceControlPoints)
+        gl.computeAsync(updateCurveLengths)
       })
 
     // if (newData.settings.spacingType === 'count' && rendering) {
@@ -397,6 +399,8 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   }
 
   useEffect(() => {
+    reInitialize()
+
     if (lastData.settings.recalculate) {
       const r = lastData.settings.recalculate
       const waitTime =
@@ -405,9 +409,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       timeout = window.setTimeout(reInitialize, waitTime)
     }
 
-    if (rendering) {
-      updating = requestAnimationFrame(update)
-    }
+    // if (rendering) {
+    //   updating = requestAnimationFrame(update)
+    // }
     return () => {
       clearTimeout(timeout)
       cancelAnimationFrame(updating)
