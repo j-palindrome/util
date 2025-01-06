@@ -1,5 +1,5 @@
 import { extend, Object3DNode, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
@@ -57,6 +57,7 @@ declare module '@react-three/fiber' {
 }
 
 export default function Brush({ builder }: { builder: GroupBuilder }) {
+  const [rendering, setRendering] = useState(true)
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
   const scene = useThree(({ scene }) => scene)
@@ -98,6 +99,10 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     mesh.rotation.set(0, 0, lastData.transform.rotate)
     return { mesh, material, MAX_INSTANCE_COUNT }
   }, [])
+
+  const newControlPoints = useRef(
+    uniformArray(lastData.controlPointCounts as any)
+  )
 
   const {
     advanceControlPoints,
@@ -229,6 +234,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       updateCurveLengths,
       tAttribute,
       controlPointCounts,
+      newControlPoints,
       pixel,
       dimensionsU,
       curvePositionTex,
@@ -236,22 +242,23 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       curvePositionLoadU,
       curveColorLoadU
     }
-  }, [])
+  }, [builder])
 
   useMemo(() => {
     curvePositionLoadU.value = lastData.positionTex
     curveColorLoadU.value = lastData.colorTex
-    const newControlPoints = storage(
-      new StorageBufferAttribute(lastData.controlPointCounts, 1),
-      'int'
-    )
+    newControlPoints.current.dispose()
+    newControlPoints.current = uniformArray(lastData.controlPointCounts as any)
     const updateCurveCounts = Fn(() => {
       controlPointCounts
         .element(instanceIndex)
-        .assign(newControlPoints.element(instanceIndex))
+        .assign(newControlPoints.current.element(instanceIndex))
       return undefined as any
     })().compute(lastData.controlPointCounts.length, undefined as any)
-    gl.computeAsync(updateCurveCounts)
+    gl.computeAsync(updateCurveCounts).catch(() => {
+      console.log('out of memory')
+      setRendering(false)
+    })
   }, [lastData])
 
   useMemo(() => {
@@ -351,20 +358,13 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
 
     const colorV = varying(vec4(), 'colorV')
     material.colorNode = lastData.settings.pointFrag(colorV)
-  }, [])
+  }, [builder])
 
   useEffect(() => {
-    scene.add(mesh)
-    return () => {
-      scene.remove(mesh)
-      mesh.dispose()
-    }
-  }, [])
-
-  useEffect(() => {
-    if (lastData.settings.spacingType === 'count') {
+    if (lastData.settings.spacingType === 'count' && rendering) {
       gl.computeAsync(updateCurveLengths)
     }
+    let updating: number
     const update = () => {
       if (lastData.settings.spacingType === 'count') {
         gl.computeAsync(advanceControlPoints)
@@ -380,12 +380,14 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         })
       }
     }
-    let updating = requestAnimationFrame(update)
+    if (rendering) {
+      updating = requestAnimationFrame(update)
+    }
 
     return () => {
       cancelAnimationFrame(updating)
     }
-  }, [lastData])
+  }, [lastData, builder, rendering])
 
   useEffect(() => {
     let timeout
@@ -399,5 +401,5 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     return () => clearTimeout(timeout)
   }, [lastData])
 
-  return <></>
+  return <>{rendering && <primitive object={mesh} />}</>
 }
