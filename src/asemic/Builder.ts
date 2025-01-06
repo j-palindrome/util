@@ -209,7 +209,7 @@ export class GroupBuilder {
                   point.strength ?? this.settings.strength,
                   point.thickness ?? this.settings.thickness
                 ]
-              : [0, 0, 0, 0]
+              : [-1111, 0, 0, 0]
           })
         )
       ),
@@ -227,7 +227,7 @@ export class GroupBuilder {
                   ...(point.color ?? this.settings.color),
                   point.alpha ?? this.settings.alpha
                 ]
-              : [0, 0, 0, 0]
+              : [-1111, 0, 0, 0]
           })
         )
       ),
@@ -239,8 +239,7 @@ export class GroupBuilder {
       new Float32Array(
         this.curves.flatMap(c =>
           range(width).flatMap(i => {
-            const point = c[i]
-            return point ? [c.length] : [0]
+            return [c.length]
           })
         )
       ),

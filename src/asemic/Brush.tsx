@@ -12,6 +12,7 @@ import {
   ivec2,
   Loop,
   mix,
+  Return,
   screenSize,
   storage,
   texture,
@@ -252,18 +253,22 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         If(controlPointsCount.equal(2), () => {
           const p0 = textureLoadFix(curvePositionTexU, ivec2(0, t.y)).xy
           const p1 = textureLoadFix(curvePositionTexU, ivec2(1, t.y)).xy
-          const progressPoint = mix(p0, p1, t.x)
-          point.position.assign(progressPoint)
-          const rotation = lineTangent(p0, p1)
-          point.rotation.assign(atan2(rotation.y, rotation.x))
-          const textureVector = vec2(
-            t.x.add(0.5).div(dimensionsU.x),
-            t.y.add(0.5).div(dimensionsU.y)
-          )
-          varyingProperty('vec4', 'colorV').assign(
-            texture(curveColorTex, textureVector)
-          )
-          thickness.assign(texture(curvePositionTex, textureVector).w)
+          If(p1.x.equal(-1111), () => {
+            varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
+          }).Else(() => {
+            const progressPoint = mix(p0, p1, t.x)
+            point.position.assign(progressPoint)
+            const rotation = lineTangent(p0, p1)
+            point.rotation.assign(atan2(rotation.y, rotation.x))
+            const textureVector = vec2(
+              t.x.add(0.5).div(dimensionsU.x),
+              t.y.add(0.5).div(dimensionsU.y)
+            )
+            varyingProperty('vec4', 'colorV').assign(
+              texture(curveColorTex, textureVector)
+            )
+            thickness.assign(texture(curvePositionTex, textureVector).w)
+          })
         }).Else(() => {
           const pointProgress = multiBezierProgress({
             t: t.x,
@@ -286,29 +291,36 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             curvePositionTexU,
             ivec2(pointProgress.x.add(2), t.y)
           ).xy.toVar('p2')
-          const strength = textureLoadFix(
-            curvePositionTexU,
-            ivec2(pointProgress.x.add(1), t.y)
-          ).z.toVar('strength')
+          If(p2.x.equal(-1111), () => {
+            varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
+          }).Else(() => {
+            const strength = textureLoadFix(
+              curvePositionTexU,
+              ivec2(pointProgress.x.add(1), t.y)
+            ).z.toVar('strength')
 
-          varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
-          thickness.assign(texture(curvePositionTex, tt).w)
+            varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
+            thickness.assign(texture(curvePositionTex, tt).w)
 
-          If(pointProgress.x.greaterThan(float(0)), () => {
-            p0.assign(mix(p0, p1, float(0.5)))
+            If(pointProgress.x.greaterThan(float(0)), () => {
+              p0.assign(mix(p0, p1, float(0.5)))
+            })
+            If(
+              pointProgress.x.lessThan(float(controlPointsCount).sub(3)),
+              () => {
+                p2.assign(mix(p1, p2, 0.5))
+              }
+            )
+            const thisPoint = bezierPoint({
+              t: pointProgress.y,
+              p0,
+              p1,
+              p2,
+              strength
+            })
+            point.position.assign(thisPoint.position)
+            point.rotation.assign(thisPoint.rotation)
           })
-          If(pointProgress.x.lessThan(float(controlPointsCount).sub(3)), () => {
-            p2.assign(mix(p1, p2, 0.5))
-          })
-          const thisPoint = bezierPoint({
-            t: pointProgress.y,
-            p0,
-            p1,
-            p2,
-            strength
-          })
-          point.position.assign(thisPoint.position)
-          point.rotation.assign(thisPoint.rotation)
         })
 
         rotation.assign(vec3(point.rotation, 0, 0))
@@ -333,12 +345,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   let updating: number
 
   const reInitialize = () => {
-    lastData.colorTex.dispose()
-    lastData.positionTex.dispose()
-    lastData.countTex.dispose()
     const newData = builder.reInitialize(resolution)
-    curvePositionLoadU.value = newData.positionTex
-    curveColorLoadU.value = newData.colorTex
 
     const updateCurveCounts = Fn(() => {
       controlPointCounts
@@ -346,13 +353,23 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         .assign(textureLoad(newData.countTex, ivec2(0, instanceIndex)))
       return undefined as any
     })().compute(newData.dimensions.y, undefined as any)
-    gl.computeAsync(updateCurveCounts).catch(() => {
-      console.log('out of memory')
-      setRendering(false)
-    })
-    if (newData.settings.spacingType === 'count' && rendering) {
-      gl.computeAsync(updateCurveLengths)
-    }
+    gl.computeAsync(updateCurveCounts)
+      .catch(() => {
+        console.log('out of memory')
+        setRendering(false)
+      })
+      .then(() => {
+        lastData.colorTex.dispose()
+        lastData.positionTex.dispose()
+        lastData.countTex.dispose()
+        curvePositionLoadU.value = newData.positionTex
+        curveColorLoadU.value = newData.colorTex
+        // gl.computeAsync(updateCurveLengths)
+      })
+
+    // if (newData.settings.spacingType === 'count' && rendering) {
+    //   gl.computeAsync(updateCurveLengths)
+    // }
 
     if (newData.settings.recalculate) {
       const r = newData.settings.recalculate
