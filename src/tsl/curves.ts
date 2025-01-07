@@ -2,6 +2,7 @@ import {
   atan2,
   cos,
   float,
+  If,
   mat2,
   mix,
   PI2,
@@ -82,10 +83,17 @@ export const polyLine = ({
 export const bezierPoint = ({ t, p0, p1, p2, strength }) => {
   const positionCurve = bezier2({ t, p0, p1, p2 })
   const positionStraight = polyLine({ t, p0, p1, p2 })
-  const position = mix(positionCurve, positionStraight, pow(strength, 2))
+  const position = mix(positionCurve, positionStraight, strength)
   const tangent = bezier2Tangent({ t, p0, p1, p2 })
   const rotation = atan2(tangent.y, tangent.x)
   return { position, rotation }
+}
+
+export const bezierPointSimple = ({ t, p0, p1, p2, strength }) => {
+  const positionCurve = bezier2({ t, p0, p1, p2 })
+  const positionStraight = polyLine({ t, p0, p1, p2 })
+  const position = mix(positionCurve, positionStraight, strength)
+  return position
 }
 
 export const multiBezierProgress = ({ t, controlPointsCount }) => {

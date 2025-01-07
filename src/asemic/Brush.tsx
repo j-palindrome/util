@@ -229,83 +229,73 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     const updateCurveLengths = /*#__PURE__*/ Fn(() => {
       const curveProgress = instanceIndex.div(instancesPerCurve)
       const controlPointsCount = controlPointCounts.element(curveProgress)
+      const found = float(0).toVar('found')
       const targetLength = instanceIndex
         .modInt(instancesPerCurve)
         .toFloat()
         .div(instancesPerCurve.toFloat())
         .mul(lastData.settings.maxLength)
-      // .mul(lastData.settings.maxLength)
-
-      const found = float(0).toVar('found')
-      const thisEnd = float(0).toVar('thisEnd')
-      const lastEnd = float(0).toVar('lastEnd')
-      const lastPoint = vec2(0, 0).toVar('lastPoint')
-      const thisPoint = vec2(0, 0).toVar('thisPoint')
-      thisPoint.assign(
-        textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
-      )
-      // calculate the curve length, then find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
-      const count = 101
-      Loop(
-        {
-          start: 0,
-          end: count,
-          type: 'float'
-        },
-        ({ i }) => {
-          lastPoint.assign(thisPoint)
-          const t = i.div(count).mul(controlPointsCount.sub(2))
-          thisPoint.assign(
-            getBezier(t, curveProgress, controlPointsCount).position
-          ).xy
-          // this is a U-mapping which this T should be remapped to
-          // pointProgress is the t-value which goes 0->maxLength
-          // calculate the LENGTH by summing up curves until you get to that pointProgress
-          // give the appropriate T at the length point we want
-          // he
-          lastEnd.assign(thisEnd)
-          thisEnd.addAssign(thisPoint.sub(lastPoint).length())
-          If(thisEnd.greaterThanEqual(targetLength), () => {
-            const remapped = remap(targetLength, lastEnd, thisEnd, 0, 1)
-            found.assign(1)
-            tAttribute
-              .element(instanceIndex)
-              .assign(
-                vec2(
-                  i
-                    .sub(1)
-                    .add(remapped)
-                    .div(count)
-                    .mul(controlPointsCount.sub(2)),
-                  curveProgress
+      If(controlPointsCount.equal(2), () => {
+        const p0 = textureLoadFix(
+          texture(curvePositionTex),
+          ivec2(0, curveProgress)
+        ).xy
+        const p1 = textureLoadFix(
+          texture(curvePositionTex),
+          ivec2(1, curveProgress)
+        ).xy
+        const totalLength = p1.sub(p0).length()
+        If(totalLength.greaterThanEqual(targetLength), () => {
+          found.assign(1)
+          tAttribute
+            .element(instanceIndex)
+            .assign(vec2(targetLength.div(totalLength), curveProgress))
+        })
+      }).Else(() => {
+        const thisEnd = float(0).toVar('thisEnd')
+        const lastEnd = float(0).toVar('lastEnd')
+        const lastPoint = vec2(0, 0).toVar('lastPoint')
+        const thisPoint = vec2(0, 0).toVar('thisPoint')
+        thisPoint.assign(
+          textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
+        )
+        // calculate the curve length, then find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
+        const count = controlPointsCount.mul(6)
+        Loop(
+          {
+            start: 1,
+            end: count,
+            type: 'float'
+          },
+          ({ i }) => {
+            lastPoint.assign(thisPoint)
+            const t = i.div(count).mul(controlPointsCount.sub(2))
+            thisPoint.assign(
+              getBezier(t, curveProgress, controlPointsCount).position
+            ).xy
+            lastEnd.assign(thisEnd)
+            thisEnd.addAssign(thisPoint.sub(lastPoint).length())
+            If(thisEnd.greaterThanEqual(targetLength), () => {
+              const remapped = remap(targetLength, lastEnd, thisEnd, 0, 1)
+              found.assign(1)
+              tAttribute
+                .element(instanceIndex)
+                .assign(
+                  vec2(
+                    i
+                      .sub(1)
+                      .add(remapped)
+                      .div(count)
+                      .mul(controlPointsCount.sub(2)),
+                    curveProgress
+                  )
                 )
-              )
-            Break()
-          })
-        }
-      )
-      // If(thisEnd.greaterThanEqual(targetLength), () => {
-      //   found.assign(1)
-      //   tAttribute.element(instanceIndex).assign(
-      //     vec2(targetLength.mul(controlPointsCount.sub(2)), curveProgress)
-      //     // vec2(i.div(100).mul(controlPointsCount.sub(2)), curveProgress)
-      //   )
-      //   Break()
-      // })
-      // tAttribute.element(instanceIndex).assign(
-      //   vec2(
-      //     thisEnd
-      //       .div(lastData.settings.maxLength)
-      //       .mul(controlPointsCount.sub(2)),
-      //     curveProgress
-      //   )
-      // vec2(i.div(100).mul(controlPointsCount.sub(2)), curveProgress)
-      // )
-      // tAttribute
-      //   .element(instanceIndex)
-      //   .xy.assign(
-      //     vec2(targetLength.mul(controlPointsCount.sub(2)), curveProgress)
-      //   )
+              Break()
+            })
+          }
+        )
+      })
+
       If(found.equal(0), () => {
         tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
       })
