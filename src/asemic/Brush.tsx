@@ -190,6 +190,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       thisPoint.assign(
         textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
       )
+      // calculate the curve length, then find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
       Loop(
         {
           start: 1,
