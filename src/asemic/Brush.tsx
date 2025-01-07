@@ -68,7 +68,16 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
 
   const lastData = builder.reInitialize(resolution)
 
-  const { mesh, material, MAX_INSTANCE_COUNT } = useMemo(() => {
+  const {
+    mesh,
+    material,
+    geometry,
+    MAX_INSTANCE_COUNT,
+    curvePositionTex,
+    curveColorTex,
+    controlPointCounts,
+    tArray
+  } = useMemo(() => {
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
     const MAX_INSTANCE_COUNT =
       lastData.settings.spacingType === 'pixel'
@@ -91,19 +100,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     mesh.position.set(...lastData.transform.translate.toArray(), 0)
     mesh.scale.set(...lastData.transform.scale.toArray(), 0)
     mesh.rotation.set(0, 0, lastData.transform.rotate)
-    return { mesh, material, MAX_INSTANCE_COUNT }
-  }, [builder])
-
-  const {
-    advanceControlPoints,
-    updateCurveLengths,
-    controlPointCounts,
-    curvePositionLoadU,
-    curveColorLoadU,
-    tArray
-  } = useMemo(() => {
-    const pixel = 1 / width
-    const totalSpace = lastData.settings.spacing + lastData.settings.gap
 
     const curvePositionTex = new StorageTexture(
       lastData.dimensions.x,
@@ -118,10 +114,30 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       new StorageBufferAttribute(new Int16Array(lastData.dimensions.y), 1),
       'int'
     )
+    const tArray = new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2)
+    return {
+      mesh,
+      material,
+      geometry,
+      MAX_INSTANCE_COUNT,
+      curvePositionTex,
+      curveColorTex,
+      controlPointCounts,
+      tArray
+    }
+  }, [])
+
+  const {
+    advanceControlPoints,
+    updateCurveLengths,
+    curvePositionLoadU,
+    curveColorLoadU
+  } = useMemo(() => {
+    const pixel = 1 / width
+    const totalSpace = lastData.settings.spacing + lastData.settings.gap
 
     const dimensionsU = uniform(lastData.dimensions, 'vec2')
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
-    const tArray = new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2)
     const tAttribute = storage(tArray, 'vec2', MAX_INSTANCE_COUNT)
 
     const pointI = instanceIndex.modInt(lastData.dimensions.x)
@@ -480,9 +496,24 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     }
   }, [builder])
 
+  const scene = useThree(({ scene }) => scene)
+  useEffect(() => {
+    if (rendering) {
+      scene.add(mesh)
+    }
+    return () => {
+      scene.remove(mesh)
+      mesh.dispose()
+      material.dispose()
+      geometry.dispose()
+      curvePositionTex.dispose()
+      curveColorTex.dispose()
+    }
+  }, [])
+
   return (
     <>
-      {rendering && <primitive object={mesh} />}
+      {/* {rendering && <primitive object={mesh} />} */}
       {/* <mesh position={[0.5, 0.5, 0]}>
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial map={sampleCurveLengthsTex} />

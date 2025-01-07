@@ -25,7 +25,9 @@ export class GroupBuilder {
   protected transforms: TransformData[] = []
   protected curves: PointBuilder[][] = []
   protected settings: GroupData['settings'] = {
-    maxLength: 1,
+    maxLength: 0,
+    maxCurves: 0,
+    maxPoints: 0,
     strength: 0,
     thickness: 1,
     color: [1, 1, 1],
@@ -177,9 +179,31 @@ export class GroupBuilder {
     return vector
   }
 
+  protected getLength(curve: PointBuilder[]) {
+    let length = 0
+    const testVec = new Vector2()
+    for (let i = 1; i < curve.length; i++) {
+      length += testVec.subVectors(curve[i], curve[i - 1]).length()
+    }
+    return length * 1.5 // estimation for Bezier curve
+  }
+
   protected packToTexture() {
-    const width = max(this.curves.flatMap(x => x.length))!
-    const height = this.curves.length
+    if (this.settings.maxPoints === 0) {
+      this.settings.maxPoints = max(this.curves.flatMap(x => x.length))!
+    }
+    if (this.settings.maxCurves === 0) {
+      this.settings.maxCurves = this.curves.length
+    }
+    if (this.settings.maxLength === 0) {
+      this.settings.maxLength = max(this.curves.map(x => this.getLength(x)))!
+    }
+    const width = this.settings.maxPoints
+    const maxCurves =
+      this.settings.maxCurves === 0
+        ? this.curves.length
+        : this.settings.maxCurves
+    const height = maxCurves
 
     const dimensions = new Vector2(width, height)
 
@@ -199,19 +223,22 @@ export class GroupBuilder {
 
     const positionTex = createTexture(
       new Float32Array(
-        this.curves.flatMap(c =>
-          range(width).flatMap(i => {
-            const point = c[i]
-            return point
-              ? [
-                  point.x,
-                  point.y,
-                  point.strength ?? this.settings.strength,
-                  point.thickness ?? this.settings.thickness
-                ]
-              : [-1111, 0, 0, 0]
-          })
-        )
+        range(height).flatMap(i => {
+          const c = this.curves[i]
+          return c
+            ? range(width).flatMap(i => {
+                const point = c[i]
+                return point
+                  ? [
+                      point.x,
+                      point.y,
+                      point.strength ?? this.settings.strength,
+                      point.thickness ?? this.settings.thickness
+                    ]
+                  : [-1111, 0, 0, 0]
+              })
+            : range(width).flatMap(() => [-1111, 0, 0, 0])
+        })
       ),
       RGBAFormat,
       LinearFilter
@@ -219,17 +246,20 @@ export class GroupBuilder {
 
     const colorTex = createTexture(
       new Float32Array(
-        this.curves.flatMap(c =>
-          range(width).flatMap(i => {
-            const point = c[i]
-            return point
-              ? [
-                  ...(point.color ?? this.settings.color),
-                  point.alpha ?? this.settings.alpha
-                ]
-              : [-1111, 0, 0, 0]
-          })
-        )
+        range(height).flatMap(i => {
+          const c = this.curves[i]
+          return c
+            ? range(width).flatMap(i => {
+                const point = c[i]
+                return point
+                  ? [
+                      ...(point.color ?? this.settings.color),
+                      point.alpha ?? this.settings.alpha
+                    ]
+                  : [-1111, 0, 0, 0]
+              })
+            : range(width).flatMap(() => [-1111, 0, 0, 0])
+        })
       ),
       RGBAFormat,
       LinearFilter
@@ -237,11 +267,14 @@ export class GroupBuilder {
 
     const countTex = createTexture(
       new Float32Array(
-        this.curves.flatMap(c =>
-          range(width).flatMap(i => {
-            return [c.length]
-          })
-        )
+        range(height).flatMap(i => {
+          const c = this.curves[i]
+          return c
+            ? range(width).flatMap(i => {
+                return [c.length]
+              })
+            : range(width).flatMap(() => [0])
+        })
       ),
       RedFormat,
       LinearFilter
@@ -253,10 +286,7 @@ export class GroupBuilder {
       countTex,
       dimensions,
       transform: this.toTransform(),
-      settings: {
-        ...this.settings,
-        maxLength: this.settings.maxLength + 0.01
-      }
+      settings: this.settings
     }
   }
 

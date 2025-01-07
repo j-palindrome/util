@@ -35,6 +35,8 @@ declare global {
     spacingType: 'count' | 'pixel' | 'width'
     recalculate: boolean | number | (() => number)
     maxLength: number
+    maxCurves: number
+    maxPoints: number
     pointVert: (input: ReturnType<typeof vec2>) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
