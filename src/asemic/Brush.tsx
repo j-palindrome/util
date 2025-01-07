@@ -428,9 +428,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         curvePositionLoadU.value = newData.positionTex
         curveColorLoadU.value = newData.colorTex
         gl.computeAsync(advanceControlPoints)
-        gl.computeAsync(updateCurveLengths).then(async () => {
-          console.log(new Float32Array(await gl.getArrayBufferAsync(tArray)))
-        })
+        gl.computeAsync(updateCurveLengths)
       })
 
     // if (newData.settings.spacingType === 'count' && rendering) {
