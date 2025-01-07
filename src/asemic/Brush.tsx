@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
   atan2,
+  Break,
   float,
   Fn,
   If,
@@ -12,6 +13,7 @@ import {
   ivec2,
   Loop,
   mix,
+  remap,
   Return,
   screenSize,
   storage,
@@ -70,11 +72,11 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
     const MAX_INSTANCE_COUNT =
       lastData.settings.spacingType === 'pixel'
-        ? (lastData.dimensions.y * lastData.settings.maxLength * width) /
-          totalSpace
+        ? lastData.dimensions.y *
+          ((lastData.settings.maxLength * width) / totalSpace)
         : lastData.settings.spacingType === 'width'
-          ? (lastData.dimensions.y * lastData.settings.maxLength * width) /
-            (totalSpace * width)
+          ? lastData.dimensions.y *
+            ((lastData.settings.maxLength * width) / (totalSpace * width))
           : lastData.settings.spacingType === 'count'
             ? lastData.dimensions.y * width
             : 0
@@ -95,14 +97,13 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   const {
     advanceControlPoints,
     updateCurveLengths,
-    tAttribute,
     controlPointCounts,
-    pixel,
-    dimensionsU,
-    curvePositionTex,
-    curveColorTex,
     curvePositionLoadU,
-    curveColorLoadU
+    curveColorLoadU,
+    tAttribute,
+    tArray,
+    // sampleCurveLengths,
+    sampleCurveLengthsTex
   } = useMemo(() => {
     const pixel = 1 / width
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
@@ -161,78 +162,157 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       undefined as any
     )
 
-    // TODO: compute the lengths before adding this together
-    const updateCurveLengths = /*#__PURE__*/ Fn(() => {
-      const generateSpacing = () => {
-        switch (lastData.settings.spacingType) {
-          case 'pixel':
-            return int(lastData.settings.maxLength * width).div(totalSpace)
-          case 'width':
-            return int(lastData.settings.maxLength * width).div(
-              int(float(totalSpace).mul(screenSize.x))
-            )
-          case 'count':
-            return int(totalSpace)
-        }
-      }
+    const sampleCurveLengthsTex = new StorageTexture(100, lastData.dimensions.y)
+    sampleCurveLengthsTex.type = THREE.FloatType
 
-      const instancesPerCurve = generateSpacing()
+    const getBezier = (pointProgress, curveProgress, controlPointsCount) => {
+      const p2 = textureLoadFix(
+        curvePositionTexU,
+        ivec2(pointProgress.add(2), curveProgress)
+      ).xy.toVar('p2')
+      const p0 = textureLoadFix(
+        curvePositionTexU,
+        ivec2(pointProgress, curveProgress)
+      ).xy.toVar('p0')
+      const p1 = textureLoadFix(
+        curvePositionTexU,
+        ivec2(pointProgress.add(1), curveProgress)
+      ).xy.toVar('p1')
+
+      If(pointProgress.greaterThan(float(1)), () => {
+        p0.assign(mix(p0, p1, float(0.5)))
+      })
+      If(pointProgress.lessThan(float(controlPointsCount).sub(3)), () => {
+        p2.assign(mix(p1, p2, 0.5))
+      })
+      const strength = textureLoadFix(
+        curvePositionTexU,
+        ivec2(pointProgress.add(1), curveProgress)
+      ).z.toVar('strength')
+      return bezierPoint({
+        t: pointProgress.fract(),
+        p0,
+        p1,
+        p2,
+        strength
+      })
+    }
+
+    // const sampleCurveLengths = Fn(() => {
+    //   const curveProgress = instanceIndex.div(100)
+    //   const pointProgress = instanceIndex.modInt(100).toFloat().div(100)
+    //   const controlPointsCount = controlPointCounts.element(curveProgress)
+
+    //   textureStore(
+    //     sampleCurveLengthsTex,
+    //     ivec2(instanceIndex.modInt(100), curveProgress),
+    //     thisPoint.position.xy
+    //   )
+    //   return undefined as any
+    // })().compute(lastData.dimensions.y * 100, undefined as any)
+
+    const generateSpacing = () => {
+      switch (lastData.settings.spacingType) {
+        case 'pixel':
+          return int(lastData.settings.maxLength * width).div(totalSpace)
+        case 'width':
+          return int(lastData.settings.maxLength * width).div(
+            int(float(totalSpace).mul(screenSize.x))
+          )
+        case 'count':
+          return int(totalSpace)
+      }
+    }
+
+    const instancesPerCurve = generateSpacing()
+
+    const updateCurveLengths = /*#__PURE__*/ Fn(() => {
       const curveProgress = instanceIndex.div(instancesPerCurve)
-      const pointProgress = instanceIndex
+      const controlPointsCount = controlPointCounts.element(curveProgress)
+      const targetLength = instanceIndex
         .modInt(instancesPerCurve)
         .toFloat()
         .div(instancesPerCurve.toFloat())
         .mul(lastData.settings.maxLength)
+      // .mul(lastData.settings.maxLength)
 
+      const found = float(0).toVar('found')
       const thisEnd = float(0).toVar('thisEnd')
+      const lastEnd = float(0).toVar('lastEnd')
       const lastPoint = vec2(0, 0).toVar('lastPoint')
       const thisPoint = vec2(0, 0).toVar('thisPoint')
       thisPoint.assign(
         textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
       )
       // calculate the curve length, then find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
+      const count = 101
       Loop(
         {
-          start: 1,
-          end: controlPointCounts.element(curveProgress),
-          // end: 3,
+          start: 0,
+          end: count,
           type: 'float'
         },
-        ({ i: j }) => {
+        ({ i }) => {
           lastPoint.assign(thisPoint)
+          const t = i.div(count).mul(controlPointsCount.sub(2))
           thisPoint.assign(
-            textureLoadFix(texture(curvePositionTex), ivec2(j, curveProgress))
-              .xy
-          )
+            getBezier(t, curveProgress, controlPointsCount).position
+          ).xy
+          // this is a U-mapping which this T should be remapped to
+          // pointProgress is the t-value which goes 0->maxLength
+          // calculate the LENGTH by summing up curves until you get to that pointProgress
+          // give the appropriate T at the length point we want
+          // he
+          lastEnd.assign(thisEnd)
           thisEnd.addAssign(thisPoint.sub(lastPoint).length())
+          If(thisEnd.greaterThanEqual(targetLength), () => {
+            const remapped = remap(targetLength, lastEnd, thisEnd, 0, 1)
+            found.assign(1)
+            tAttribute
+              .element(instanceIndex)
+              .assign(
+                vec2(
+                  i
+                    .sub(1)
+                    .add(remapped)
+                    .div(count)
+                    .mul(controlPointsCount.sub(2)),
+                  curveProgress
+                )
+              )
+            Break()
+          })
         }
       )
-      If(pointProgress.greaterThan(thisEnd), () => {
+      // If(thisEnd.greaterThanEqual(targetLength), () => {
+      //   found.assign(1)
+      //   tAttribute.element(instanceIndex).assign(
+      //     vec2(targetLength.mul(controlPointsCount.sub(2)), curveProgress)
+      //     // vec2(i.div(100).mul(controlPointsCount.sub(2)), curveProgress)
+      //   )
+      //   Break()
+      // })
+      // tAttribute.element(instanceIndex).assign(
+      //   vec2(
+      //     thisEnd
+      //       .div(lastData.settings.maxLength)
+      //       .mul(controlPointsCount.sub(2)),
+      //     curveProgress
+      //   )
+      // vec2(i.div(100).mul(controlPointsCount.sub(2)), curveProgress)
+      // )
+      // tAttribute
+      //   .element(instanceIndex)
+      //   .xy.assign(
+      //     vec2(targetLength.mul(controlPointsCount.sub(2)), curveProgress)
+      //   )
+      If(found.equal(0), () => {
         tAttribute.element(instanceIndex).xy.assign(vec2(-1, -1))
-      }).Else(() => {
-        tAttribute
-          .element(instanceIndex)
-          .xy.assign(vec2(pointProgress.div(thisEnd), curveProgress))
       })
 
       return undefined as any
     })().compute(MAX_INSTANCE_COUNT, undefined as any)
 
-    return {
-      advanceControlPoints,
-      updateCurveLengths,
-      tAttribute,
-      controlPointCounts,
-      pixel,
-      dimensionsU,
-      curvePositionTex,
-      curveColorTex,
-      curvePositionLoadU,
-      curveColorLoadU
-    }
-  }, [builder])
-
-  useMemo(() => {
     const rotation = float(0).toVar('rotation')
     const thickness = float(10).toVar('thickness')
     const curvePositionTexU = texture(curvePositionTex)
@@ -271,54 +351,52 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             thickness.assign(texture(curvePositionTex, textureVector).w)
           })
         }).Else(() => {
-          const pointProgress = multiBezierProgress({
-            t: t.x,
-            controlPointsCount
-          })
-          const tt = vec2(
-            // 2 points: 0.5-1.5
-            t.x.mul(controlPointsCount.sub(1)).add(0.5).div(dimensionsU.x),
-            t.y.add(0.5).div(dimensionsU.y)
-          )
-          const p0 = textureLoadFix(
-            curvePositionTexU,
-            ivec2(pointProgress.x, t.y)
-          ).xy.toVar('p0')
-          const p1 = textureLoadFix(
-            curvePositionTexU,
-            ivec2(pointProgress.x.add(1), t.y)
-          ).xy.toVar('p1')
+          const pointProgress = t.x
           const p2 = textureLoadFix(
             curvePositionTexU,
-            ivec2(pointProgress.x.add(2), t.y)
+            ivec2(pointProgress.add(2), t.y)
           ).xy.toVar('p2')
+
           If(p2.x.equal(-1111), () => {
             varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
           }).Else(() => {
-            const strength = textureLoadFix(
+            const p0 = textureLoadFix(
               curvePositionTexU,
-              ivec2(pointProgress.x.add(1), t.y)
-            ).z.toVar('strength')
+              ivec2(pointProgress, t.y)
+            ).xy.toVar('p0')
+            const p1 = textureLoadFix(
+              curvePositionTexU,
+              ivec2(pointProgress.add(1), t.y)
+            ).xy.toVar('p1')
 
-            varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
-            thickness.assign(texture(curvePositionTex, tt).w)
-
-            If(pointProgress.x.greaterThan(float(0)), () => {
+            If(pointProgress.greaterThan(float(1)), () => {
               p0.assign(mix(p0, p1, float(0.5)))
             })
-            If(
-              pointProgress.x.lessThan(float(controlPointsCount).sub(3)),
-              () => {
-                p2.assign(mix(p1, p2, 0.5))
-              }
-            )
+            If(pointProgress.lessThan(float(controlPointsCount).sub(3)), () => {
+              p2.assign(mix(p1, p2, 0.5))
+            })
+            const strength = textureLoadFix(
+              curvePositionTexU,
+              ivec2(pointProgress.add(1), t.y)
+            ).z.toVar('strength')
             const thisPoint = bezierPoint({
-              t: pointProgress.y,
+              t: pointProgress.fract(),
               p0,
               p1,
               p2,
               strength
             })
+            const tt = vec2(
+              // 2 points: 0.5-1.5
+              pointProgress
+                .div(controlPointsCount.sub(2))
+                .mul(controlPointsCount.sub(1))
+                .add(0.5)
+                .div(dimensionsU.x),
+              t.y.add(0.5).div(dimensionsU.y)
+            )
+            varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
+            thickness.assign(texture(curvePositionTex, tt).w)
             point.position.assign(thisPoint.position)
             point.rotation.assign(thisPoint.rotation)
           })
@@ -340,6 +418,18 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
 
     const colorV = varying(vec4(), 'colorV')
     material.colorNode = lastData.settings.pointFrag(colorV)
+
+    return {
+      advanceControlPoints,
+      updateCurveLengths,
+      controlPointCounts,
+      curvePositionLoadU,
+      curveColorLoadU,
+      tAttribute,
+      tArray,
+      // sampleCurveLengths,
+      sampleCurveLengthsTex
+    }
   }, [builder])
 
   let timeout: number
@@ -367,7 +457,11 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         curvePositionLoadU.value = newData.positionTex
         curveColorLoadU.value = newData.colorTex
         gl.computeAsync(advanceControlPoints)
-        gl.computeAsync(updateCurveLengths)
+        // gl.computeAsync(sampleCurveLengths).then(() => {
+        gl.computeAsync(updateCurveLengths).then(async () => {
+          console.log(new Float32Array(await gl.getArrayBufferAsync(tArray)))
+        })
+        // })
       })
 
     // if (newData.settings.spacingType === 'count' && rendering) {
@@ -419,5 +513,13 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     }
   }, [builder])
 
-  return <>{rendering && <primitive object={mesh} />}</>
+  return (
+    <>
+      {rendering && <primitive object={mesh} />}
+      {/* <mesh position={[0.5, 0.5, 0]}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial map={sampleCurveLengthsTex} />
+      </mesh> */}
+    </>
+  )
 }
