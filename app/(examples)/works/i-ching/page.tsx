@@ -1,16 +1,16 @@
 'use client'
-import Builder from '@/util/src/asemic/Builder'
+import GroupBuilder from '@/util/src/asemic/Builder'
 import { useInterval } from '@/util/src/dom'
 import { useState } from 'react'
 import Asemic from '@/util/src/asemic/Asemic'
 import Brush from '@/util/src/asemic/Brush'
 
-const yin = (b: Builder) =>
+const yin = (b: GroupBuilder) =>
   b
     .newCurve([0, 0], [0.4, 0])
     .newCurve([0.6, 0], [1, 0])
     .transform({ translate: [0, 1 / 6] })
-const yang = (b: Builder) =>
+const yang = (b: GroupBuilder) =>
   b.newCurve([0, 0], [1, 0]).transform({ translate: [0, 1 / 6] })
 const hexagram = (b, map: ('yin' | 'yang')[]) => {
   b.newGroup()
@@ -18,7 +18,10 @@ const hexagram = (b, map: ('yin' | 'yang')[]) => {
   return b
 }
 const days: {
-  asemic: [((b: Builder) => Builder)[], ((b: Builder) => Builder)[]]
+  asemic: [
+    ((b: GroupBuilder) => GroupBuilder)[],
+    ((b: GroupBuilder) => GroupBuilder)[]
+  ]
   poem: [string, string, string, string, string, string]
 }[] = [
   {

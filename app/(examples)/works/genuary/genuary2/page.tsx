@@ -1,8 +1,15 @@
 'use client'
 import Asemic from '@/util/src/asemic/Asemic'
-import { hash } from 'crypto'
 import { random } from 'lodash'
-import { mul, mx_noise_float, time, triNoise3D, vec2, vec3 } from 'three/tsl'
+import {
+  hash,
+  mul,
+  mx_noise_float,
+  time,
+  triNoise3D,
+  vec2,
+  vec3
+} from 'three/tsl'
 
 export default function Page() {
   return (
@@ -16,23 +23,28 @@ export default function Page() {
                 vec2(
                   0,
                   mx_noise_float(
-                    vec3(pointCurve, time.mul(0.25)),
-                    pointCurve.x.remap(0, 1, 0.25, 1),
-                    -0.5
+                    vec3(
+                      vec2(pointCurve.x, hash(pointCurve.y.mul(183)).mul(2910)),
+                      time.mul(0.2)
+                    ),
+                    pointCurve.x.remap(0, 1, 0.25, 0.5),
+                    -0.25
                   ).mul(aspectRatio)
                 )
               ),
+            // input,
             maxLength: 2,
-            spacing: 5,
-            thickness: 50,
-            alpha: 0.2
+            spacing: 200,
+            spacingType: 'count',
+            thickness: 1500,
+            alpha: 0.002
           })
           .repeat(c => {
             b.newCurve()
             b.repeat((p, i) => {
-              b.newPoints([-p, 0])
+              b.newPoints([p, -1])
             }, 8)
-          }, 10)
+          }, 200)
           .debug()
       }
     />

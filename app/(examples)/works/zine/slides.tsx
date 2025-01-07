@@ -1,7 +1,7 @@
-import Builder from '@/util/src/asemic/Builder'
+import GroupBuilder from '@/util/src/asemic/Builder'
 
 export const slides: {
-  asemic?: ((b: Builder) => Builder)[]
+  asemic?: ((b: GroupBuilder) => GroupBuilder)[]
   slide?: JSX.Element
 }[] = [
   {},
