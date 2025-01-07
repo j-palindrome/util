@@ -34,7 +34,7 @@ export const lineTangent = (
   p0: ReturnType<typeof vec2>,
   p1: ReturnType<typeof vec2>
 ) => {
-  return rotate2d(p0.sub(p1), 0.25)
+  return rotate2d(p1.sub(p0), 0.25)
 }
 
 export const bezier2Tangent = ({

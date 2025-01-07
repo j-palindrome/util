@@ -81,7 +81,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             ? lastData.dimensions.y * width
             : 0
     const geometry = new THREE.PlaneGeometry()
-    geometry.translate(-0.5, -0.5, 0)
+    geometry.translate(0.5, 0.5, 0)
     const material = new SpriteNodeMaterial({
       transparent: true,
       depthWrite: false,
@@ -100,10 +100,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     controlPointCounts,
     curvePositionLoadU,
     curveColorLoadU,
-    tAttribute,
-    tArray,
-    // sampleCurveLengths,
-    sampleCurveLengthsTex
+    tArray
   } = useMemo(() => {
     const pixel = 1 / width
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
@@ -198,19 +195,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       })
     }
 
-    // const sampleCurveLengths = Fn(() => {
-    //   const curveProgress = instanceIndex.div(100)
-    //   const pointProgress = instanceIndex.modInt(100).toFloat().div(100)
-    //   const controlPointsCount = controlPointCounts.element(curveProgress)
-
-    //   textureStore(
-    //     sampleCurveLengthsTex,
-    //     ivec2(instanceIndex.modInt(100), curveProgress),
-    //     thisPoint.position.xy
-    //   )
-    //   return undefined as any
-    // })().compute(lastData.dimensions.y * 100, undefined as any)
-
     const generateSpacing = () => {
       switch (lastData.settings.spacingType) {
         case 'pixel':
@@ -259,7 +243,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         thisPoint.assign(
           textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
         )
-        // calculate the curve length, then find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
+        // Find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
         const count = controlPointsCount.mul(6)
         Loop(
           {
@@ -415,10 +399,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       controlPointCounts,
       curvePositionLoadU,
       curveColorLoadU,
-      tAttribute,
-      tArray,
-      // sampleCurveLengths,
-      sampleCurveLengthsTex
+      tArray
     }
   }, [builder])
 
@@ -447,11 +428,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         curvePositionLoadU.value = newData.positionTex
         curveColorLoadU.value = newData.colorTex
         gl.computeAsync(advanceControlPoints)
-        // gl.computeAsync(sampleCurveLengths).then(() => {
         gl.computeAsync(updateCurveLengths).then(async () => {
           console.log(new Float32Array(await gl.getArrayBufferAsync(tArray)))
         })
-        // })
       })
 
     // if (newData.settings.spacingType === 'count' && rendering) {
