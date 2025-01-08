@@ -1,12 +1,13 @@
 'use client'
 import Asemic from '@/util/src/asemic/Asemic'
 import { randomString } from '@/util/src/strings/strings'
-import { range } from 'lodash'
+import { range, sample } from 'lodash'
 import { mx_noise_float } from 'three/src/nodes/TSL.js'
 import { time, vec2, vec3, vec4 } from 'three/tsl'
 
 export default function Page() {
-  const strings = range(42).map(x => randomString(42))
+  const sampleString = 'abcdefghijklmnopqrstuvwxyz   '.split('')
+  const strings = range(42).map(() => range(42).map(() => sample(sampleString)))
   return (
     <Asemic
       dimensions={[1080, 1920]}
@@ -32,21 +33,19 @@ export default function Page() {
         b.repeat(
           (p, i) =>
             b.newGroup(g => {
-              let newString = strings[i].split('')
-              for (let i = 0; i < 3; i++) {
-                newString[Math.floor(Math.random() * strings[i].length)] =
-                  'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]
+              for (let j = 0; j < 3; j++) {
+                strings[i][Math.floor(Math.random() * strings[i].length)] =
+                  sample(sampleString)
               }
-              strings[i] = newString.join('')
               g.transform({
                 translate: [0, (g.h * p * 41) / 42 + g.h / 42 / 2],
                 scale: 1 / 32
               })
-                .text(strings[i])
+                .text(strings[i].join(''))
                 .set({
-                  spacing: 1,
-                  recalculate: 100,
-                  maxLength: 0.1
+                  spacing: 3,
+                  recalculate: true,
+                  maxCurves: 42 * 1.75
                 })
             }),
           42

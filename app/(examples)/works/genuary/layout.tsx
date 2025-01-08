@@ -1,4 +1,4 @@
-import './tailwind.css'
+import '../../tailwind.css'
 
 export const metadata = {
   title: 'Next.js',
