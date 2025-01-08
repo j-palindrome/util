@@ -23,14 +23,12 @@ export class GroupBuilder {
   protected randomTable?: number[]
   protected transformData: TransformData = this.toTransform()
   protected transforms: TransformData[] = []
-  protected data: PointBuilder[][] = []
+  protected curves: PointBuilder[][] = []
   protected settings: GroupData['settings'] = {
     maxLength: 0,
-    resample: true,
     maxCurves: 0,
     maxPoints: 0,
     strength: 0,
-    align: 0.5,
     thickness: 1,
     color: [1, 1, 1],
     alpha: 1,
@@ -56,16 +54,16 @@ export class GroupBuilder {
   }
 
   getPoint(index: number = -1, curve: number = -1) {
-    if (curve < 0) curve += this.data.length
-    if (index < 0) index += this.data[curve].length
-    return this.fromPoint(this.data[curve][index])
+    if (curve < 0) curve += this.curves.length
+    if (index < 0) index += this.curves[curve].length
+    return this.fromPoint(this.curves[curve][index])
   }
 
   getIntersect(progress: number, curve: number = -1) {
-    if (curve < 0) curve += this.data.length
+    if (curve < 0) curve += this.curves.length
     if (progress < 0) progress += 1
 
-    const curvePath = this.makeCurvePath(this.data[curve])
+    const curvePath = this.makeCurvePath(this.curves[curve])
     return this.fromPoint(curvePath.getPointAt(progress))
   }
 
@@ -193,17 +191,19 @@ export class GroupBuilder {
 
   protected packToTexture() {
     if (this.settings.maxPoints === 0) {
-      this.settings.maxPoints = max(this.data.flatMap(x => x.length))!
+      this.settings.maxPoints = max(this.curves.flatMap(x => x.length))!
     }
     if (this.settings.maxCurves === 0) {
-      this.settings.maxCurves = this.data.length
+      this.settings.maxCurves = this.curves.length
     }
     if (this.settings.maxLength === 0) {
-      this.settings.maxLength = max(this.data.map(x => this.getLength(x)))!
+      this.settings.maxLength = max(this.curves.map(x => this.getLength(x)))!
     }
     const width = this.settings.maxPoints
     const maxCurves =
-      this.settings.maxCurves === 0 ? this.data.length : this.settings.maxCurves
+      this.settings.maxCurves === 0
+        ? this.curves.length
+        : this.settings.maxCurves
     const height = maxCurves
 
     const dimensions = new Vector2(width, height)
@@ -225,7 +225,7 @@ export class GroupBuilder {
     const positionTex = createTexture(
       new Float32Array(
         range(height).flatMap(i => {
-          const c = this.data[i]
+          const c = this.curves[i]
           return c
             ? range(width).flatMap(i => {
                 const point = c[i]
@@ -248,7 +248,7 @@ export class GroupBuilder {
     const colorTex = createTexture(
       new Float32Array(
         range(height).flatMap(i => {
-          const c = this.data[i]
+          const c = this.curves[i]
           return c
             ? range(width).flatMap(i => {
                 const point = c[i]
@@ -269,7 +269,7 @@ export class GroupBuilder {
     const countTex = createTexture(
       new Float32Array(
         range(height).flatMap(i => {
-          const c = this.data[i]
+          const c = this.curves[i]
           return c
             ? range(width).flatMap(i => {
                 return [c.length]
@@ -414,7 +414,7 @@ export class GroupBuilder {
       scale: scalePoint,
       rotate: rotatePoint
     })
-    this.data.flat().forEach(p => {
+    this.curves.flat().forEach(p => {
       this.applyTransform(p, transform)
     })
 
@@ -464,7 +464,7 @@ export class GroupBuilder {
   debug() {
     console.log(
       `
-${this.data
+${this.curves
   .map(c =>
     c
       .map(
@@ -514,7 +514,7 @@ ${this.data
   }
 
   protected lastCurve(callback: (curve: PointBuilder[]) => void, curves = 1) {
-    callback(this.data[this.data.length - curves])
+    callback(this.curves[this.curves.length - curves])
     return this
   }
 
@@ -522,7 +522,9 @@ ${this.data
     callback: (curves: PointBuilder[][]) => void,
     curves: number
   ) {
-    let newCurves: PointBuilder[][] = this.data.slice(this.data.length - curves)
+    let newCurves: PointBuilder[][] = this.curves.slice(
+      this.curves.length - curves
+    )
     callback(newCurves)
   }
 
@@ -550,8 +552,8 @@ ${this.data
     return first + (second - first) * (i % 1)
   }
 
-  curvesBlank(pointCount: number, curveCount: number) {
-    this.data.push(
+  newCurvesBlank(curveCount: number, pointCount: number) {
+    this.curves.push(
       ...range(curveCount).map(() =>
         range(pointCount).map(() => new PointBuilder())
       )
@@ -559,32 +561,20 @@ ${this.data
     return this
   }
 
-  curves(
-    count: number,
-    generate: ({
-      progress,
-      index
-    }: {
-      progress: number
-      index: number
-    }) => (Coordinate | PointBuilder)[]
-  ) {
+  newCurves(count: number, ...points: (Coordinate | PointBuilder)[]) {
+    const curve = this.toPoints(...points)
     for (let i = 0; i < count; i++) {
-      this.data.push(
-        generate({ progress: i / (count - 1 || 1), index: i }).map(x =>
-          this.toPoint(x)
-        )
-      )
+      this.curves.push(curve.map(x => x.clone()))
     }
     return this
   }
 
-  curve(...points: (Coordinate | PointBuilder)[]) {
-    this.data.push(this.toPoints(...points))
+  newCurve(...points: (Coordinate | PointBuilder)[]) {
+    this.curves.push(this.toPoints(...points))
     return this
   }
 
-  points(...points: (Coordinate | PointBuilder)[]) {
+  newPoints(...points: (Coordinate | PointBuilder)[]) {
     return this.lastCurve(c => c.push(...this.toPoints(...points)))
   }
 
@@ -646,14 +636,14 @@ ${this.data
     ' ': () => this.transform({ translate: [0.5, 0], push: true }),
     '\t': () => this.transform({ translate: [2, 0], push: true }),
     a: () =>
-      this.curve([1, 1], [0.5, 1.3], [0, 0.5], [0.5, -0.3], [1, 0])
-        .curve([0, 1, { translate: [1, 0] }], [-0.1, 0.5], [0, -0.3])
+      this.newCurve([1, 1], [0.5, 1.3], [0, 0.5], [0.5, -0.3], [1, 0])
+        .newCurve([0, 1, { translate: [1, 0] }], [-0.1, 0.5], [0, -0.3])
         .slide(0.1)
         .within([0, 0, { reset: 'pop' }], [0.5, 0.6], 2)
         .transform({ translate: [0.5, 0] }),
     b: () =>
-      this.curve([0, 1], [0, 0])
-        .curve(
+      this.newCurve([0, 1], [0, 0])
+        .newCurve(
           [0, 1, { scale: [0.5, 0.5] }],
           [0.5, 1.1],
           [1, 0.5],
@@ -663,7 +653,7 @@ ${this.data
         .within([0, 0, { reset: 'pop' }], [0.5, 1], 2)
         .transform({ translate: [0.5, 0] }),
     c: () =>
-      this.curve(
+      this.newCurve(
         [1, 0.75, { scale: [0.5, 0.5] }],
         [0.9, 1],
         [0, 1],
@@ -674,8 +664,8 @@ ${this.data
         .within([0, 0, { reset: 'pop' }], [0.5, 0.5], 1)
         .transform({ translate: [0.5, 0] }),
     d: () =>
-      this.curve([1, 1], [1, 0])
-        .curve(
+      this.newCurve([1, 1], [1, 0])
+        .newCurve(
           [0, 1, { scale: [-0.5, 0.5], translate: [1, 0] }],
           [0.5, 1.1],
           [1, 0.5],
@@ -685,29 +675,36 @@ ${this.data
         .within([0, 0, { reset: 'pop' }], [0.5, 1], 2)
         .transform({ translate: [0.5, 0] }),
     e: () =>
-      this.curve([0, 0.5], [1, 0.5])
-        .curve([1, 0.5], [1, 1], [0, 1], [0, 0], [0.9, 0], [1, 0.2])
+      this.newCurve([0, 0.5], [1, 0.5])
+        .newCurve([1, 0.5], [1, 1], [0, 1], [0, 0], [0.9, 0], [1, 0.2])
         .within([0, 0, { reset: 'pop' }], [0.5, 0.5], 2)
         .transform({ translate: [0.5, 0] }),
     f: () =>
-      this.curve([0, 0], [0, 1 / 2], [0, 1], [1 / 2, 1], [1 / 2, 0.75])
-        .curve([0, 1 / 2], [1 / 2, 1 / 2])
+      this.newCurve([0, 0], [0, 1 / 2], [0, 1], [1 / 2, 1], [1 / 2, 0.75])
+        .newCurve([0, 1 / 2], [1 / 2, 1 / 2])
         .slide(1 / 4)
         .within([0, 0, { reset: 'pop' }], [1 / 2, 1], 2)
         .transform({ translate: [0.35, 0] }),
     g: () =>
-      this.curve([0.5, 0.5], [0.5, 0], [0, 0], [0, 0.5], [0.3, 0.6], [0.5, 0.5])
-        .curve([0.5, 0.5], [0.5, 0], [0.5, -0.5], [0, -0.5], [0.05, -0.25])
+      this.newCurve(
+        [0.5, 0.5],
+        [0.5, 0],
+        [0, 0],
+        [0, 0.5],
+        [0.3, 0.6],
+        [0.5, 0.5]
+      )
+        .newCurve([0.5, 0.5], [0.5, 0], [0.5, -0.5], [0, -0.5], [0.05, -0.25])
         .within([0, -0.5], [0.5, 0.5], 2)
         .transform({ translate: [0.5, 0] }),
     h: () =>
-      this.curve([0, 0], [0, 1])
-        .curve([0, 0.6, { scale: [0.5, 0.7] }], [1, 1], [1, 0])
+      this.newCurve([0, 0], [0, 1])
+        .newCurve([0, 0.6, { scale: [0.5, 0.7] }], [1, 1], [1, 0])
         .transform({ translate: [0.5, 0], reset: 'pop' }),
     i: () =>
       this.transform({ translate: [0.2, 0], push: true })
-        .curve([0, 0], [0, 1, { scale: [1, 0.5] }])
-        .curve(
+        .newCurve([0, 0], [0, 1, { scale: [1, 0.5] }])
+        .newCurve(
           [0, 0, { reset: 'last', translate: [0, 0.52], scale: 0.05 / 0.5 }],
           [-1, 0],
           [-1, 1],
@@ -718,14 +715,14 @@ ${this.data
         .transform({ translate: [0.2, 0], reset: 'last' }),
     j: () =>
       this.transform({ translate: [-0.25, 0], push: true })
-        .curve(
+        .newCurve(
           [0, 0, { translate: [1 - 0.4, 1], scale: [0.7, 1], rotate: 0.05 }],
           [0, -1],
           [-1, -1],
           [-1, -0.5]
         )
         .transform({ rotate: -0.05 })
-        .curve(
+        .newCurve(
           [
             0,
             0,
@@ -743,25 +740,25 @@ ${this.data
         .within([0, -0.5, { reset: 'pop' }], [0.5, 0.5], 2)
         .transform({ translate: [0.25, 0], reset: 'pop' }),
     k: () =>
-      this.curve([0, 1], [0, 0])
-        .curve(
+      this.newCurve([0, 1], [0, 0])
+        .newCurve(
           [0, 0, { translate: this.getIntersect(0.6), push: true }],
           [0.3, 0, { rotate: 0.15 }]
         )
-        .curve([0, 0, { reset: 'pop' }], [0.3, 0, { reset: 'pop' }])
+        .newCurve([0, 0, { reset: 'pop' }], [0.3, 0, { reset: 'pop' }])
         .within([0, 0], [0.5, 1], 3)
         .transform({ translate: [0.5, 0] }),
     l: () =>
-      this.curve([0, 1], [0, 0.2], [0, 0], [0.1, 0]).transform({
+      this.newCurve([0, 1], [0, 0.2], [0, 0], [0.1, 0]).transform({
         translate: [0.2, 0],
         reset: 'pop'
       }),
     m: () =>
-      this.curve([0, 0, { scale: [0.5, 0.5] }], [0, 1], [1, 1], [1, 0])
-        .curve([0, 0, { translate: [1, 0] }], [0, 1], [1, 1], [1, 0])
+      this.newCurve([0, 0, { scale: [0.5, 0.5] }], [0, 1], [1, 1], [1, 0])
+        .newCurve([0, 0, { translate: [1, 0] }], [0, 1], [1, 1], [1, 0])
         .transform({ translate: [1, 0], reset: 'pop' }),
     n: () =>
-      this.curve(
+      this.newCurve(
         [0, 0, { scale: [0.5, 0.5] }],
         [0, 1],
         [1, 1],
@@ -771,7 +768,7 @@ ${this.data
         reset: 'pop'
       }),
     o: () =>
-      this.curve(
+      this.newCurve(
         [0, 0, { translate: [0.25, 0], scale: 0.5 }],
         [-0.5, 0],
         [-0.5, 1],
@@ -780,8 +777,8 @@ ${this.data
         [0, 0]
       ).transform({ reset: 'pop', translate: [0.5, 0] }),
     p: () =>
-      this.curve([0, 0, { translate: [0, -0.5] }], [0, 1])
-        .curve(
+      this.newCurve([0, 0, { translate: [0, -0.5] }], [0, 1])
+        .newCurve(
           [0, 1, { reset: 'last', scale: 0.5 }],
           [1, 1.3],
           [1, -0.3],
@@ -790,12 +787,12 @@ ${this.data
         .within([0, -0.5, { reset: 'pop' }], [0.5, 0.5], 2)
         .transform({ translate: [0.5, 0] }),
     q: () =>
-      this.curve(
+      this.newCurve(
         [0, 1, { translate: [0, -0.5], push: true }],
         [0, 0, { strength: 1 }],
         [0.2, 0, { rotate: 0.15 }]
       )
-        .curve(
+        .newCurve(
           [0, 1, { reset: 'pop', scale: [0.5, 0.5], translate: [0, 0.5] }],
           [-1, 1.3],
           [-1, -0.3],
@@ -804,15 +801,15 @@ ${this.data
         .within([0, -0.5, { reset: 'pop' }], [0.5, 0.5], 2)
         .transform({ translate: [0.5, 0] }),
     r: () =>
-      this.curve([0, 0], [0, 0.5])
-        .curve(
+      this.newCurve([0, 0], [0, 0.5])
+        .newCurve(
           [0, 0, { translate: this.getIntersect(0.9) }],
           [0.25, 0.1],
           [0.5, 0]
         )
         .transform({ translate: [0.5, 0], reset: 'pop' }),
     s: () =>
-      this.curve(
+      this.newCurve(
         [0.5, 1, { translate: [-0.1, 0], push: true }],
         [0.2, 1],
         [0.2, 0.6],
@@ -824,25 +821,25 @@ ${this.data
         .within([0, 0, { reset: 'pop' }], [0.5, 0.5], 1)
         .transform({ translate: [0.45, 0], reset: 'pop' }),
     t: () =>
-      this.curve([0, 0], [0, 1])
-        .curve([0, 0, { translate: [0, 0.65], scale: [0.4, 1] }], [1, 0])
+      this.newCurve([0, 0], [0, 1])
+        .newCurve([0, 0, { translate: [0, 0.65], scale: [0.4, 1] }], [1, 0])
         .slide(0.5)
         .transform({ translate: [0.2, 0], reset: 'pop' }),
     u: () =>
-      this.curve(
+      this.newCurve(
         [0, 0, { translate: [0, 0.5], scale: [0.5, 0.5] }],
         [0, -1],
         [1, -1],
         [1, 0]
       ).transform({ translate: [0.5, 0], reset: 'pop' }),
     v: () =>
-      this.curve(
+      this.newCurve(
         [0, 0, { translate: [0, 0.5], scale: [0.5, 0.5] }],
         [0.5, -1, { strength: 1 }],
         [1, 0]
       ).transform({ translate: [0.5, 0], reset: 'pop' }),
     w: () =>
-      this.curve(
+      this.newCurve(
         [0, 0.5, { scale: [0.7, 1], strength: 1 }],
         [0.25, 0, { strength: 1 }],
         [0.5, 0.5, { strength: 1 }],
@@ -850,15 +847,18 @@ ${this.data
         [1, 0.5, { strength: 1 }]
       ).transform({ translate: [0.7, 0], reset: 'pop' }),
     x: () =>
-      this.curve([1, 1, { translate: [0.25, 0.25], scale: 0.25 }], [-1, -1])
-        .curve([-1, 1], [1, -1])
+      this.newCurve([1, 1, { translate: [0.25, 0.25], scale: 0.25 }], [-1, -1])
+        .newCurve([-1, 1], [1, -1])
         .transform({ translate: [0.5, 0], reset: 'pop' }),
     y: () =>
-      this.curve([0, -1, { scale: [0.5, 0.5], translate: [-0.05, 0] }], [1, 1])
-        .curve([0.5, 0], [0, 1])
+      this.newCurve(
+        [0, -1, { scale: [0.5, 0.5], translate: [-0.05, 0] }],
+        [1, 1]
+      )
+        .newCurve([0.5, 0], [0, 1])
         .transform({ translate: [0.55, 0], reset: 'pop' }),
     z: () =>
-      this.curve(
+      this.newCurve(
         [0, 1, { scale: 0.5 }],
         [1, 1, { strength: 1 }],
         [0, 0, { strength: 1 }],
@@ -877,7 +877,7 @@ ${this.data
 
   reInitialize(resolution: Vector2) {
     this.reset(true)
-    this.data = []
+    this.curves = []
     this.h = resolution.y / resolution.x
     this.initialize(this)
     return this.packToTexture()
@@ -892,7 +892,7 @@ ${this.data
 export default class Builder {
   groups: GroupBuilder[] = []
 
-  group(render: (g: GroupBuilder) => GroupBuilder | void) {
+  newGroup(render: (g: GroupBuilder) => GroupBuilder | void) {
     this.groups.push(new GroupBuilder(render))
     return this
   }
