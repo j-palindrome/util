@@ -34,6 +34,7 @@ declare global {
   type ProcessData = {
     spacingType: 'count' | 'pixel' | 'width'
     recalculate: boolean | number | (() => number)
+    update: boolean
     maxLength: number
     maxCurves: number
     maxPoints: number

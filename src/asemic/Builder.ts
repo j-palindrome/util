@@ -36,6 +36,7 @@ export class GroupBuilder {
     gap: 0,
     recalculate: false,
     spacingType: 'pixel',
+    update: false,
     pointVert: input => input,
     pointFrag: input => input,
     curveVert: input => input,
@@ -628,6 +629,7 @@ ${this.curves
 
   set(settings: Partial<GroupBuilder['settings']>) {
     Object.assign(this.settings, settings)
+    return this
   }
 
   protected letters: Record<string, () => GroupBuilder> = {
@@ -864,7 +866,7 @@ ${this.curves
       ).transform({ translate: [0.5, 0], reset: 'pop' })
   }
 
-  repeat(func: (progress: number, index: number) => void, runCount = 1) {
+  repeat(runCount: number, func: (progress: number, index: number) => void) {
     const div = runCount - 1
     for (let i = 0; i < runCount; i++) {
       func(i / (div || 1), i)
@@ -895,7 +897,7 @@ export default class Builder {
     return this
   }
 
-  repeat(func: (progress: number, index: number) => void, runCount = 1) {
+  repeat(runCount: number, func: (progress: number, index: number) => void) {
     const div = runCount - 1
     for (let i = 0; i < runCount; i++) {
       func(i / (div || 1), i)

@@ -90,7 +90,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             ? lastData.dimensions.y * width
             : 0
     const geometry = new THREE.PlaneGeometry()
-    geometry.translate(0.5, 0.5, 0)
+    geometry.translate(0, 0.5, 0)
     const material = new SpriteNodeMaterial({
       transparent: true,
       depthWrite: false,
@@ -487,9 +487,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       timeout = window.setTimeout(reInitialize, waitTime)
     }
 
-    // if (rendering) {
-    //   updating = requestAnimationFrame(update)
-    // }
+    if (rendering && lastData.settings.update) {
+      updating = requestAnimationFrame(update)
+    }
     return () => {
       clearTimeout(timeout)
       cancelAnimationFrame(updating)
