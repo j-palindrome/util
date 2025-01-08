@@ -16,6 +16,7 @@ import {
   remap,
   Return,
   screenSize,
+  select,
   storage,
   texture,
   textureLoad,
@@ -90,7 +91,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             ? lastData.dimensions.y * width
             : 0
     const geometry = new THREE.PlaneGeometry()
-    geometry.translate(0, 0.5, 0)
+    geometry.translate(lastData.settings.align - 0.5, 0.5, 0)
     const material = new SpriteNodeMaterial({
       transparent: true,
       depthWrite: false,
@@ -227,8 +228,12 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     const instancesPerCurve = generateSpacing()
 
     const updateCurveLengths = /*#__PURE__*/ Fn(() => {
-      const curveProgress = instanceIndex.div(instancesPerCurve)
-      const controlPointsCount = controlPointCounts.element(curveProgress)
+      const curveProgress = instanceIndex
+        .div(instancesPerCurve)
+        .toVar('curveProgress')
+      const controlPointsCount = controlPointCounts
+        .element(curveProgress)
+        .toVar('controlPointsCount')
       const found = float(0).toVar('found')
       const targetLength = instanceIndex
         .modInt(instancesPerCurve)
@@ -252,7 +257,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             .assign(vec2(targetLength.div(totalLength), curveProgress))
         })
       }).Else(() => {
-        const thisEnd = float(0).toVar('thisEnd')
+        const totalLength = float(0).toVar('totalLength')
         const lastEnd = float(0).toVar('lastEnd')
         const lastPoint = vec2(0, 0).toVar('lastPoint')
         const thisPoint = vec2(0, 0).toVar('thisPoint')
@@ -260,7 +265,12 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
           textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
         )
         // Find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
-        const count = controlPointsCount.mul(6)
+        const resample = int(lastData.settings.resample ? 1 : 0)
+        const count = select(
+          resample.equal(1),
+          controlPointsCount.mul(6).mul(lastData.settings.maxLength),
+          controlPointsCount.mul(lastData.settings.maxLength)
+        ).toVar('count')
         Loop(
           {
             start: 1,
@@ -273,15 +283,17 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             thisPoint.assign(
               getBezier(t, curveProgress, controlPointsCount).position
             ).xy
-            lastEnd.assign(thisEnd)
-            thisEnd.addAssign(thisPoint.sub(lastPoint).length())
-            If(thisEnd.greaterThanEqual(targetLength), () => {
-              const remapped = remap(targetLength, lastEnd, thisEnd, 0, 1)
-              found.assign(1)
-              tAttribute
-                .element(instanceIndex)
-                .assign(
+            lastEnd.assign(totalLength)
+            totalLength.addAssign(thisPoint.sub(lastPoint).length())
+            If(
+              totalLength.greaterThanEqual(targetLength) && resample.equal(1),
+              () => {
+                const remapped = remap(targetLength, lastEnd, totalLength, 0, 1)
+                found.assign(1)
+                tAttribute.element(instanceIndex).assign(
                   vec2(
+                    // targetLength
+                    //   .div(lastData.settings.maxLength)
                     i
                       .sub(1)
                       .add(remapped)
@@ -290,10 +302,22 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
                     curveProgress
                   )
                 )
-              Break()
-            })
+                Break()
+              }
+            )
           }
         )
+        If(resample.equal(0) && targetLength.lessThanEqual(totalLength), () => {
+          found.assign(1)
+          tAttribute
+            .element(instanceIndex)
+            .assign(
+              vec2(
+                targetLength.div(totalLength).mul(controlPointsCount.sub(2)),
+                curveProgress
+              )
+            )
+        })
       })
 
       If(found.equal(0), () => {
