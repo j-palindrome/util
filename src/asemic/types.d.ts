@@ -35,9 +35,13 @@ declare global {
     spacingType: 'count' | 'pixel' | 'width'
     recalculate: boolean | number | (() => number)
     update: boolean
+    align: number
+    resample: boolean
     maxLength: number
     maxCurves: number
     maxPoints: number
+    pointScale: (input: ReaturnType<typeof vec2>) => input
+    pointRotate: (input: ReturnType<typeof float>) => input
     pointVert: (input: ReturnType<typeof vec2>) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}

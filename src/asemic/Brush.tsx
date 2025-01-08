@@ -90,7 +90,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             ? lastData.dimensions.y * width
             : 0
     const geometry = new THREE.PlaneGeometry()
-    geometry.translate(0, 0.5, 0)
+    geometry.translate(lastData.settings.align - 0.5, 0.5, 0)
     const material = new SpriteNodeMaterial({
       transparent: true,
       depthWrite: false,
@@ -235,6 +235,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         .toFloat()
         .div(instancesPerCurve.toFloat())
         .mul(lastData.settings.maxLength)
+      const totalLength = float(0).toVar('totalLength')
       If(controlPointsCount.equal(2), () => {
         const p0 = textureLoadFix(
           texture(curvePositionTex),
@@ -244,15 +245,16 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
           texture(curvePositionTex),
           ivec2(1, curveProgress)
         ).xy
-        const totalLength = p1.sub(p0).length()
-        If(totalLength.greaterThanEqual(targetLength), () => {
-          found.assign(1)
-          tAttribute
-            .element(instanceIndex)
-            .assign(vec2(targetLength.div(totalLength), curveProgress))
-        })
+        totalLength.assign(p1.sub(p0).length())
+        if (lastData.settings.resample) {
+          If(totalLength.greaterThanEqual(targetLength), () => {
+            found.assign(1)
+            tAttribute
+              .element(instanceIndex)
+              .assign(vec2(targetLength.div(totalLength), curveProgress))
+          })
+        }
       }).Else(() => {
-        const thisEnd = float(0).toVar('thisEnd')
         const lastEnd = float(0).toVar('lastEnd')
         const lastPoint = vec2(0, 0).toVar('lastPoint')
         const thisPoint = vec2(0, 0).toVar('thisPoint')
@@ -260,7 +262,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
           textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
         )
         // Find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
-        const count = controlPointsCount.mul(6)
+        const count = controlPointsCount.mul(6).mul(lastData.settings.maxLength)
         Loop(
           {
             start: 1,
@@ -273,27 +275,42 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             thisPoint.assign(
               getBezier(t, curveProgress, controlPointsCount).position
             ).xy
-            lastEnd.assign(thisEnd)
-            thisEnd.addAssign(thisPoint.sub(lastPoint).length())
-            If(thisEnd.greaterThanEqual(targetLength), () => {
-              const remapped = remap(targetLength, lastEnd, thisEnd, 0, 1)
-              found.assign(1)
-              tAttribute
-                .element(instanceIndex)
-                .assign(
-                  vec2(
-                    i
-                      .sub(1)
-                      .add(remapped)
-                      .div(count)
-                      .mul(controlPointsCount.sub(2)),
-                    curveProgress
+            lastEnd.assign(totalLength)
+            totalLength.addAssign(thisPoint.sub(lastPoint).length())
+            if (lastData.settings.resample) {
+              If(totalLength.greaterThanEqual(targetLength), () => {
+                const remapped = remap(targetLength, lastEnd, totalLength, 0, 1)
+                found.assign(1)
+                tAttribute
+                  .element(instanceIndex)
+                  .assign(
+                    vec2(
+                      i
+                        .sub(1)
+                        .add(remapped)
+                        .div(count)
+                        .mul(controlPointsCount.sub(2)),
+                      curveProgress
+                    )
                   )
-                )
-              Break()
-            })
+                Break()
+              })
+            }
           }
         )
+        if (!lastData.settings.resample) {
+          If(totalLength.greaterThanEqual(targetLength), () => {
+            found.assign(1)
+            tAttribute
+              .element(instanceIndex)
+              .assign(
+                vec2(
+                  targetLength.div(totalLength).mul(controlPointsCount.sub(2)),
+                  curveProgress
+                )
+              )
+          })
+        }
       })
 
       If(found.equal(0), () => {
@@ -392,7 +409,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
           })
         })
 
-        rotation.assign(vec3(point.rotation, 0, 0))
+        rotation.assign(
+          vec3(lastData.settings.pointRotate(point.rotation), 0, 0)
+        )
       })
 
       return vec4(lastData.settings.pointVert(point.position), 0, 1)
@@ -401,10 +420,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     material.positionNode = main()
     material.rotationNode = rotation
 
-    material.scaleNode = vec2(
-      thickness.mul(pixel),
-      lastData.settings.spacing * pixel
-    ).div(vec2(lastData.transform.scale))
+    material.scaleNode = lastData.settings
+      .pointScale(vec2(thickness.mul(pixel), lastData.settings.spacing * pixel))
+      .div(vec2(lastData.transform.scale))
 
     const colorV = varying(vec4(), 'colorV')
     material.colorNode = lastData.settings.pointFrag(colorV)
