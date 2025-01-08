@@ -224,7 +224,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       }
     }
 
-    const instancesPerCurve = generateSpacing().toVar('instancesPerCurve')
+    const instancesPerCurve = generateSpacing()
 
     const updateCurveLengths = /*#__PURE__*/ Fn(() => {
       const curveProgress = instanceIndex.div(instancesPerCurve)
@@ -311,9 +311,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       // @ts-ignore
       const t = tAttribute.toAttribute()
       // dimU = 9 t.y = 8.5/9
-      const controlPointsCount = controlPointCounts
-        .element(t.y)
-        .toVar('controlPointsCount')
+      const controlPointsCount = controlPointCounts.element(t.y)
 
       let point = {
         position: vec2(0, 0).toVar(),
@@ -397,7 +395,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         rotation.assign(vec3(point.rotation, 0, 0))
       })
 
-      // @ts-ignore
       return vec4(lastData.settings.pointVert(point.position), 0, 1)
     })
 
@@ -450,6 +447,10 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         gl.computeAsync(updateCurveLengths)
       })
 
+    // if (newData.settings.spacingType === 'count' && rendering) {
+    //   gl.computeAsync(updateCurveLengths)
+    // }
+
     if (newData.settings.recalculate) {
       const r = newData.settings.recalculate
       const waitTime =
@@ -460,17 +461,19 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   }
 
   const update = () => {
-    Promise.all([
-      gl
-        .computeAsync(advanceControlPoints)
-        .then(() => {
-          gl.computeAsync(updateCurveLengths)
-        })
-        .then(() => {
-          material.needsUpdate = true
-          updating = requestAnimationFrame(update)
-        })
-    ])
+    if (lastData.settings.spacingType === 'count') {
+      gl.computeAsync(advanceControlPoints)
+      material.needsUpdate = true
+      updating = requestAnimationFrame(update)
+    } else {
+      Promise.all([
+        gl.computeAsync(advanceControlPoints),
+        gl.computeAsync(updateCurveLengths)
+      ]).then(() => {
+        material.needsUpdate = true
+        updating = requestAnimationFrame(update)
+      })
+    }
   }
 
   useEffect(() => {
@@ -484,9 +487,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       timeout = window.setTimeout(reInitialize, waitTime)
     }
 
-    if (rendering && lastData.settings.update) {
-      updating = requestAnimationFrame(update)
-    }
+    // if (rendering) {
+    //   updating = requestAnimationFrame(update)
+    // }
     return () => {
       clearTimeout(timeout)
       cancelAnimationFrame(updating)
@@ -508,5 +511,13 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     }
   }, [])
 
-  return <></>
+  return (
+    <>
+      {/* {rendering && <primitive object={mesh} />} */}
+      {/* <mesh position={[0.5, 0.5, 0]}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial map={sampleCurveLengthsTex} />
+      </mesh> */}
+    </>
+  )
 }
