@@ -34,10 +34,25 @@ declare global {
   type ProcessData = {
     spacingType: 'count' | 'pixel' | 'width'
     recalculate: boolean | number | (() => number)
+    update: boolean
     maxLength: number
     maxCurves: number
     maxPoints: number
-    pointVert: (input: ReturnType<typeof vec2>) => input
+    pointVert: (
+      input: ReturnType<typeof vec2>,
+      pointCurve: ReturnType<typeof vec2>,
+      aspectRatio: ReturnType<typeof float>
+    ) => input
+    rotateVert: (
+      input: ReturnType<typeof float>,
+      pointCurve: ReturnType<typeof vec2>,
+      aspectRatio: ReturnType<typeof float>
+    ) => input
+    scaleVert: (
+      input: ReturnType<typeof vec2>,
+      pointCurve: ReturnType<typeof vec2>,
+      aspectRatio: ReturnType<typeof float>
+    ) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
      */

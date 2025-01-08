@@ -1,8 +1,15 @@
+'use client'
 import { Canvas, useThree } from '@react-three/fiber'
 import { useState } from 'react'
-import { OrthographicCamera, Vector2, WebGPURenderer } from 'three/webgpu'
+import {
+  Color,
+  OrthographicCamera,
+  Vector2,
+  WebGPURenderer
+} from 'three/webgpu'
 import Brush from './Brush'
 import Builder from './Builder'
+import Color4 from 'three/src/renderers/common/Color4.js'
 
 export default function Asemic({
   children,
@@ -21,35 +28,39 @@ export default function Asemic({
   >('never')
 
   return (
-    <Canvas
+    <div
       style={{ height: height ?? '100%', width: width ?? '100%', ...style }}
-      frameloop={frameloop}
-      className={className}
-      orthographic
-      camera={{
-        near: 0,
-        far: 1,
-        left: 0,
-        right: 1,
-        top: 1,
-        bottom: 0,
-        position: [0, 0, 0]
-      }}
-      gl={canvas => {
-        const renderer = new WebGPURenderer({
-          canvas: canvas as HTMLCanvasElement,
-          powerPreference: 'high-performance',
-          antialias: true,
-          alpha: true
-        })
-        renderer.init().then(() => {
-          setFrameloop('always')
-        })
-        return renderer
-      }}>
-      {frameloop === 'always' && <Scene builder={builder} />}
-      {children}
-    </Canvas>
+      className={className}>
+      <Canvas
+        style={{ height: '100%', width: '100%' }}
+        frameloop={frameloop}
+        orthographic
+        camera={{
+          near: 0,
+          far: 1,
+          left: 0,
+          right: 1,
+          top: 1,
+          bottom: 0,
+          position: [0, 0, 0]
+        }}
+        gl={canvas => {
+          const renderer = new WebGPURenderer({
+            canvas: canvas as HTMLCanvasElement,
+            powerPreference: 'high-performance',
+            antialias: true,
+            alpha: true
+          })
+
+          renderer.init().then(() => {
+            setFrameloop('always')
+          })
+          return renderer
+        }}>
+        {frameloop === 'always' && <Scene builder={builder} />}
+        {children}
+      </Canvas>
+    </div>
   )
 }
 
