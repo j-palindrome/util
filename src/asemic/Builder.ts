@@ -25,7 +25,7 @@ export const defaultCoordinateSettings: CoordinateSettings = {
   spacing: 3,
   thickness: 1
 }
-class GeneralBuilder {
+export class Builder {
   protected transforms: TransformData[] = []
   transformData: TransformData = this.toTransform()
   protected settings: GroupData['settings'] = {
@@ -185,7 +185,7 @@ class GeneralBuilder {
   constructor() {}
 }
 
-export class GroupBuilder extends GeneralBuilder {
+export class GroupBuilder extends Builder {
   h: number
   protected randomTable?: number[]
   protected curves: PointBuilder[][] = []
@@ -894,12 +894,12 @@ ${this.curves
   }
 }
 
-export default class Builder extends GeneralBuilder {
+export default class SceneBuilder extends Builder {
   groups: GroupBuilder[] = []
 
   newGroup(
     render: (g: GroupBuilder) => GroupBuilder | void,
-    settings?: Partial<GeneralBuilder['settings']>
+    settings?: Partial<Builder['settings']>
   ) {
     this.groups.push(
       new GroupBuilder(render, { ...this.settings, ...settings })
@@ -907,7 +907,7 @@ export default class Builder extends GeneralBuilder {
     return this
   }
 
-  constructor(initialize: (b: Builder) => Builder | void) {
+  constructor(initialize: (b: SceneBuilder) => SceneBuilder | void) {
     super()
     initialize(this)
   }

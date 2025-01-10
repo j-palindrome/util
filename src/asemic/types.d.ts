@@ -1,6 +1,7 @@
 import { Color, Vector2 } from 'three'
 import { PointBuilder } from './PointBuilder'
 import { float, Fn, ShaderNodeObject, vec2, vec4 } from 'three/tsl'
+import { Builder } from './Builder'
 
 const defaultFn = (input: ReturnType<typeof vec4>) => input
 declare global {
@@ -30,6 +31,12 @@ declare global {
     spacing: number
   }
 
+  type ParticleInfo = {
+    pointUV: ReturnType<typeof vec2>
+    aspectRatio: ReturnType<typeof float>
+    settings: Builder['settings']
+  }
+
   type ProcessData = {
     spacingType: 'count' | 'pixel' | 'width'
     recalculate: boolean | number | ((lastFrame: number) => number)
@@ -42,45 +49,19 @@ declare global {
     maxCurves: number
     maxPoints: number
     pointScale: (input: ReaturnType<typeof vec2>) => input
-    pointRotate: (
-      input: ReturnType<typeof float>,
-      info: {
-        pointUV: ReturnType<typeof vec2>
-        aspectRatio: ReturnType<typeof float>
-      }
-    ) => input
-    pointVert: (
-      input: ReturnType<typeof vec2>,
-      info: {
-        pointUV: ReturnType<typeof vec2>
-        aspectRatio: ReturnType<typeof float>
-      }
-    ) => input
+    pointRotate: (input: ReturnType<typeof float>, info: ParticleInfo) => input
+    pointVert: (input: ReturnType<typeof vec2>, info: ParticleInfo) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
      */
     curveFrag: (
       input: ReturnType<typeof vec4>,
-      info: {
-        pointUV: ReturnType<typeof vec2>
-        aspectRatio: ReturnType<typeof float>
-        lastColor: ReturnType<typeof vec4>
-      }
+      info: ParticleInfo & { lastColor: ReturnType<typeof vec4> }
     ) => input
-    pointFrag: (
-      input: ReturnType<typeof vec4>,
-      info: {
-        pointUV: ReturnType<typeof vec2>
-        aspectRatio: ReturnType<typeof float>
-      }
-    ) => input
+    pointFrag: (input: ReturnType<typeof vec4>, info: ParticleInfo) => input
     curveVert: (
       input: ReturnType<typeof vec4>,
-      info: {
-        pointUV: ReturnType<typeof vec2>
-        aspectRatio: ReturnType<typeof float>
-        lastPosition: ReturnType<typeof vec4>
-      }
+      info: ParticleInfo & { lastPosition: ReturnType<typeof vec4> }
     ) => input
   }
 

@@ -2,7 +2,7 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { useState } from 'react'
 import { OrthographicCamera, Vector2, WebGPURenderer } from 'three/webgpu'
 import Brush from './Brush'
-import Builder from './Builder'
+import SceneBuilder from './Builder'
 
 export default function Asemic({
   children,
@@ -14,7 +14,7 @@ export default function Asemic({
   className?: string
   dimensions?: [number | string, number | string]
   style?: React.CSSProperties
-  builder: (b: Builder) => Builder | void
+  builder: (b: SceneBuilder) => SceneBuilder | void
 } & React.PropsWithChildren) {
   const [frameloop, setFrameloop] = useState<
     'never' | 'always' | 'demand' | undefined
@@ -56,7 +56,7 @@ export default function Asemic({
 function Scene({
   builder
 }: {
-  builder: (b: Builder) => Builder | void
+  builder: (b: SceneBuilder) => SceneBuilder | void
 } & React.PropsWithChildren) {
   const resolution = new Vector2()
 
@@ -68,7 +68,7 @@ function Scene({
     camera.top = resolution.height / resolution.width
     camera.updateProjectionMatrix()
   })
-  const b = new Builder(builder)
+  const b = new SceneBuilder(builder)
   return (
     <>
       {b.groups.map((group, i) => (

@@ -65,7 +65,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
   const resolution = new Vector2()
   const width = gl.getDrawingBufferSize(resolution).x
-  const lastData = builder.reInitialize(resolution)
+  const firstData = useMemo(() => builder.reInitialize(resolution), [builder])
 
   const {
     mesh,
@@ -77,40 +77,40 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     controlPointCounts,
     tArray
   } = useMemo(() => {
-    const totalSpace = lastData.settings.spacing + lastData.settings.gap
+    const totalSpace = firstData.settings.spacing + firstData.settings.gap
     const MAX_INSTANCE_COUNT =
-      lastData.settings.spacingType === 'pixel'
-        ? lastData.dimensions.y *
-          ((lastData.settings.maxLength * width) / totalSpace)
-        : lastData.settings.spacingType === 'width'
-          ? lastData.dimensions.y *
-            ((lastData.settings.maxLength * width) / (totalSpace * width))
-          : lastData.settings.spacingType === 'count'
-            ? lastData.dimensions.y * width
+      firstData.settings.spacingType === 'pixel'
+        ? firstData.dimensions.y *
+          ((firstData.settings.maxLength * width) / totalSpace)
+        : firstData.settings.spacingType === 'width'
+          ? firstData.dimensions.y *
+            ((firstData.settings.maxLength * width) / (totalSpace * width))
+          : firstData.settings.spacingType === 'count'
+            ? firstData.dimensions.y * width
             : 0
     const geometry = new THREE.PlaneGeometry()
-    geometry.translate(lastData.settings.align - 0.5, 0.5, 0)
+    geometry.translate(firstData.settings.align - 0.5, 0.5, 0)
     const material = new SpriteNodeMaterial({
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     })
     const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
-    mesh.position.set(...lastData.transform.translate.toArray(), 0)
-    mesh.scale.set(...lastData.transform.scale.toArray(), 0)
-    mesh.rotation.set(0, 0, lastData.transform.rotate)
+    mesh.position.set(...firstData.transform.translate.toArray(), 0)
+    mesh.scale.set(...firstData.transform.scale.toArray(), 0)
+    mesh.rotation.set(0, 0, firstData.transform.rotate)
 
     const curvePositionTex = new StorageTexture(
-      lastData.dimensions.x,
-      lastData.dimensions.y
+      firstData.dimensions.x,
+      firstData.dimensions.y
     )
     curvePositionTex.type = THREE.FloatType
     const curveColorTex = new StorageTexture(
-      lastData.dimensions.x,
-      lastData.dimensions.y
+      firstData.dimensions.x,
+      firstData.dimensions.y
     )
     const controlPointCounts = storage(
-      new StorageBufferAttribute(new Int16Array(lastData.dimensions.y), 1),
+      new StorageBufferAttribute(new Int16Array(firstData.dimensions.y), 1),
       'int'
     )
     const tArray = new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2)
@@ -135,43 +135,49 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     lastCurveColorLoadU
   } = useMemo(() => {
     const pixel = 1 / width
-    const totalSpace = lastData.settings.spacing + lastData.settings.gap
+    const totalSpace = firstData.settings.spacing + firstData.settings.gap
 
-    const dimensionsU = uniform(lastData.dimensions, 'vec2')
+    const dimensionsU = uniform(firstData.dimensions, 'vec2')
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
     const tAttribute = storage(tArray, 'vec2', MAX_INSTANCE_COUNT)
 
-    const pointI = instanceIndex.modInt(lastData.dimensions.x)
-    const curveI = instanceIndex.div(lastData.dimensions.x)
+    const pointI = instanceIndex.modInt(firstData.dimensions.x)
+    const curveI = instanceIndex.div(firstData.dimensions.x)
     const curvePositionLoadU = textureLoad(
-      lastData.positionTex,
+      firstData.positionTex,
       vec2(pointI, curveI)
     )
-    const curveColorLoadU = textureLoad(lastData.colorTex, vec2(pointI, curveI))
+    const curveColorLoadU = textureLoad(
+      firstData.colorTex,
+      vec2(pointI, curveI)
+    )
     const lastCurvePositionLoadU = textureLoad(
-      lastData.positionTex,
+      firstData.positionTex,
       vec2(pointI, curveI)
     )
     const lastCurveColorLoadU = textureLoad(
-      lastData.colorTex,
+      firstData.colorTex,
       vec2(pointI, curveI)
     )
 
     const advanceControlPoints = Fn(() => {
       const textureVector = vec2(
         pointI.toFloat().div(controlPointCounts.element(curveI)),
-        curveI.toFloat().div(lastData.dimensions.y)
+        curveI.toFloat().div(firstData.dimensions.y)
       )
-      const point = lastData.settings.curveVert(vec4(curvePositionLoadU), {
+      const info = {
         pointUV: textureVector,
         aspectRatio: aspectRatio.y,
+        settings: firstData.settings
+      }
+      const point = firstData.settings.curveVert(vec4(curvePositionLoadU), {
+        ...info,
         lastPosition: vec4(lastCurvePositionLoadU)
       })
       textureStore(curvePositionTex, vec2(pointI, curveI), point).toWriteOnly()
 
-      const color = lastData.settings.curveFrag(vec4(curveColorLoadU), {
-        pointUV: textureVector,
-        aspectRatio: aspectRatio.y,
+      const color = firstData.settings.curveFrag(vec4(curveColorLoadU), {
+        ...info,
         lastColor: vec4(lastCurveColorLoadU)
       })
       return textureStore(
@@ -180,11 +186,14 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         color
       ).toWriteOnly()
     })().compute(
-      lastData.dimensions.x * lastData.dimensions.y,
+      firstData.dimensions.x * firstData.dimensions.y,
       undefined as any
     )
 
-    const sampleCurveLengthsTex = new StorageTexture(100, lastData.dimensions.y)
+    const sampleCurveLengthsTex = new StorageTexture(
+      100,
+      firstData.dimensions.y
+    )
     sampleCurveLengthsTex.type = THREE.FloatType
 
     const getBezier = (pointProgress, curveProgress, controlPointsCount) => {
@@ -221,11 +230,11 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     }
 
     const generateSpacing = () => {
-      switch (lastData.settings.spacingType) {
+      switch (firstData.settings.spacingType) {
         case 'pixel':
-          return int(lastData.settings.maxLength * width).div(totalSpace)
+          return int(firstData.settings.maxLength * width).div(totalSpace)
         case 'width':
-          return int(lastData.settings.maxLength * width).div(
+          return int(firstData.settings.maxLength * width).div(
             int(float(totalSpace).mul(screenSize.x))
           )
         case 'count':
@@ -243,7 +252,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         .modInt(instancesPerCurve)
         .toFloat()
         .div(instancesPerCurve.toFloat())
-        .mul(lastData.settings.maxLength)
+        .mul(firstData.settings.maxLength)
       const totalLength = float(0).toVar('totalLength')
       If(controlPointsCount.equal(2), () => {
         const p0 = textureLoadFix(
@@ -255,7 +264,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
           ivec2(1, curveProgress)
         ).xy
         totalLength.assign(p1.sub(p0).length())
-        if (lastData.settings.resample) {
+        if (firstData.settings.resample) {
           If(totalLength.greaterThanEqual(targetLength), () => {
             found.assign(1)
             tAttribute
@@ -271,7 +280,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
           textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
         )
         // Find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
-        const count = controlPointsCount.mul(6).mul(lastData.settings.maxLength)
+        const count = controlPointsCount
+          .mul(6)
+          .mul(firstData.settings.maxLength)
         Loop(
           {
             start: 1,
@@ -286,7 +297,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             ).xy
             lastEnd.assign(totalLength)
             totalLength.addAssign(thisPoint.sub(lastPoint).length())
-            if (lastData.settings.resample) {
+            if (firstData.settings.resample) {
               If(totalLength.greaterThanEqual(targetLength), () => {
                 const remapped = remap(targetLength, lastEnd, totalLength, 0, 1)
                 found.assign(1)
@@ -307,7 +318,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             }
           }
         )
-        if (!lastData.settings.resample) {
+        if (!firstData.settings.resample) {
           If(totalLength.greaterThanEqual(targetLength), () => {
             found.assign(1)
             tAttribute
@@ -350,6 +361,11 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
           }).Else(() => {
             const pointUV = vec2(t.x, t.y.div(dimensionsU.y))
+            const info = {
+              pointUV,
+              aspectRatio: aspectRatio.y,
+              settings: firstData.settings
+            }
             const progressPoint = mix(p0, p1, t.x)
             const rotation = lineTangent(p0, p1)
             const textureVector = vec2(
@@ -358,17 +374,17 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             )
             varyingProperty('vec4', 'colorV').assign(
               // texture(curveColorTex, textureVector)
-              lastData.settings.pointFrag(
+              firstData.settings.pointFrag(
                 vec4(texture(curveColorTex, textureVector)),
-                { pointUV, aspectRatio: aspectRatio.y }
+                info
               )
             )
             thickness.assign(texture(curvePositionTex, textureVector).w)
             position.assign(progressPoint)
             rotation.assign(
-              lastData.settings.pointRotate(
+              firstData.settings.pointRotate(
                 vec3(atan2(rotation.y, rotation.x), 0, 0),
-                { pointUV, aspectRatio: aspectRatio.y }
+                info
               )
             )
           })
@@ -421,25 +437,24 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
               pointProgress.div(controlPointsCount.sub(2)),
               t.y.div(dimensionsU.y)
             )
+            const info = {
+              pointUV,
+              aspectRatio: aspectRatio.y,
+              settings: firstData.settings
+            }
             varyingProperty('vec4', 'colorV').assign(
-              lastData.settings.pointFrag(vec4(texture(curveColorTex, tt)), {
-                pointUV,
-                aspectRatio: aspectRatio.y
-              })
+              firstData.settings.pointFrag(
+                vec4(texture(curveColorTex, tt)),
+                info
+              )
             )
             thickness.assign(texture(curvePositionTex, tt).w)
             position.assign(
-              lastData.settings.pointVert(thisPoint.position, {
-                pointUV,
-                aspectRatio: aspectRatio.y
-              })
+              firstData.settings.pointVert(thisPoint.position, info)
             )
             rotation.assign(
               vec3(
-                lastData.settings.pointRotate(thisPoint.rotation, {
-                  pointUV,
-                  aspectRatio: aspectRatio.y
-                }),
+                firstData.settings.pointRotate(thisPoint.rotation, info),
                 0,
                 0
               )
@@ -454,9 +469,11 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     material.positionNode = main()
     material.rotationNode = rotation
 
-    material.scaleNode = lastData.settings
-      .pointScale(vec2(thickness.mul(pixel), lastData.settings.spacing * pixel))
-      .div(vec2(lastData.transform.scale))
+    material.scaleNode = firstData.settings
+      .pointScale(
+        vec2(thickness.mul(pixel), firstData.settings.spacing * pixel)
+      )
+      .div(vec2(firstData.transform.scale))
 
     const colorV = varying(vec4(), 'colorV')
     material.colorNode = colorV
@@ -491,9 +508,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       .then(() => {
         lastCurveColorLoadU.value.dispose()
         lastCurveColorLoadU.value.dispose()
-        lastData.countTex.dispose()
-        lastCurvePositionLoadU.value = lastData.positionTex
-        lastCurveColorLoadU.value = lastData.colorTex
+        firstData.countTex.dispose()
+        lastCurvePositionLoadU.value = curvePositionLoadU.value
+        lastCurveColorLoadU.value = curveColorLoadU.value
         curvePositionLoadU.value = newData.positionTex
         curveColorLoadU.value = newData.colorTex
         gl.computeAsync(advanceControlPoints).then(() => {
@@ -502,12 +519,12 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       })
   }
 
-  const nextTime = useRef<number>(lastData.settings.start / 1000)
+  const nextTime = useRef<number>(firstData.settings.start / 1000)
 
   useFrame(state => {
     if (state.clock.elapsedTime > nextTime.current) {
-      if (lastData.settings.recalculate) {
-        const r = lastData.settings.recalculate
+      if (firstData.settings.recalculate) {
+        const r = firstData.settings.recalculate
         nextTime.current =
           typeof r === 'boolean'
             ? nextTime.current + 1 / 17
@@ -520,7 +537,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   })
 
   const update = () => {
-    if (lastData.settings.spacingType === 'count') {
+    if (firstData.settings.spacingType === 'count') {
       gl.computeAsync(advanceControlPoints)
       material.needsUpdate = true
       updating = requestAnimationFrame(update)
@@ -536,7 +553,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   }
 
   useEffect(() => {
-    if (rendering && lastData.settings.update) {
+    if (rendering && firstData.settings.update) {
       updating = requestAnimationFrame(update)
     }
     return () => {
