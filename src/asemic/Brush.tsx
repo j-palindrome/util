@@ -338,7 +338,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       const t = tAttribute.toAttribute()
       // dimU = 9 t.y = 8.5/9
       const controlPointsCount = controlPointCounts.element(t.y)
-      let position
+      const position = vec2().toVar()
 
       If(t.x.equal(-1), () => {
         varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
@@ -364,7 +364,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
               )
             )
             thickness.assign(texture(curvePositionTex, textureVector).w)
-            position = progressPoint
+            position.assign(progressPoint)
             rotation.assign(
               lastData.settings.pointRotate(
                 vec3(atan2(rotation.y, rotation.x), 0, 0),
@@ -428,10 +428,12 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
               })
             )
             thickness.assign(texture(curvePositionTex, tt).w)
-            position = lastData.settings.pointVert(thisPoint.position, {
-              pointUV,
-              aspectRatio: aspectRatio.y
-            })
+            position.assign(
+              lastData.settings.pointVert(thisPoint.position, {
+                pointUV,
+                aspectRatio: aspectRatio.y
+              })
+            )
             rotation.assign(
               vec3(
                 lastData.settings.pointRotate(thisPoint.rotation, {
