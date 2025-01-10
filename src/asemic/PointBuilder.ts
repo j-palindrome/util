@@ -1,20 +1,20 @@
 import { Vector2 } from 'three'
+import { defaultCoordinateSettings } from './Builder'
 
 export class PointBuilder extends Vector2 {
-  strength?: CoordinateSettings['strength']
-  color?: CoordinateSettings['color']
-  alpha?: CoordinateSettings['alpha']
-  thickness?: CoordinateSettings['thickness']
+  strength: CoordinateSettings['strength'] = defaultCoordinateSettings.strength
+  color: CoordinateSettings['color'] = defaultCoordinateSettings.color
+  alpha: CoordinateSettings['alpha'] = defaultCoordinateSettings.alpha
+  thickness: CoordinateSettings['thickness'] =
+    defaultCoordinateSettings.thickness
+  spacing: CoordinateSettings['spacing'] = defaultCoordinateSettings.spacing
 
   constructor(
     point: [number, number] = [0, 0],
-    { strength, color, alpha, thickness }: Partial<CoordinateSettings> = {}
+    settings: Partial<CoordinateSettings> = defaultCoordinateSettings
   ) {
     super(point[0], point[1])
-    this.strength = strength
-    this.color = color
-    this.alpha = alpha
-    this.thickness = thickness
+    Object.assign(this, settings)
   }
 
   lerpRandom(point: Vector2) {
@@ -32,6 +32,6 @@ export class PointBuilder extends Vector2 {
   }
 
   override clone() {
-    return new PointBuilder([this.x, this.y]) as this
+    return new PointBuilder([this.x, this.y], this) as this
   }
 }

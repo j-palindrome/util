@@ -28,12 +28,13 @@ declare global {
     color: [number, number, number]
     alpha: number
     spacing: number
-    gap: number
   }
 
   type ProcessData = {
     spacingType: 'count' | 'pixel' | 'width'
-    recalculate: boolean | number | (() => number)
+    recalculate: boolean | number | ((lastFrame: number) => number)
+    start: number
+    gap: number
     update: boolean
     align: number
     resample: boolean
@@ -51,7 +52,11 @@ declare global {
       pointCurve: ReturnType<typeof vec2>,
       aspectRatio: ReturnType<typeof float>
     ) => input
-    pointFrag: typeof defaultFn
+    pointFrag: (
+      input: ReturnType<typeof vec4>,
+      pointCurve: ReturnType<typeof vec2>,
+      aspectRatio: ReturnType<typeof float>
+    ) => input
     curveVert: (
       input: ReturnType<typeof vec4>,
       pointCurve: ReturnType<typeof vec2>,

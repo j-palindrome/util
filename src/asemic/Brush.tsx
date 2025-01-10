@@ -1,4 +1,4 @@
-import { extend, Object3DNode, useThree } from '@react-three/fiber'
+import { extend, Object3DNode, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
@@ -353,7 +353,12 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
               t.y.add(0.5).div(dimensionsU.y)
             )
             varyingProperty('vec4', 'colorV').assign(
-              texture(curveColorTex, textureVector)
+              // texture(curveColorTex, textureVector)
+              lastData.settings.pointFrag(
+                vec4(texture(curveColorTex, textureVector)),
+                textureVector,
+                aspectRatio
+              )
             )
             thickness.assign(texture(curvePositionTex, textureVector).w)
           })
@@ -402,7 +407,18 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
                 .div(dimensionsU.x),
               t.y.add(0.5).div(dimensionsU.y)
             )
-            varyingProperty('vec4', 'colorV').assign(texture(curveColorTex, tt))
+            const textureVector = vec2(
+              // 2 points: 0.5-1.5
+              pointProgress.div(controlPointsCount.sub(2)),
+              t.y.div(dimensionsU.y)
+            )
+            varyingProperty('vec4', 'colorV').assign(
+              lastData.settings.pointFrag(
+                vec4(texture(curveColorTex, tt)),
+                textureVector,
+                aspectRatio
+              )
+            )
             thickness.assign(texture(curvePositionTex, tt).w)
             point.position.assign(thisPoint.position)
             point.rotation.assign(thisPoint.rotation)
@@ -425,7 +441,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       .div(vec2(lastData.transform.scale))
 
     const colorV = varying(vec4(), 'colorV')
-    material.colorNode = lastData.settings.pointFrag(colorV)
+    material.colorNode = colorV
 
     return {
       advanceControlPoints,
@@ -437,7 +453,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     }
   }, [builder])
 
-  let timeout: number
   let updating: number
 
   const reInitialize = () => {
@@ -461,22 +476,32 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         lastData.countTex.dispose()
         curvePositionLoadU.value = newData.positionTex
         curveColorLoadU.value = newData.colorTex
-        gl.computeAsync(advanceControlPoints)
-        gl.computeAsync(updateCurveLengths)
+        gl.computeAsync(advanceControlPoints).then(() => {
+          gl.computeAsync(updateCurveLengths)
+        })
       })
 
     // if (newData.settings.spacingType === 'count' && rendering) {
     //   gl.computeAsync(updateCurveLengths)
     // }
-
-    if (newData.settings.recalculate) {
-      const r = newData.settings.recalculate
-      const waitTime =
-        typeof r === 'boolean' ? 40 : typeof r === 'number' ? r : r()
-
-      timeout = window.setTimeout(reInitialize, waitTime)
-    }
   }
+
+  const nextTime = useRef<number>(lastData.settings.start / 1000)
+
+  useFrame(state => {
+    if (state.clock.elapsedTime > nextTime.current) {
+      if (lastData.settings.recalculate) {
+        const r = lastData.settings.recalculate
+        nextTime.current =
+          typeof r === 'boolean'
+            ? nextTime.current + 1 / 17
+            : typeof r === 'number'
+              ? nextTime.current + r / 1000
+              : nextTime.current + r(nextTime.current * 1000) / 1000
+      }
+      reInitialize()
+    }
+  })
 
   const update = () => {
     if (lastData.settings.spacingType === 'count') {
@@ -495,21 +520,10 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   }
 
   useEffect(() => {
-    reInitialize()
-
-    if (lastData.settings.recalculate) {
-      const r = lastData.settings.recalculate
-      const waitTime =
-        typeof r === 'boolean' ? 40 : typeof r === 'number' ? r : r()
-
-      timeout = window.setTimeout(reInitialize, waitTime)
-    }
-
     if (rendering && lastData.settings.update) {
       updating = requestAnimationFrame(update)
     }
     return () => {
-      clearTimeout(timeout)
       cancelAnimationFrame(updating)
     }
   }, [builder])

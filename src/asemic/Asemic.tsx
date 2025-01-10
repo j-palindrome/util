@@ -14,7 +14,7 @@ export default function Asemic({
   className?: string
   dimensions?: [number | string, number | string]
   style?: React.CSSProperties
-  builder: (b: Builder) => Builder
+  builder: (b: Builder) => Builder | void
 } & React.PropsWithChildren) {
   const [frameloop, setFrameloop] = useState<
     'never' | 'always' | 'demand' | undefined
@@ -56,7 +56,7 @@ export default function Asemic({
 function Scene({
   builder
 }: {
-  builder: (b: Builder) => Builder
+  builder: (b: Builder) => Builder | void
 } & React.PropsWithChildren) {
   const resolution = new Vector2()
 
