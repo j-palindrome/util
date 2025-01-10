@@ -42,25 +42,45 @@ declare global {
     maxCurves: number
     maxPoints: number
     pointScale: (input: ReaturnType<typeof vec2>) => input
-    pointRotate: (input: ReturnType<typeof float>) => input
-    pointVert: (input: ReturnType<typeof vec2>) => input
+    pointRotate: (
+      input: ReturnType<typeof float>,
+      info: {
+        pointUV: ReturnType<typeof vec2>
+        aspectRatio: ReturnType<typeof float>
+      }
+    ) => input
+    pointVert: (
+      input: ReturnType<typeof vec2>,
+      info: {
+        pointUV: ReturnType<typeof vec2>
+        aspectRatio: ReturnType<typeof float>
+      }
+    ) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
      */
     curveFrag: (
       input: ReturnType<typeof vec4>,
-      pointCurve: ReturnType<typeof vec2>,
-      aspectRatio: ReturnType<typeof float>
+      info: {
+        pointUV: ReturnType<typeof vec2>
+        aspectRatio: ReturnType<typeof float>
+        lastColor: ReturnType<typeof vec4>
+      }
     ) => input
     pointFrag: (
       input: ReturnType<typeof vec4>,
-      pointCurve: ReturnType<typeof vec2>,
-      aspectRatio: ReturnType<typeof float>
+      info: {
+        pointUV: ReturnType<typeof vec2>
+        aspectRatio: ReturnType<typeof float>
+      }
     ) => input
     curveVert: (
       input: ReturnType<typeof vec4>,
-      pointCurve: ReturnType<typeof vec2>,
-      aspectRatio: ReturnType<typeof float>
+      info: {
+        pointUV: ReturnType<typeof vec2>
+        aspectRatio: ReturnType<typeof float>
+        lastPosition: ReturnType<typeof vec4>
+      }
     ) => input
   }
 

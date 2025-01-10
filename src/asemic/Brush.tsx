@@ -65,7 +65,6 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
   const resolution = new Vector2()
   const width = gl.getDrawingBufferSize(resolution).x
-
   const lastData = builder.reInitialize(resolution)
 
   const {
@@ -131,7 +130,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     advanceControlPoints,
     updateCurveLengths,
     curvePositionLoadU,
-    curveColorLoadU
+    curveColorLoadU,
+    lastCurvePositionLoadU,
+    lastCurveColorLoadU
   } = useMemo(() => {
     const pixel = 1 / width
     const totalSpace = lastData.settings.spacing + lastData.settings.gap
@@ -147,24 +148,32 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       vec2(pointI, curveI)
     )
     const curveColorLoadU = textureLoad(lastData.colorTex, vec2(pointI, curveI))
+    const lastCurvePositionLoadU = textureLoad(
+      lastData.positionTex,
+      vec2(pointI, curveI)
+    )
+    const lastCurveColorLoadU = textureLoad(
+      lastData.colorTex,
+      vec2(pointI, curveI)
+    )
 
     const advanceControlPoints = Fn(() => {
       const textureVector = vec2(
         pointI.toFloat().div(controlPointCounts.element(curveI)),
         curveI.toFloat().div(lastData.dimensions.y)
       )
-      const point = lastData.settings.curveVert(
-        vec4(curvePositionLoadU),
-        textureVector,
-        aspectRatio.y
-      )
+      const point = lastData.settings.curveVert(vec4(curvePositionLoadU), {
+        pointUV: textureVector,
+        aspectRatio: aspectRatio.y,
+        lastPosition: vec4(lastCurvePositionLoadU)
+      })
       textureStore(curvePositionTex, vec2(pointI, curveI), point).toWriteOnly()
 
-      const color = lastData.settings.curveFrag(
-        vec4(curveColorLoadU),
-        textureVector,
-        aspectRatio.y
-      )
+      const color = lastData.settings.curveFrag(vec4(curveColorLoadU), {
+        pointUV: textureVector,
+        aspectRatio: aspectRatio.y,
+        lastColor: vec4(lastCurveColorLoadU)
+      })
       return textureStore(
         curveColorTex,
         vec2(pointI, curveI),
@@ -329,11 +338,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
       const t = tAttribute.toAttribute()
       // dimU = 9 t.y = 8.5/9
       const controlPointsCount = controlPointCounts.element(t.y)
-
-      let point = {
-        position: vec2(0, 0).toVar(),
-        rotation: float(0).toVar()
-      }
+      let position
 
       If(t.x.equal(-1), () => {
         varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
@@ -344,10 +349,9 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
           If(p1.x.equal(-1111), () => {
             varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
           }).Else(() => {
+            const pointUV = vec2(t.x, t.y.div(dimensionsU.y))
             const progressPoint = mix(p0, p1, t.x)
-            point.position.assign(progressPoint)
             const rotation = lineTangent(p0, p1)
-            point.rotation.assign(atan2(rotation.y, rotation.x))
             const textureVector = vec2(
               t.x.add(0.5).div(dimensionsU.x),
               t.y.add(0.5).div(dimensionsU.y)
@@ -356,11 +360,17 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
               // texture(curveColorTex, textureVector)
               lastData.settings.pointFrag(
                 vec4(texture(curveColorTex, textureVector)),
-                textureVector,
-                aspectRatio
+                { pointUV, aspectRatio: aspectRatio.y }
               )
             )
             thickness.assign(texture(curvePositionTex, textureVector).w)
+            position = progressPoint
+            rotation.assign(
+              lastData.settings.pointRotate(
+                vec3(atan2(rotation.y, rotation.x), 0, 0),
+                { pointUV, aspectRatio: aspectRatio.y }
+              )
+            )
           })
         }).Else(() => {
           const pointProgress = t.x
@@ -407,30 +417,36 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
                 .div(dimensionsU.x),
               t.y.add(0.5).div(dimensionsU.y)
             )
-            const textureVector = vec2(
-              // 2 points: 0.5-1.5
+            const pointUV = vec2(
               pointProgress.div(controlPointsCount.sub(2)),
               t.y.div(dimensionsU.y)
             )
             varyingProperty('vec4', 'colorV').assign(
-              lastData.settings.pointFrag(
-                vec4(texture(curveColorTex, tt)),
-                textureVector,
-                aspectRatio
-              )
+              lastData.settings.pointFrag(vec4(texture(curveColorTex, tt)), {
+                pointUV,
+                aspectRatio: aspectRatio.y
+              })
             )
             thickness.assign(texture(curvePositionTex, tt).w)
-            point.position.assign(thisPoint.position)
-            point.rotation.assign(thisPoint.rotation)
+            position = lastData.settings.pointVert(thisPoint.position, {
+              pointUV,
+              aspectRatio: aspectRatio.y
+            })
+            rotation.assign(
+              vec3(
+                lastData.settings.pointRotate(thisPoint.rotation, {
+                  pointUV,
+                  aspectRatio: aspectRatio.y
+                }),
+                0,
+                0
+              )
+            )
           })
         })
-
-        rotation.assign(
-          vec3(lastData.settings.pointRotate(point.rotation), 0, 0)
-        )
       })
 
-      return vec4(lastData.settings.pointVert(point.position), 0, 1)
+      return vec4(position, 0, 1)
     })
 
     material.positionNode = main()
@@ -446,10 +462,10 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     return {
       advanceControlPoints,
       updateCurveLengths,
-      controlPointCounts,
       curvePositionLoadU,
       curveColorLoadU,
-      tArray
+      lastCurvePositionLoadU,
+      lastCurveColorLoadU
     }
   }, [builder])
 
@@ -471,19 +487,17 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
         setRendering(false)
       })
       .then(() => {
-        lastData.colorTex.dispose()
-        lastData.positionTex.dispose()
+        lastCurveColorLoadU.value.dispose()
+        lastCurveColorLoadU.value.dispose()
         lastData.countTex.dispose()
+        lastCurvePositionLoadU.value = lastData.positionTex
+        lastCurveColorLoadU.value = lastData.colorTex
         curvePositionLoadU.value = newData.positionTex
         curveColorLoadU.value = newData.colorTex
         gl.computeAsync(advanceControlPoints).then(() => {
           gl.computeAsync(updateCurveLengths)
         })
       })
-
-    // if (newData.settings.spacingType === 'count' && rendering) {
-    //   gl.computeAsync(updateCurveLengths)
-    // }
   }
 
   const nextTime = useRef<number>(lastData.settings.start / 1000)
@@ -543,13 +557,5 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     }
   }, [])
 
-  return (
-    <>
-      {/* {rendering && <primitive object={mesh} />} */}
-      {/* <mesh position={[0.5, 0.5, 0]}>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial map={sampleCurveLengthsTex} />
-      </mesh> */}
-    </>
-  )
+  return <></>
 }
