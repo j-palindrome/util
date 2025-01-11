@@ -17,6 +17,7 @@ import {
 import invariant from 'tiny-invariant'
 import { lerp } from '../math'
 import { PointBuilder } from './PointBuilder'
+import AsemicInput from './Input'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
@@ -27,7 +28,7 @@ export const defaultCoordinateSettings: CoordinateSettings = {
 }
 export class Builder {
   protected transforms: TransformData[] = []
-  transformData: TransformData = this.toTransform()
+  currentTransform: TransformData = this.toTransform()
   protected settings: GroupData['settings'] = {
     maxLength: 0,
     maxCurves: 0,
@@ -58,22 +59,26 @@ export class Builder {
   }
 
   protected reset(clear = false) {
-    this.transformData.scale = new PointBuilder([1, 1], this.settings)
-    this.transformData.rotate = 0
-    this.transformData.translate = new PointBuilder()
+    this.currentTransform.scale = new PointBuilder([1, 1], this.settings)
+    this.currentTransform.rotate = 0
+    this.currentTransform.translate = new PointBuilder()
 
     if (clear) this.transforms = []
     return this
+  }
+
+  initInput(...args: ConstructorParameters<typeof AsemicInput>) {
+    return new AsemicInput(...args)
   }
 
   transform(transform: Partial<GroupBuilder['settings']>) {
     if (transform.reset) {
       switch (transform.reset) {
         case 'pop':
-          this.transformData = this.transforms.pop() ?? this.toTransform()
+          this.currentTransform = this.transforms.pop() ?? this.toTransform()
           break
         case 'last':
-          this.transformData = this.cloneTransform(
+          this.currentTransform = this.cloneTransform(
             last(this.transforms) ?? this.toTransform()
           )
           break
@@ -83,13 +88,13 @@ export class Builder {
       }
     }
 
-    this.transformData = this.combineTransforms(
-      this.transformData,
+    this.currentTransform = this.combineTransforms(
+      this.currentTransform,
       this.toTransform(transform)
     )
 
     if (transform.push) {
-      this.transforms.push(this.cloneTransform(this.transformData))
+      this.transforms.push(this.cloneTransform(this.currentTransform))
     }
 
     Object.assign(this.settings, transform)
@@ -206,7 +211,7 @@ export class GroupBuilder extends Builder {
   }
 
   fromPoint(point: Vector2) {
-    return this.applyTransform(point, this.transformData, true).toArray()
+    return this.applyTransform(point, this.currentTransform, true).toArray()
   }
 
   toPoints(...coordinates: (Coordinate | PointBuilder)[]) {
@@ -221,7 +226,7 @@ export class GroupBuilder extends Builder {
 
     return this.applyTransform(
       new PointBuilder([coordinate[0], coordinate[1]], { ...this.settings }),
-      this.transformData
+      this.currentTransform
     )
   }
 
@@ -621,8 +626,11 @@ ${this.curves
     return this.lastCurve(c => c.push(...this.toPoints(...points)))
   }
 
-  text(str: string) {
+  text(str: string, transform?: CoordinateData) {
     let lineCount = 0
+    if (transform) {
+      this.transform(transform)
+    }
     for (let letter of str) {
       if (this.letters[letter]) {
         this.transform({ translate: [0.1, 0], push: true })

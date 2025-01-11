@@ -553,6 +553,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   }
 
   useEffect(() => {
+    reInitialize()
     if (rendering && firstData.settings.update) {
       updating = requestAnimationFrame(update)
     }
