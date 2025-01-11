@@ -67,10 +67,6 @@ export class Builder {
     return this
   }
 
-  initInput(...args: ConstructorParameters<typeof AsemicInput>) {
-    return new AsemicInput(...args)
-  }
-
   transform(transform: Partial<GroupBuilder['settings']>) {
     if (transform.reset) {
       switch (transform.reset) {

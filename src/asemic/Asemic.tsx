@@ -1,20 +1,19 @@
 import { Canvas, useThree } from '@react-three/fiber'
 import { useState } from 'react'
-import { OrthographicCamera, Vector2, WebGPURenderer } from 'three/webgpu'
+import { OrthographicCamera, Vector2 } from 'three'
 import Brush from './Brush'
 import SceneBuilder from './Builder'
+import { WebGPURenderer } from 'three/webgpu'
 
-export default function Asemic({
+export function AsemicCanvas({
   children,
   className,
-  builder,
   dimensions: [width, height] = ['100%', '100%'],
   style
 }: {
   className?: string
   dimensions?: [number | string, number | string]
   style?: React.CSSProperties
-  builder: (b: SceneBuilder) => SceneBuilder | void
 } & React.PropsWithChildren) {
   const [frameloop, setFrameloop] = useState<
     'never' | 'always' | 'demand' | undefined
@@ -47,13 +46,12 @@ export default function Asemic({
         })
         return renderer
       }}>
-      {frameloop === 'always' && <Scene builder={builder} />}
       {children}
     </Canvas>
   )
 }
 
-function Scene({
+export default function Asemic({
   builder
 }: {
   builder: (b: SceneBuilder) => SceneBuilder | void
