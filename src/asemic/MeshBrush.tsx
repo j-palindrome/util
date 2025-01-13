@@ -80,34 +80,56 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
   const points = firstData.positionArray
 
   const lines = points.map((curve, i) => {
-    // const geometry = new LineGeometry()
-    // geometry.setPositions(positions)
-    // geometry.setColors(colors)
-    // console.log(geometry)
-
-    // const line = new Line2(geometry, matLine)
-    // line.computeLineDistances()
-    // line.scale.set(1, 1, 1)
-    const divisions =
-      points[i].length === 2 ? 2 : Math.round(12 * points[i].length)
+    const divisionCount = points[i].length === 2 ? 2 : curve.length * 3
     const geo = new THREE.BufferGeometry()
+
+    const indexGuide = [0, 1, 2, 1, 2, 3]
+    const indexes: number[] = new Array()
+    const positions: THREE.Vector3[] = range(divisionCount * 2).map(
+      () => new THREE.Vector3()
+    )
+
+    const path = new THREE.Path(curve)
+    const thisPoint = new Vector2()
+    for (let i = 0; i < divisionCount - 1; i++) {
+      const t = i / divisionCount
+      const index = i * 2
+      indexes.push(...indexGuide.map(x => x + index))
+      path.getPoint(t, thisPoint)
+      positions[index].set(thisPoint.x, thisPoint.y, 0)
+      positions[index + 1].set(thisPoint.x + 0.1, thisPoint.y + 0.1, 0)
+    }
+    positions[(divisionCount - 1) * 2].set(
+      curve[curve.length - 1].x,
+      curve[curve.length - 1].y,
+      0
+    )
+    positions[(divisionCount - 1) * 2 + 1].set(
+      curve[curve.length - 1].x + 0.1,
+      curve[curve.length - 1].y + 0.1,
+      0
+    )
+    console.log(positions, indexes)
+
+    geo.setIndex(indexes)
     geo.setAttribute(
       'position',
-      new THREE.Float32BufferAttribute(divisions * 4 * 3, 3)
-    )
-    const indexGuide = [2, 1, 0, 1, 2, 3]
-    const divisionGuide = range(divisions).flatMap(i =>
-      indexGuide.map(j => j + i * 2)
+      new THREE.Float32BufferAttribute(positions.length * 3, 3)
     )
 
-    geo.setIndex(divisionGuide)
-
+    const uniforms = {
+      position: uniformArray(positions),
+      color: uniformArray(
+        range(divisionCount * 2).map(x => new THREE.Vector3())
+      )
+    }
     // const matLineBasic = new MeshBasicNodeMaterial({
     //   vertexColors: true
     // })
     const matLineBasic = new MeshBasicNodeMaterial({
       // vertexColors: true
-      color: 'white'
+      color: 'white',
+      side: THREE.DoubleSide
     })
     matLineBasic.positionNode = Fn(() => {
       return vec4(uniforms.position.element(vertexIndex), 1)
@@ -120,84 +142,78 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
 
     const line = new THREE.Mesh(geo, matLineBasic)
 
-    const uniforms = {
-      position: uniformArray(
-        range(divisions * 4).map(x => new THREE.Vector3())
-      ),
-      color: uniformArray(range(divisions * 4).map(x => new THREE.Vector3()))
-    }
-
     return { line, uniforms }
   })
 
-  const reInitialize = () => {
-    const nextData = builder.reInitialize(resolution)
-    const curves = nextData.positionArray
+  // const reInitialize = () => {
+  //   const nextData = builder.reInitialize(resolution)
+  //   const curves = nextData.positionArray
 
-    lines.forEach(({ line, uniforms }, i) => {
-      const spline = new THREE.Path(
-        curves[i].map(x => new THREE.Vector2(x.x, x.y))
-        // false,
-        // undefined,
-        // 30
-      )
-      const divisions =
-        curves[i].length === 2 ? 2 : Math.round(12 * curves[i].length)
-      const point = new THREE.Vector2()
-      const lineColor = new THREE.Color()
+  //   lines.forEach(({ line, uniforms }, i) => {
+  //     const spline = new THREE.Path(
+  //       curves[i].map(x => new THREE.Vector2(x.x, x.y))
+  //       // false,
+  //       // undefined,
+  //       // 30
+  //     )
+  //     const divisions = Math.round(12 * curves[i].length)
+  //     const point = new THREE.Vector2()
+  //     const lineColor = new THREE.Color()
 
-      const l = divisions
-      const nextPoint = new THREE.Vector2()
-      spline.getPoint(0, nextPoint)
-      const tangentVector = new THREE.Vector2()
-      const curve = curves[i]
-      let thisSize = curve[0].thickness
-      const positions = uniforms.position.array as THREE.Vector3[]
-      for (let j = 1; j < l; j++) {
-        const t = j / (l - 1 || 1) - 1e-6
-        point.copy(nextPoint)
-        spline.getPoint(t, nextPoint)
+  //     const l = divisions
+  //     const nextPoint = new THREE.Vector2()
+  //     spline.getPoint(0, nextPoint)
+  //     const tangentVector = new THREE.Vector2()
+  //     const curve = curves[i]
+  //     let thisSize = curve[0].thickness
+  //     const positions = uniforms.position.array as THREE.Vector3[]
+  //     console.log(positions)
 
-        const start = Math.floor(t * (curves.length - 1))
+  //     for (let j = 1; j < l; j++) {
+  //       const t = j / (l - 1 || 1) - 1e-6
+  //       point.copy(nextPoint)
+  //       spline.getPoint(t, nextPoint)
 
-        const thisPoint = curve[start]
-        const pointAfter = curve[start + 1]
+  //       const start = Math.floor(t * (curves.length - 1))
 
-        const nextSize =
-          thisPoint.thickness +
-          (pointAfter.thickness - thisPoint.thickness) * (t - start)
-        // const SIZE = 0.01
-        // (2, 1, 0, 3, 2, 1), (2, 3, 4, 3, 4, 5)
-        tangentVector
-          .subVectors(nextPoint, point)
-          .rotateAround({ x: 0, y: 0 }, 0.25 * Math.PI * 2)
-          .divideScalar(tangentVector.length() * width)
-        const index = (j - 1) * 4
-        positions[index].set(point.x, point.y, 0)
-        positions[index + 1].set(
-          point.x + tangentVector.x * thisSize,
-          point.y + tangentVector.y * thisSize,
-          0
-        )
-        positions[index + 2].set(nextPoint.x, nextPoint.y, 0)
-        positions[index + 3].set(
-          nextPoint.x + tangentVector.x * nextSize,
-          nextPoint.y + tangentVector.y * nextSize,
-          0
-        )
-        thisSize = nextSize
+  //       const thisPoint = curve[start]
+  //       const pointAfter = curve[start + 1]
 
-        lineColor.setHSL(1, 1, 1, THREE.SRGBColorSpace)
-        // for (let i = 0; i < 6; i++) {
-        //   colors.push(lineColor.r, lineColor.g, lineColor.b)
-        // }
-      }
-      // uniforms.position.needsUpdate = true
-      // line.material.needsUpdate = true
-    })
-  }
+  //       const nextSize =
+  //         thisPoint.thickness +
+  //         (pointAfter.thickness - thisPoint.thickness) * (t - start)
+  //       // const SIZE = 0.01
+  //       // (2, 1, 0, 3, 2, 1), (2, 3, 4, 3, 4, 5)
+  //       tangentVector
+  //         .subVectors(nextPoint, point)
+  //         .rotateAround({ x: 0, y: 0 }, 0.25 * Math.PI * 2)
+  //         .divideScalar(tangentVector.length() * width)
+  //       const index = (j - 1) * 4
+  //       positions[index].set(point.x, point.y, 0)
+  //       positions[index + 1].set(
+  //         point.x + tangentVector.x * thisSize,
+  //         point.y + tangentVector.y * thisSize,
+  //         0
+  //       )
+  //       positions[index + 2].set(nextPoint.x, nextPoint.y, 0)
+  //       positions[index + 3].set(
+  //         nextPoint.x + tangentVector.x * nextSize,
+  //         nextPoint.y + tangentVector.y * nextSize,
+  //         0
+  //       )
+  //       thisSize = nextSize
 
-  reInitialize()
+  //       lineColor.setHSL(1, 1, 1, THREE.SRGBColorSpace)
+  //       // for (let i = 0; i < 6; i++) {
+  //       //   colors.push(lineColor.r, lineColor.g, lineColor.b)
+  //       // }
+  //     }
+  //     // uniforms.position.needsUpdate = true
+  //     // line.material.needsUpdate = true
+  //   })
+  // }
+
+  // reInitialize()
 
   const nextTime = useRef<number>(firstData.settings.start / 1000)
 
@@ -212,7 +228,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
               ? nextTime.current + r / 1000
               : nextTime.current + r(nextTime.current * 1000) / 1000
 
-        reInitialize()
+        // reInitialize()
       }
     }
   })
