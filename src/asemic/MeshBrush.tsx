@@ -95,11 +95,10 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       'position',
       new THREE.Float32BufferAttribute(divisions * 4 * 3, 3)
     )
-    const indexGuide = [2, 1, 0, 3, 2, 1]
+    const indexGuide = [2, 1, 0, 1, 2, 3]
     const divisionGuide = range(divisions).flatMap(i =>
       indexGuide.map(j => j + i * 2)
     )
-    console.log(divisionGuide)
 
     geo.setIndex(divisionGuide)
 
@@ -133,16 +132,17 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
 
   const reInitialize = () => {
     const nextData = builder.reInitialize(resolution)
-    const points = nextData.positionArray
+    const curves = nextData.positionArray
+
     lines.forEach(({ line, uniforms }, i) => {
       const spline = new THREE.Path(
-        points[i].map(x => new THREE.Vector2(x.x, x.y))
+        curves[i].map(x => new THREE.Vector2(x.x, x.y))
         // false,
         // undefined,
         // 30
       )
       const divisions =
-        points[i].length === 2 ? 2 : Math.round(12 * points[i].length)
+        curves[i].length === 2 ? 2 : Math.round(12 * curves[i].length)
       const point = new THREE.Vector2()
       const lineColor = new THREE.Color()
 
@@ -150,16 +150,18 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       const nextPoint = new THREE.Vector2()
       spline.getPoint(0, nextPoint)
       const tangentVector = new THREE.Vector2()
-      let thisSize = points[i][0].thickness
+      const curve = curves[i]
+      let thisSize = curve[0].thickness
       const positions = uniforms.position.array as THREE.Vector3[]
-      for (let i = 1; i < l; i++) {
-        const t = i / (l - 1 || 1)
+      for (let j = 1; j < l; j++) {
+        const t = j / (l - 1 || 1) - 1e-6
         point.copy(nextPoint)
         spline.getPoint(t, nextPoint)
 
-        const start = Math.floor(t * (points.length - 2))
-        const thisPoint = points[i][start]
-        const pointAfter = points[i][start + 1]
+        const start = Math.floor(t * (curves.length - 1))
+
+        const thisPoint = curve[start]
+        const pointAfter = curve[start + 1]
 
         const nextSize =
           thisPoint.thickness +
@@ -170,7 +172,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
           .subVectors(nextPoint, point)
           .rotateAround({ x: 0, y: 0 }, 0.25 * Math.PI * 2)
           .divideScalar(tangentVector.length() * width)
-        const index = (i - 1) * 4
+        const index = (j - 1) * 4
         positions[index].set(point.x, point.y, 0)
         positions[index + 1].set(
           point.x + tangentVector.x * thisSize,
@@ -209,7 +211,6 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
             : typeof r === 'number'
               ? nextTime.current + r / 1000
               : nextTime.current + r(nextTime.current * 1000) / 1000
-        // console.log(nextTime.current)
 
         reInitialize()
       }
