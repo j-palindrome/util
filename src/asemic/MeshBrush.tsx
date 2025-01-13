@@ -94,30 +94,33 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
               : 0
       ) * 6
 
-    const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute(
-      'position',
-      new THREE.BufferAttribute(
-        new Float32Array([0.5, 0.5, 0, 0, 1, 0, 1, 0, 0]),
-        3
-      )
-    )
-    geometry.setIndex(range(MAX_INSTANCE_COUNT))
-    // const geometry = new THREE.PlaneGeometry(10 / width, 10 / width)
-    const material = new MeshBasicNodeMaterial({
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      color: 'white'
-    })
-    // const material = new SpriteNodeMaterial({
+    // const geometry = new THREE.BufferGeometry()
+    // geometry.setAttribute(
+    //   'position',
+    //   new THREE.BufferAttribute(
+    //     new Float32Array([0.5, 0.5, 0, 0, 1, 0, 1, 0, 0]),
+    //     3
+    //   )
+    // )
+    // geometry.setIndex(range(MAX_INSTANCE_COUNT))
+    // console.log(MAX_INSTANCE_COUNT)
+    // const material = new MeshBasicNodeMaterial({
     //   transparent: true,
     //   depthWrite: false,
     //   blending: THREE.AdditiveBlending,
     //   color: 'white'
     // })
     // const mesh = new THREE.Mesh(geometry, material)
-    const mesh = new THREE.Mesh(geometry, material)
+
+    const geometry = new THREE.PlaneGeometry(30 / width, 30 / width)
+    const material = new SpriteNodeMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      color: 'white'
+    })
+    const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
+
     mesh.position.set(...firstData.transform.translate.toArray(), 0)
     mesh.scale.set(...firstData.transform.scale.toArray(), 0)
     mesh.rotation.set(0, 0, firstData.transform.rotate)
@@ -388,7 +391,8 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       const controlPointsCount = controlPointCounts.element(t.y)
       const position = vec2().toVar()
 
-      If(t.x.equal(-1), () => {
+      // If(t.x.equal(-1), () => {
+      If(vertexIndex.greaterThanEqual(6 * 3 * 2), () => {
         varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
       }).Else(() => {
         If(controlPointsCount.equal(2), () => {
@@ -416,6 +420,15 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
             position.assign(progressPoint)
             rotation.assign(
               firstData.settings.pointRotate(atan(rotate.y, rotate.x), info)
+            )
+
+            varyingProperty('vec4', 'colorV').assign(
+              vec4(
+                1,
+                1,
+                1,
+                select(instanceIndex.modInt(6).greaterThan(3), 1, 0.1)
+              )
             )
           })
         }).Else(() => {
@@ -475,6 +488,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
             varyingProperty('vec4', 'colorV').assign(
               vec4(texture(curveColorTex, tt))
             )
+
             thickness.assign(texture(curvePositionTex, tt).w)
             position.assign(
               firstData.settings.pointVert(thisPoint.position, info)
@@ -482,28 +496,27 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
             rotation.assign(
               firstData.settings.pointRotate(thisPoint.rotation, info)
             )
+
+            const lineThickness = float(thickness)
+              .mul(pixel)
+              .toVar('lineThickness')
+            If(indexMod.y.equal(0), () => {
+              lineThickness.assign(0)
+            })
+
+            position.addAssign(rotate2d(vec2(lineThickness, 0), 0.25))
           })
         })
       })
 
-      // const lineThickness = select(
-      //   float(1).equal(1),
-      //   // instanceIndex.modInt(2).lessThan(1),
-      //   float(thickness).mul(pixel),
-      //   0
-      // ).toVar('lineThickness')
-      // lineThickness.assign(float(thickness).mul(pixel))
-      const lineThickness = float(thickness).mul(pixel).toVar('lineThickness')
-      If(indexMod.y.equal(0), () => {
-        lineThickness.assign(0)
-      })
-
-      position.addAssign(rotate2d(vec2(lineThickness, 0), 0.25))
-
+      // it's -1 when doing the last one. why?
       position.assign(
         vec4(
-          vertexIndex.toFloat().div(MAX_INSTANCE_COUNT),
-          float(0.5).add(select(vertexIndex.modInt(2).equal(0), 0, 0.2)),
+          t.x,
+          float(0.5)
+            .add(indexMod.y)
+            .add(select(instanceIndex.modInt(6).greaterThan(3), 0.05, 0)),
+          // float(0.5).add(select(vertexIndex.modInt(2).equal(0), 0, 0.2)),
           0,
           1
         )
@@ -515,8 +528,8 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
 
     // material.scaleNode = firstData.settings.pointScale(vec2(4, 4).mul(pixel))
 
-    // const colorV = varying(vec4(), 'colorV')
-    // material.colorNode = firstData.settings.pointFrag(colorV)
+    const colorV = varying(vec4(), 'colorV')
+    material.colorNode = firstData.settings.pointFrag(colorV)
     // material.needsUpdate = true
 
     return {
