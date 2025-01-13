@@ -2,11 +2,9 @@ import { extend, Object3DNode, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
-import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
 import {
   atan,
   Break,
-  drawIndex,
   float,
   Fn,
   If,
@@ -15,10 +13,8 @@ import {
   ivec2,
   Loop,
   mix,
-  PI,
   remap,
   screenSize,
-  select,
   storage,
   texture,
   textureLoad,
@@ -28,24 +24,18 @@ import {
   varyingProperty,
   vec2,
   vec3,
-  vec4,
-  vertexIndex
+  vec4
 } from 'three/tsl'
 import {
-  Line2NodeMaterial,
-  LineBasicNodeMaterial,
-  MeshBasicNodeMaterial,
-  MeshStandardNodeMaterial,
   SpriteNodeMaterial,
   StorageBufferAttribute,
   StorageInstancedBufferAttribute,
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { bezierPoint, lineTangent, rotate2d } from '../tsl/curves'
+import { bezierPoint, lineTangent } from '../tsl/curves'
 import { textureLoadFix } from '../tsl/utility'
 import { GroupBuilder } from './Builder'
-import { range } from 'lodash'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -97,30 +87,16 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
             ? firstData.dimensions.y * firstData.settings.gap
             : 0
     )
+    console.log(MAX_INSTANCE_COUNT)
 
-    // const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
-    // const geometry = new THREE.BufferGeometry()
-    // const positions = new Float32Array([])
-    const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute(
-      'position',
-      new THREE.BufferAttribute(new Float32Array(), 3)
-    )
-    geometry.setIndex(range(MAX_INSTANCE_COUNT))
-
-    // geometry.translate(firstData.settings.align - 0.5, 0.5, 0)
-    const material = new MeshBasicNodeMaterial({
+    const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
+    geometry.translate(firstData.settings.align - 0.5, 0.5, 0)
+    const material = new SpriteNodeMaterial({
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      positionNode: vec4(
-        vertexIndex.toFloat().div(780),
-        vertexIndex.toFloat().mod(2),
-        0,
-        1
-      )
+      blending: THREE.AdditiveBlending
     })
-    const mesh = new THREE.Mesh(geometry, material)
+    const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
     mesh.position.set(...firstData.transform.translate.toArray(), 0)
     mesh.scale.set(...firstData.transform.scale.toArray(), 0)
     mesh.rotation.set(0, 0, firstData.transform.rotate)
@@ -306,7 +282,9 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
           textureLoadFix(texture(curvePositionTex), ivec2(0, curveProgress)).xy
         )
         // Find the subdivisions, then linearly interpolate between the subdivisions...on the graphics card.
-        const count = controlPointsCount.mul(firstData.settings.maxLength * 4)
+        const count = controlPointsCount
+          .mul(6)
+          .mul(firstData.settings.maxLength)
         Loop(
           {
             start: 1,
@@ -321,20 +299,40 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
             ).xy
             lastEnd.assign(totalLength)
             totalLength.addAssign(thisPoint.sub(lastPoint).length())
+            if (firstData.settings.resample) {
+              If(totalLength.greaterThanEqual(targetLength), () => {
+                const remapped = remap(targetLength, lastEnd, totalLength, 0, 1)
+                found.assign(1)
+                tAttribute
+                  .element(instanceIndex)
+                  .assign(
+                    vec2(
+                      i
+                        .sub(1)
+                        .add(remapped)
+                        .div(count)
+                        .mul(controlPointsCount.sub(2)),
+                      curveProgress
+                    )
+                  )
+                Break()
+              })
+            }
           }
         )
-
-        If(totalLength.greaterThanEqual(targetLength), () => {
-          found.assign(1)
-          tAttribute
-            .element(instanceIndex)
-            .assign(
-              vec2(
-                targetLength.div(totalLength).mul(controlPointsCount.sub(2)),
-                curveProgress
+        if (!firstData.settings.resample) {
+          If(totalLength.greaterThanEqual(targetLength), () => {
+            found.assign(1)
+            tAttribute
+              .element(instanceIndex)
+              .assign(
+                vec2(
+                  targetLength.div(totalLength).mul(controlPointsCount.sub(2)),
+                  curveProgress
+                )
               )
-            )
-        })
+          })
+        }
       })
 
       If(found.equal(0), () => {
@@ -349,8 +347,8 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     const curvePositionTexU = texture(curvePositionTex)
 
     const main = Fn(() => {
-      const t = tAttribute.element(instanceIndex.div(2)).toVar('t')
-      // const lineSide = instanceIndex.modInt(2).toVar('lineSide')
+      // @ts-ignore
+      const t = tAttribute.toAttribute()
       // dimU = 9 t.y = 8.5/9
       const controlPointsCount = controlPointCounts.element(t.y)
       const position = vec2().toVar()
@@ -459,15 +457,17 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
           })
         })
       })
-      position.addAssign(rotate2d(vec2(0, 1), 0.5))
+
       return vec4(position, 0, 1)
     })
-    // material.lineWidth = 10
 
-    // material.positionNode = main()
+    material.positionNode = main()
+    material.rotationNode = rotation
+
+    material.scaleNode = firstData.settings.pointScale(vec2(4, 4).mul(pixel))
 
     const colorV = varying(vec4(), 'colorV')
-    // material.colorNode = firstData.settings.pointFrag(colorV)
+    material.colorNode = firstData.settings.pointFrag(colorV)
     material.needsUpdate = true
 
     return {
@@ -563,6 +563,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     }
     return () => {
       scene.remove(mesh)
+      mesh.dispose()
       material.dispose()
       geometry.dispose()
       curvePositionTex.dispose()
