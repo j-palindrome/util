@@ -4,6 +4,7 @@ import { OrthographicCamera, Vector2 } from 'three'
 import Brush from './Brush'
 import SceneBuilder from './Builder'
 import { WebGPURenderer } from 'three/webgpu'
+import MeshBrush from './MeshBrush'
 
 export function AsemicCanvas({
   children,
@@ -46,18 +47,14 @@ export function AsemicCanvas({
         })
         return renderer
       }}>
-      {children}
+      {frameloop === 'always' && children}
+      {frameloop === 'always' && <Adjust />}
     </Canvas>
   )
 }
 
-export default function Asemic({
-  builder
-}: {
-  builder: (b: SceneBuilder) => SceneBuilder | void
-} & React.PropsWithChildren) {
+function Adjust() {
   const resolution = new Vector2()
-
   useThree(state => {
     state.gl.getDrawingBufferSize(resolution)
     const camera = state.camera as OrthographicCamera
@@ -66,11 +63,19 @@ export default function Asemic({
     camera.top = resolution.height / resolution.width
     camera.updateProjectionMatrix()
   })
+  return <></>
+}
+
+export default function Asemic({
+  builder
+}: {
+  builder: (b: SceneBuilder) => SceneBuilder | void
+} & React.PropsWithChildren) {
   const b = new SceneBuilder(builder)
   return (
     <>
       {b.groups.map((group, i) => (
-        <Brush builder={group} key={i} />
+        <MeshBrush builder={group} key={i} />
       ))}
     </>
   )

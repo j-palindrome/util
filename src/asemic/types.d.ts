@@ -30,6 +30,10 @@ declare global {
     alpha: number
     spacing: number
   }
+  type ProgressInfo = {
+    p: number
+    i: number
+  }
 
   type ParticleInfo = {
     pointUV: ReturnType<typeof vec2>
@@ -38,7 +42,8 @@ declare global {
   }
 
   type ProcessData = {
-    spacingType: 'count' | 'pixel' | 'width'
+    type: 'points' | 'line'
+    gapType: 'count' | 'pixel' | 'width'
     recalculate: boolean | number | ((lastFrame: number) => number)
     start: number
     gap: number
@@ -58,7 +63,7 @@ declare global {
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & { lastColor: ReturnType<typeof vec4> }
     ) => input
-    pointFrag: (input: ReturnType<typeof vec4>, info: ParticleInfo) => input
+    pointFrag: (input: ReturnType<typeof vec4>) => input
     curveVert: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & { lastPosition: ReturnType<typeof vec4> }

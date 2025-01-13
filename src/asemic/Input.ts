@@ -1,15 +1,5 @@
 import { useEffect } from 'react'
-import { Texture, VideoTexture } from 'three'
-
-export class WebcamTexture {
-  texture: VideoTexture
-  constructor() {
-    const video = new HTMLVideoElement()
-    this.texture = new VideoTexture(video)
-    video.muted = true
-    video.autoplay = true
-  }
-}
+import { SRGBColorSpace, Texture, VideoTexture } from 'three'
 
 type SrcKey = 'video' | 'stream' | 'cam' | 'screen'
 type SrcProperties<T extends SrcKey> = {
@@ -17,64 +7,50 @@ type SrcProperties<T extends SrcKey> = {
 } & (T extends 'video'
   ? { src: string }
   : T extends 'stream'
-    ? { src: MediaStream }
+    ? { src?: MediaStream }
     : T extends 'cam'
-      ? { src: MediaStreamConstraints }
+      ? { src?: MediaStreamConstraints }
       : T extends 'screen'
-        ? { src: DisplayMediaStreamOptions }
+        ? { src?: DisplayMediaStreamOptions }
         : never)
 
-class AsemicInput<T extends SrcKey> {
+export class AsemicInput<T extends SrcKey> {
   dynamic = true
   width = 1080
   height = 1920
-  src = new HTMLVideoElement()
-  tex = new VideoTexture(this.src)
+  video!: HTMLVideoElement
+  texture!: VideoTexture
+  type: T
+  props: SrcProperties<T>
 
   constructor(type: T, props: SrcProperties<T>) {
     this.width = props.dimensions[0]
     this.height = props.dimensions[1]
-    this.reInit()
-    switch (type) {
-      case 'cam':
-        this.initCam((props as SrcProperties<'cam'>).src)
-        break
-      case 'screen':
-        this.initScreen((props as SrcProperties<'screen'>).src)
-        break
-      case 'stream':
-        this.initStream((props as SrcProperties<'stream'>).src)
-        break
-      case 'video':
-        this.initVideo((props as SrcProperties<'video'>).src)
-        break
-    }
+    this.type = type
+    this.props = props
   }
 
-  initCam(constraints: MediaStreamConstraints) {
-    navigator.mediaDevices
+  async initCam(constraints?: MediaStreamConstraints) {
+    return await navigator.mediaDevices
       .getUserMedia(constraints)
       .then(stream => {
-        this.src.srcObject = stream
-        this.src.play()
-      })
-      .catch(function (error) {
-        console.error('Unable to access the camera/webcam.', error)
+        this.video.srcObject = stream
+        this.video.play()
       })
   }
 
-  initVideo(url = '') {
-    this.src.crossOrigin = 'anonymous'
-    this.src.loop = true
-
-    // const onload = this.src.addEventListener('loadeddata', () => {
-    //   this.src.play()
-    // })
-    this.src.src = url
+  async initVideo(url: string) {
+    this.video.src = url
+    this.video.play()
+    return new Promise(res => {
+      this.video.addEventListener('loadeddata', () => {
+        res(undefined)
+      })
+    })
   }
 
   // TODO: figure out how to initialize a stream
-  initStream(streamName) {
+  async initStream(streamName) {
     //  console.log("initing stream!", streamName)
     let self = this
     // if (streamName && this.pb) {
@@ -91,40 +67,59 @@ class AsemicInput<T extends SrcKey> {
   }
 
   // index only relevant in atom-hydra + desktop apps
-  initScreen(options?: DisplayMediaStreamOptions) {
-    navigator.mediaDevices
-      .getDisplayMedia(options)
+  async initScreen(options?: DisplayMediaStreamOptions) {
+    const constraints = {}
+    return await navigator.mediaDevices
+      .getDisplayMedia(constraints)
       .then(stream => {
-        this.src.srcObject = stream
+        this.video.srcObject = stream
+        this.video.play()
       })
-      .catch(err => console.log('could not get screen', err))
   }
 
   resize(width, height) {
     this.width = width
     this.height = height
-    this.src.width = width
-    this.src.height = height
+    this.video.width = width
+    this.video.height = height
     // needed?
     // this.tex.dispose()
     // this.tex = new VideoTexture(this.src)
   }
 
-  reInit() {
+  async init() {
     // if (this.src && this.src.srcObject) {
     //   if (this.src.srcObject.getTracks) {
     //     this.src.srcObject.getTracks().forEach(track => track.stop())
     //   }
     // }
-    this.src?.remove()
-    this.src = new HTMLVideoElement()
-    this.src.width = this.width
-    this.src.height = this.height
-    this.src.muted = true
-    this.src.autoplay = true
-    this.src.loop = true
-    this.tex?.dispose()
-    this.tex = new VideoTexture(this.src)
+    this.video?.remove()
+    this.video = document.createElement('video')
+    this.video.style.display = 'none'
+    document.body.appendChild(this.video)
+    this.video.width = this.width
+    this.video.height = this.height
+    this.video.muted = true
+    this.video.autoplay = true
+    this.video.loop = true
+    this.texture?.dispose()
+    this.texture = new VideoTexture(this.video)
+
+    switch (this.type) {
+      case 'cam':
+        await this.initCam((this.props as SrcProperties<'cam'>).src)
+        break
+      case 'screen':
+        await this.initScreen((this.props as SrcProperties<'screen'>).src)
+        break
+      case 'stream':
+        await this.initStream((this.props as SrcProperties<'stream'>).src)
+        break
+      case 'video':
+        await this.initVideo((this.props as SrcProperties<'video'>).src)
+        break
+    }
+    return this.texture
   }
 
   // tick (time) {

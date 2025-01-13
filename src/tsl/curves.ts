@@ -1,4 +1,5 @@
 import {
+  atan,
   atan2,
   cos,
   float,
@@ -85,7 +86,7 @@ export const bezierPoint = ({ t, p0, p1, p2, strength }) => {
   const positionStraight = polyLine({ t, p0, p1, p2 })
   const position = mix(positionCurve, positionStraight, strength)
   const tangent = bezier2Tangent({ t, p0, p1, p2 })
-  const rotation = atan2(tangent.y, tangent.x)
+  const rotation = atan(tangent.y, tangent.x)
   return { position, rotation }
 }
 

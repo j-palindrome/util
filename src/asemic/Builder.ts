@@ -17,7 +17,6 @@ import {
 import invariant from 'tiny-invariant'
 import { lerp } from '../math'
 import { PointBuilder } from './PointBuilder'
-import AsemicInput from './Input'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
@@ -26,20 +25,22 @@ export const defaultCoordinateSettings: CoordinateSettings = {
   spacing: 3,
   thickness: 1
 }
+
 export class Builder {
   protected transforms: TransformData[] = []
   currentTransform: TransformData = this.toTransform()
-  protected settings: GroupData['settings'] = {
+  settings: GroupData['settings'] = {
     maxLength: 0,
     maxCurves: 0,
     maxPoints: 0,
     align: 0.5,
     resample: true,
-    gap: 0,
+    gap: 3,
     recalculate: false,
     start: 0,
-    spacingType: 'pixel',
+    gapType: 'pixel',
     update: false,
+    type: 'line',
     pointScale: input => input,
     pointRotate: input => input,
     pointVert: input => input,
@@ -50,9 +51,8 @@ export class Builder {
   }
 
   repeat(runCount: number, func: ({ p, i }: { p: number; i: number }) => void) {
-    const div = runCount - 1
     for (let i = 0; i < runCount; i++) {
-      func({ p: i / (div || 1), i })
+      func({ p: i / runCount, i })
     }
 
     return this
@@ -474,30 +474,66 @@ export class GroupBuilder extends Builder {
     return new PointBuilder([0, 0]).copy(curvePath.getPointAt(Math.random()))
   }
 
-  getRandomWithin(origin: number, variation: number): number
-  getRandomWithin(origin: Coordinate, variation: Coordinate): PointBuilder
+  getRandomWithin(low: number, high: number): number
   getRandomWithin(
-    origin: Coordinate,
-    variation: Coordinate,
+    low: [number, number],
+    high: [number, number]
+  ): [number, number]
+  getRandomWithin(
+    low: [number, number],
+    high: [number, number],
     count: number
-  ): PointBuilder[]
-  getRandomWithin(origin: number, variation: number, count: number): number[]
+  ): [number, number][]
+  getRandomWithin(low: number, high: number, count: number): number[]
   getRandomWithin(
-    origin: number | Coordinate,
-    variation: number | Coordinate,
+    low: number | [number, number],
+    high: number | [number, number],
     count = 1
-  ): number | PointBuilder | (number | PointBuilder)[] {
+  ): number | [number, number] | (number | [number, number])[] {
+    const random = () => {
+      if (typeof low === 'number' && typeof high === 'number') {
+        return low + Math.random() * (high - low)
+      } else {
+        return [
+          low[0] + Math.random() * (high[0] - low[0]),
+          low[1] + Math.random() * (high[1] - low[1])
+        ] as [number, number]
+      }
+    }
+    if (count > 1) {
+      return _.range(count).map(() => random())
+    } else return random()
+  }
+
+  getRandomAround(origin: number, variation: number): number
+  getRandomAround(
+    origin: [number, number],
+    variation: [number, number]
+  ): [number, number]
+  getRandomAround(
+    origin: [number, number],
+    variation: [number, number],
+    count: number
+  ): [number, number][]
+  getRandomAround(origin: number, variation: number, count: number): number[]
+  getRandomAround(
+    origin: number | [number, number],
+    variation: number | [number, number],
+    count = 1
+  ): number | [number, number] | (number | [number, number])[] {
     const random = () => {
       if (typeof origin === 'number' && typeof variation === 'number') {
         return origin + (Math.random() - 0.5) * 2 * variation
       } else {
-        return this.toPoint(origin as Coordinate).add(
-          new Vector2()
-            .random()
-            .subScalar(0.5)
-            .multiplyScalar(2)
-            .multiply(this.toPoint(variation as Coordinate))
-        )
+        return new Vector2(...(origin as [number, number]))
+          .add(
+            new Vector2()
+              .random()
+              .subScalar(0.5)
+              .multiplyScalar(2)
+              .multiply(new Vector2(...(variation as [number, number])))
+          )
+          .toArray()
       }
     }
     if (count > 1) {
@@ -602,14 +638,6 @@ ${this.curves
         range(pointCount).map(() => new PointBuilder())
       )
     )
-    return this
-  }
-
-  newCurves(count: number, ...points: (Coordinate | PointBuilder)[]) {
-    const curve = this.toPoints(...points)
-    for (let i = 0; i < count; i++) {
-      this.curves.push(curve.map(x => x.clone()))
-    }
     return this
   }
 
