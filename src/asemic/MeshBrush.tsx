@@ -15,11 +15,13 @@ import {
   mix,
   remap,
   screenSize,
+  select,
   storage,
   texture,
   textureLoad,
   textureStore,
   uniform,
+  uniformArray,
   varying,
   varyingProperty,
   vec2,
@@ -33,7 +35,7 @@ import {
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { bezierPoint, lineTangent } from '../tsl/curves'
+import { bezierPoint, lineTangent, rotate2d } from '../tsl/curves'
 import { textureLoadFix } from '../tsl/utility'
 import { GroupBuilder } from './Builder'
 
@@ -75,19 +77,19 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     controlPointCounts,
     tArray
   } = useMemo(() => {
-    const MAX_INSTANCE_COUNT = Math.floor(
-      firstData.settings.gapType === 'pixel'
-        ? firstData.dimensions.y *
-            ((firstData.settings.maxLength * width) / firstData.settings.gap)
-        : firstData.settings.gapType === 'width'
+    const MAX_INSTANCE_COUNT =
+      Math.floor(
+        firstData.settings.gapType === 'pixel'
           ? firstData.dimensions.y *
-            ((firstData.settings.maxLength * width) /
-              (firstData.settings.gap * width))
-          : firstData.settings.gapType === 'count'
-            ? firstData.dimensions.y * firstData.settings.gap
-            : 0
-    )
-    console.log(MAX_INSTANCE_COUNT)
+              ((firstData.settings.maxLength * width) / firstData.settings.gap)
+          : firstData.settings.gapType === 'width'
+            ? firstData.dimensions.y *
+              ((firstData.settings.maxLength * width) /
+                (firstData.settings.gap * width))
+            : firstData.settings.gapType === 'count'
+              ? firstData.dimensions.y * firstData.settings.gap
+              : 0
+      ) * 6
 
     const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
     geometry.translate(firstData.settings.align - 0.5, 0.5, 0)
@@ -342,11 +344,12 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       return undefined as any
     })().compute(MAX_INSTANCE_COUNT, undefined as any)
 
-    const rotation = float(0).toVar('rotation')
-    const thickness = float(0).toVar('thickness')
     const curvePositionTexU = texture(curvePositionTex)
 
+    const indexes = uniformArray([new Vector2(0, 1), new Vector2()])
     const main = Fn(() => {
+      const rotation = float(0).toVar('rotation')
+      const thickness = float(0).toVar('thickness')
       // @ts-ignore
       const t = tAttribute.toAttribute()
       // dimU = 9 t.y = 8.5/9
@@ -380,10 +383,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
             thickness.assign(texture(curvePositionTex, textureVector).w)
             position.assign(progressPoint)
             rotation.assign(
-              vec2(
-                firstData.settings.pointRotate(atan(rotate.y, rotate.x), info),
-                0
-              )
+              firstData.settings.pointRotate(atan(rotate.y, rotate.x), info)
             )
           })
         }).Else(() => {
@@ -448,21 +448,29 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
               firstData.settings.pointVert(thisPoint.position, info)
             )
             rotation.assign(
-              vec3(
-                firstData.settings.pointRotate(thisPoint.rotation, info),
-                0,
-                0
-              )
+              firstData.settings.pointRotate(thisPoint.rotation, info)
             )
           })
         })
       })
 
+      // const lineThickness = select(
+      //   float(1).equal(1),
+      //   // instanceIndex.modInt(2).lessThan(1),
+      //   float(thickness).mul(pixel),
+      //   0
+      // ).toVar('lineThickness')
+      // lineThickness.assign(float(thickness).mul(pixel))
+      const lineThickness = float(thickness).mul(pixel).toVar('lineThickness')
+      If(instanceIndex.modInt(2).equal(0), () => {
+        lineThickness.assign(0)
+      })
+
+      position.addAssign(rotate2d(vec2(lineThickness, 0), 0.25))
       return vec4(position, 0, 1)
     })
 
     material.positionNode = main()
-    material.rotationNode = rotation
 
     material.scaleNode = firstData.settings.pointScale(vec2(4, 4).mul(pixel))
 
