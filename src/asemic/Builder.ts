@@ -284,23 +284,21 @@ export class GroupBuilder extends Builder {
       return tex
     }
 
-    const positionTex = createTexture(
-      new Float32Array(
-        range(height).flatMap(i => {
-          const c = this.curves[i]
-          return c
-            ? range(width).flatMap(i => {
-                const point = c[i]
-                return point
-                  ? [point.x, point.y, point.strength, point.thickness]
-                  : [-1111, 0, 0, 0]
-              })
-            : range(width).flatMap(() => [-1111, 0, 0, 0])
-        })
-      ),
-      RGBAFormat,
-      LinearFilter
+    const pos = new Float32Array(
+      range(height).flatMap(i => {
+        const c = this.curves[i]
+        return c
+          ? range(width).flatMap(i => {
+              const point = c[i]
+              return point
+                ? [point.x, point.y, point.strength, point.thickness]
+                : [-1111, 0, 0, 0]
+            })
+          : range(width).flatMap(() => [-1111, 0, 0, 0])
+      })
     )
+    const positionArray = this.curves
+    const positionTex = createTexture(pos, RGBAFormat, LinearFilter)
 
     const colorTex = createTexture(
       new Float32Array(
@@ -339,7 +337,8 @@ export class GroupBuilder extends Builder {
       countTex,
       dimensions,
       transform: this.toTransform(),
-      settings: this.settings
+      settings: this.settings,
+      positionArray
     }
   }
 
@@ -653,18 +652,16 @@ ${this.curves
   text(str: string, transform?: CoordinateData) {
     let lineCount = 0
     if (transform) {
-      this.transform(transform)
+      this.transform({ ...transform, push: true })
     }
     for (let letter of str) {
       if (this.letters[letter]) {
-        this.transform({ translate: [0.1, 0], push: true })
+        this.transform({ translate: [0.2, 0], push: true })
         this.letters[letter]()
       } else if (letter === '\n') {
-        lineCount++
-
         this.transform({
           reset: 'pop',
-          translate: [0, -1.1 * lineCount],
+          translate: [0, -1.5],
           push: true
         })
       }
