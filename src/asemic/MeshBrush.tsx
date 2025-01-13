@@ -346,12 +346,23 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
 
     const curvePositionTexU = texture(curvePositionTex)
 
-    const indexes = uniformArray([new Vector2(0, 1), new Vector2()])
+    const indexes = uniformArray(
+      [
+        new Vector2(0, 0),
+        new Vector2(0, 1),
+        new Vector2(1, 0),
+        new Vector2(0, 1),
+        new Vector2(1, 0),
+        new Vector2(1, 1)
+      ],
+      'ivec2'
+    )
     const main = Fn(() => {
       const rotation = float(0).toVar('rotation')
       const thickness = float(0).toVar('thickness')
-      // @ts-ignore
-      const t = tAttribute.toAttribute()
+
+      const indexMod = indexes.element(instanceIndex.modInt(6))
+      const t = tAttribute.element(instanceIndex.div(6).add(indexMod.x))
       // dimU = 9 t.y = 8.5/9
       const controlPointsCount = controlPointCounts.element(t.y)
       const position = vec2().toVar()
@@ -462,7 +473,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       // ).toVar('lineThickness')
       // lineThickness.assign(float(thickness).mul(pixel))
       const lineThickness = float(thickness).mul(pixel).toVar('lineThickness')
-      If(instanceIndex.modInt(2).equal(0), () => {
+      If(indexMod.y.equal(0), () => {
         lineThickness.assign(0)
       })
 
