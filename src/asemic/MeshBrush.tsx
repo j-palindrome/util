@@ -94,32 +94,27 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
               : 0
       ) * 6
 
-    // const geometry = new THREE.BufferGeometry()
-    // geometry.setAttribute(
-    //   'position',
-    //   new THREE.BufferAttribute(
-    //     new Float32Array([0.5, 0.5, 0, 0, 1, 0, 1, 0, 0]),
-    //     3
-    //   )
-    // )
+    const tArray = new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 3)
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', tArray)
     // geometry.setIndex(range(MAX_INSTANCE_COUNT))
-    // console.log(MAX_INSTANCE_COUNT)
-    // const material = new MeshBasicNodeMaterial({
-    //   transparent: true,
-    //   depthWrite: false,
-    //   blending: THREE.AdditiveBlending,
-    //   color: 'white'
-    // })
-    // const mesh = new THREE.Mesh(geometry, material)
-
-    const geometry = new THREE.PlaneGeometry(30 / width, 30 / width)
-    const material = new SpriteNodeMaterial({
+    console.log(MAX_INSTANCE_COUNT)
+    const material = new MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       color: 'white'
     })
-    const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
+    const mesh = new THREE.Mesh(geometry, material)
+
+    // const geometry = new THREE.PlaneGeometry(30 / width, 30 / width)
+    // const material = new SpriteNodeMaterial({
+    //   transparent: true,
+    //   depthWrite: false,
+    //   blending: THREE.AdditiveBlending,
+    //   color: 'white'
+    // })
+    // const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
 
     mesh.position.set(...firstData.transform.translate.toArray(), 0)
     mesh.scale.set(...firstData.transform.scale.toArray(), 0)
@@ -138,7 +133,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       new StorageBufferAttribute(new Int16Array(firstData.dimensions.y), 1),
       'int'
     )
-    const tArray = new StorageInstancedBufferAttribute(MAX_INSTANCE_COUNT, 2)
+
     return {
       mesh,
       material,
@@ -157,7 +152,8 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     curvePositionLoadU,
     curveColorLoadU,
     lastCurvePositionLoadU,
-    lastCurveColorLoadU
+    lastCurveColorLoadU,
+    updatePoints
   } = useMemo(() => {
     const pixel = 1 / width
 
@@ -290,14 +286,12 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
           ivec2(1, curveProgress)
         ).xy
         totalLength.assign(p1.sub(p0).length())
-        if (firstData.settings.resample) {
-          If(totalLength.greaterThanEqual(targetLength), () => {
-            found.assign(1)
-            tAttribute
-              .element(instanceIndex)
-              .assign(vec2(targetLength.div(totalLength), curveProgress))
-          })
-        }
+        If(totalLength.greaterThanEqual(targetLength), () => {
+          found.assign(1)
+          tAttribute
+            .element(instanceIndex)
+            .assign(vec2(targetLength.div(totalLength), curveProgress))
+        })
       }).Else(() => {
         const lastEnd = float(0).toVar('lastEnd')
         const lastPoint = vec2(0, 0).toVar('lastPoint')
@@ -323,40 +317,19 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
             ).xy
             lastEnd.assign(totalLength)
             totalLength.addAssign(thisPoint.sub(lastPoint).length())
-            if (firstData.settings.resample) {
-              If(totalLength.greaterThanEqual(targetLength), () => {
-                const remapped = remap(targetLength, lastEnd, totalLength, 0, 1)
-                found.assign(1)
-                tAttribute
-                  .element(instanceIndex)
-                  .assign(
-                    vec2(
-                      i
-                        .sub(1)
-                        .add(remapped)
-                        .div(count)
-                        .mul(controlPointsCount.sub(2)),
-                      curveProgress
-                    )
-                  )
-                Break()
-              })
-            }
           }
         )
-        if (!firstData.settings.resample) {
-          If(totalLength.greaterThanEqual(targetLength), () => {
-            found.assign(1)
-            tAttribute
-              .element(instanceIndex)
-              .assign(
-                vec2(
-                  targetLength.div(totalLength).mul(controlPointsCount.sub(2)),
-                  curveProgress
-                )
+        If(totalLength.greaterThanEqual(targetLength), () => {
+          found.assign(1)
+          tAttribute
+            .element(instanceIndex)
+            .assign(
+              vec2(
+                targetLength.div(totalLength).mul(controlPointsCount.sub(2)),
+                curveProgress
               )
-          })
-        }
+            )
+        })
       })
 
       If(found.equal(0), () => {
@@ -379,7 +352,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       ],
       'ivec2'
     )
-    const main = Fn(() => {
+    const updatePoints = Fn(() => {
       const rotation = float(0).toVar('rotation')
       const thickness = float(0).toVar('thickness')
 
@@ -391,15 +364,15 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       const controlPointsCount = controlPointCounts.element(t.y)
       const position = vec2().toVar()
 
-      // If(t.x.equal(-1), () => {
-      If(vertexIndex.greaterThanEqual(6 * 3 * 2), () => {
-        varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
+      If(t.x.equal(-1), () => {
+        // If(instanceIndex.greaterThanEqual(6 * 3 * 2), () => {
+        // varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
       }).Else(() => {
         If(controlPointsCount.equal(2), () => {
           const p0 = textureLoadFix(curvePositionTexU, ivec2(0, t.y)).xy
           const p1 = textureLoadFix(curvePositionTexU, ivec2(1, t.y)).xy
           If(p1.x.equal(-1111), () => {
-            varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
+            // varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
           }).Else(() => {
             const pointUV = vec2(t.x, t.y.div(dimensionsU.y))
             const info = {
@@ -413,23 +386,23 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
               t.x.add(0.5).div(dimensionsU.x),
               t.y.add(0.5).div(dimensionsU.y)
             )
-            varyingProperty('vec4', 'colorV').assign(
-              vec4(texture(curveColorTex, textureVector))
-            )
+            // varyingProperty('vec4', 'colorV').assign(
+            //   vec4(texture(curveColorTex, textureVector))
+            // )
             thickness.assign(texture(curvePositionTex, textureVector).w)
             position.assign(progressPoint)
             rotation.assign(
               firstData.settings.pointRotate(atan(rotate.y, rotate.x), info)
             )
 
-            varyingProperty('vec4', 'colorV').assign(
-              vec4(
-                1,
-                1,
-                1,
-                select(instanceIndex.modInt(6).greaterThan(3), 1, 0.1)
-              )
-            )
+            // varyingProperty('vec4', 'colorV').assign(
+            //   vec4(
+            //     1,
+            //     1,
+            //     1,
+            //     select(instanceIndex.modInt(6).greaterThan(3), 1, 0.1)
+            //   )
+            // )
           })
         }).Else(() => {
           const pointProgress = t.x
@@ -439,7 +412,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
           ).xy.toVar('p2')
 
           If(p2.x.equal(-1111), () => {
-            varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
+            // varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
           }).Else(() => {
             const p0 = textureLoadFix(
               curvePositionTexU,
@@ -485,9 +458,9 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
               aspectRatio: aspectRatio.y,
               settings: firstData.settings
             }
-            varyingProperty('vec4', 'colorV').assign(
-              vec4(texture(curveColorTex, tt))
-            )
+            // varyingProperty('vec4', 'colorV').assign(
+            //   vec4(texture(curveColorTex, tt))
+            // )
 
             thickness.assign(texture(curvePositionTex, tt).w)
             position.assign(
@@ -511,25 +484,25 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
 
       // it's -1 when doing the last one. why?
       position.assign(
-        vec4(
+        vec2(
           t.x,
           float(0.5)
             .add(indexMod.y)
-            .add(select(instanceIndex.modInt(6).greaterThan(3), 0.05, 0)),
-          // float(0.5).add(select(vertexIndex.modInt(2).equal(0), 0, 0.2)),
-          0,
-          1
+            .add(select(instanceIndex.modInt(6).greaterThan(3), 0.05, 0))
         )
       )
-      return vec4(position, 0, 1)
-    })
+      tAttribute.element(instanceIndex).assign(vec3(position, 0))
 
-    material.positionNode = main()
+      return undefined as any
+    })().compute(MAX_INSTANCE_COUNT, undefined as any)
+
+    // @ts-ignore
+    // material.positionNode = vec4(tAttribute.toAttribute(), 0, 1)
 
     // material.scaleNode = firstData.settings.pointScale(vec2(4, 4).mul(pixel))
 
-    const colorV = varying(vec4(), 'colorV')
-    material.colorNode = firstData.settings.pointFrag(colorV)
+    // const colorV = varying(vec4(), 'colorV')
+    // material.colorNode = firstData.settings.pointFrag(colorV)
     // material.needsUpdate = true
 
     return {
@@ -538,7 +511,8 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       curvePositionLoadU,
       curveColorLoadU,
       lastCurvePositionLoadU,
-      lastCurveColorLoadU
+      lastCurveColorLoadU,
+      updatePoints
     }
   }, [builder])
 
@@ -559,7 +533,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
         console.log('out of memory')
         setRendering(false)
       })
-      .then(() => {
+      .then(async () => {
         lastCurveColorLoadU.value.dispose()
         lastCurveColorLoadU.value.dispose()
         firstData.countTex.dispose()
@@ -567,9 +541,10 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
         lastCurveColorLoadU.value = curveColorLoadU.value
         curvePositionLoadU.value = newData.positionTex
         curveColorLoadU.value = newData.colorTex
-        gl.computeAsync(advanceControlPoints).then(() => {
-          gl.computeAsync(updateCurveLengths)
-        })
+        await gl.computeAsync(advanceControlPoints)
+        await gl.computeAsync(updateCurveLengths)
+        await gl.computeAsync(updatePoints)
+        console.log(new Float32Array(await gl.getArrayBufferAsync(tArray)))
       })
   }
 
