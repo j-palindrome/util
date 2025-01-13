@@ -93,9 +93,15 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     const geo = new THREE.BufferGeometry()
     geo.setAttribute(
       'position',
-      new THREE.Float32BufferAttribute(divisions * 6 * 3, 3)
+      new THREE.Float32BufferAttribute(divisions * 4 * 3, 3)
     )
-    // geo.setIndex(range(divisions * 6))
+    const indexGuide = [2, 1, 0, 3, 2, 1]
+    const divisionGuide = range(divisions).flatMap(i =>
+      indexGuide.map(j => j + i * 2)
+    )
+    console.log(divisionGuide)
+
+    geo.setIndex(divisionGuide)
 
     // const matLineBasic = new MeshBasicNodeMaterial({
     //   vertexColors: true
@@ -117,9 +123,9 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
 
     const uniforms = {
       position: uniformArray(
-        range(divisions * 6).map(x => new THREE.Vector3())
+        range(divisions * 4).map(x => new THREE.Vector3())
       ),
-      color: uniformArray(range(divisions * 6).map(x => new THREE.Vector3()))
+      color: uniformArray(range(divisions * 4).map(x => new THREE.Vector3()))
     }
 
     return { line, uniforms }
@@ -159,26 +165,20 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
           thisPoint.thickness +
           (pointAfter.thickness - thisPoint.thickness) * (t - start)
         // const SIZE = 0.01
-        // (0, 1, 2, 1, 2, 3), (2, 3, 4, 3, 4, 5)
+        // (2, 1, 0, 3, 2, 1), (2, 3, 4, 3, 4, 5)
         tangentVector
           .subVectors(nextPoint, point)
           .rotateAround({ x: 0, y: 0 }, 0.25 * Math.PI * 2)
           .divideScalar(tangentVector.length() * width)
-        const index = (i - 1) * 6
-        positions[index].set(nextPoint.x, nextPoint.y, 0)
+        const index = (i - 1) * 4
+        positions[index].set(point.x, point.y, 0)
         positions[index + 1].set(
           point.x + tangentVector.x * thisSize,
           point.y + tangentVector.y * thisSize,
           0
         )
-        positions[index + 2].set(point.x, point.y, 0)
+        positions[index + 2].set(nextPoint.x, nextPoint.y, 0)
         positions[index + 3].set(
-          point.x + tangentVector.x * thisSize,
-          point.y + tangentVector.y * thisSize,
-          0
-        )
-        positions[index + 4].set(nextPoint.x, nextPoint.y, 0)
-        positions[index + 5].set(
           nextPoint.x + tangentVector.x * nextSize,
           nextPoint.y + tangentVector.y * nextSize,
           0
