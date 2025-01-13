@@ -94,25 +94,30 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
               : 0
       ) * 6
 
-    // const geometry = new THREE.BufferGeometry()
-    // geometry.setAttribute(
-    //   'positions',
-    //   new THREE.BufferAttribute(new Float32Array([]), 3)
-    // )
-    // geometry.setIndex(range(MAX_INSTANCE_COUNT))
-    const geometry = new THREE.PlaneGeometry(10 / width, 10 / width)
-    // const material = new MeshBasicNodeMaterial({
-    //   transparent: true,
-    //   depthWrite: false,
-    //   blending: THREE.AdditiveBlending
-    // })
-    const material = new SpriteNodeMaterial({
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(
+        new Float32Array([0.5, 0.5, 0, 0, 1, 0, 1, 0, 0]),
+        3
+      )
+    )
+    geometry.setIndex(range(MAX_INSTANCE_COUNT))
+    // const geometry = new THREE.PlaneGeometry(10 / width, 10 / width)
+    const material = new MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending
+      blending: THREE.AdditiveBlending,
+      color: 'white'
     })
+    // const material = new SpriteNodeMaterial({
+    //   transparent: true,
+    //   depthWrite: false,
+    //   blending: THREE.AdditiveBlending,
+    //   color: 'white'
+    // })
     // const mesh = new THREE.Mesh(geometry, material)
-    const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
+    const mesh = new THREE.Mesh(geometry, material)
     mesh.position.set(...firstData.transform.translate.toArray(), 0)
     mesh.scale.set(...firstData.transform.scale.toArray(), 0)
     mesh.rotation.set(0, 0, firstData.transform.rotate)
@@ -495,25 +500,24 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
 
       position.addAssign(rotate2d(vec2(lineThickness, 0), 0.25))
 
-      // position.assign(
-      //   vec4(
-      //     vertexIndex.toFloat().div(MAX_INSTANCE_COUNT * 6),
-      //     lineThickness.add(0.5),
-      //     0,
-      //     1
-      //   )
-      // )
+      position.assign(
+        vec4(
+          vertexIndex.toFloat().div(MAX_INSTANCE_COUNT),
+          float(0.5).add(select(vertexIndex.modInt(2).equal(0), 0, 0.2)),
+          0,
+          1
+        )
+      )
       return vec4(position, 0, 1)
     })
 
-    // material.positionNode = main()
     material.positionNode = main()
 
     // material.scaleNode = firstData.settings.pointScale(vec2(4, 4).mul(pixel))
 
-    const colorV = varying(vec4(), 'colorV')
-    material.colorNode = firstData.settings.pointFrag(colorV)
-    material.needsUpdate = true
+    // const colorV = varying(vec4(), 'colorV')
+    // material.colorNode = firstData.settings.pointFrag(colorV)
+    // material.needsUpdate = true
 
     return {
       advanceControlPoints,
