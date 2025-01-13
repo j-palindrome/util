@@ -77,9 +77,15 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
   const scene = useThree(({ scene }) => scene)
 
   const firstData = builder.reInitialize(resolution)
-  const points = firstData.positionArray
+  const curves = firstData.positionArray
 
-  const lines = points.map((curve, i) => {
+  const matLineBasic = new MeshBasicNodeMaterial({
+    // vertexColors: true
+    color: 'white',
+    transparent: true
+  })
+  let divisions = 0
+  const lines = curves.map((curve, i) => {
     // const geometry = new LineGeometry()
     // geometry.setPositions(positions)
     // geometry.setColors(colors)
@@ -88,80 +94,84 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     // const line = new Line2(geometry, matLine)
     // line.computeLineDistances()
     // line.scale.set(1, 1, 1)
-    const divisions =
-      points[i].length === 2 ? 2 : Math.round(12 * points[i].length)
+    const thisDivisions =
+      curves[i].length === 2 ? 2 : Math.round(12 * curves[i].length)
+
     const geo = new THREE.BufferGeometry()
     geo.setAttribute(
       'position',
-      new THREE.Float32BufferAttribute(divisions * 4 * 3, 3)
+      new THREE.Float32BufferAttribute(thisDivisions * 4 * 3, 3)
     )
-    const indexGuide = [2, 1, 0, 3, 2, 1]
-    const divisionGuide = range(divisions).flatMap(i =>
-      indexGuide.map(j => j + i * 2)
+    // const indexGuide = [0, 1, 2, 1, 2, 3]
+    const indexGuide = [0, 2, 1, 1, 2, 3]
+    const divisionGuide = range(thisDivisions).flatMap(i =>
+      indexGuide.map(j => divisions + j + i * 2)
     )
-    console.log(divisionGuide)
+
+    divisions += thisDivisions
 
     geo.setIndex(divisionGuide)
 
-    // const matLineBasic = new MeshBasicNodeMaterial({
-    //   vertexColors: true
-    // })
-    const matLineBasic = new MeshBasicNodeMaterial({
-      // vertexColors: true
-      color: 'white'
-    })
-    matLineBasic.positionNode = Fn(() => {
-      return vec4(uniforms.position.element(vertexIndex), 1)
-    })()
-
-    // matLineBasic.positionNode = Fn(() => {
-    //   const position = attribute('position', 'vec2')
-    //   return vec4(position, 1)
-    // })()
-
     const line = new THREE.Mesh(geo, matLineBasic)
 
-    const uniforms = {
-      position: uniformArray(
-        range(divisions * 4).map(x => new THREE.Vector3())
-      ),
-      color: uniformArray(range(divisions * 4).map(x => new THREE.Vector3()))
-    }
-
-    return { line, uniforms }
+    return { line }
   })
+
+  const uniforms = {
+    position: uniformArray(range(divisions).map(x => new THREE.Vector3())),
+    color: uniformArray(range(divisions).map(x => new THREE.Vector3())),
+    divisions: uniform(divisions, 'float')
+  }
+  const vColor = varying(vec4(), 'vColor')
+  const vUv = varying(vec2(), 'uv')
+  matLineBasic.positionNode = Fn(() => {
+    vColor.assign(vec4(uniforms.color.element(vertexIndex), 1))
+    vUv.assign(
+      vec2(
+        vertexIndex.div(2).toFloat().div(uniforms.divisions),
+        vertexIndex.modInt(2)
+      )
+    )
+    return vec4(uniforms.position.element(vertexIndex), 1)
+  })()
+
+  matLineBasic.colorNode = Fn(() => {
+    return firstData.settings.pointFrag(vColor)
+  })()
 
   const reInitialize = () => {
     const nextData = builder.reInitialize(resolution)
     const points = nextData.positionArray
-    lines.forEach(({ line, uniforms }, i) => {
+    let divisions = 0
+    lines.forEach(({ line }, i) => {
       const spline = new THREE.Path(
         points[i].map(x => new THREE.Vector2(x.x, x.y))
         // false,
         // undefined,
         // 30
       )
-      const divisions =
+      const thisDivisions =
         points[i].length === 2 ? 2 : Math.round(12 * points[i].length)
       const point = new THREE.Vector2()
       const lineColor = new THREE.Color()
 
-      const l = divisions
+      const l = thisDivisions
       const nextPoint = new THREE.Vector2()
-      spline.getPoint(0, nextPoint)
+      spline.getPoint(0, point)
       const tangentVector = new THREE.Vector2()
-      let thisSize = points[i][0].thickness
       const positions = uniforms.position.array as THREE.Vector3[]
-      for (let i = 1; i < l; i++) {
-        const t = i / (l - 1 || 1)
-        point.copy(nextPoint)
-        spline.getPoint(t, nextPoint)
+      const colors = uniforms.color.array as THREE.Vector3[]
 
-        const start = Math.floor(t * (points.length - 2))
+      for (let j = 1; j <= l - 1; j++) {
+        const t = j / (l - 1)
+        nextPoint.copy(point)
+        spline.getPoint(t - 1e-4, point)
+
+        const start = Math.floor(t * (points[i].length - 1))
         const thisPoint = points[i][start]
         const pointAfter = points[i][start + 1]
 
-        const nextSize =
+        const thisSize =
           thisPoint.thickness +
           (pointAfter.thickness - thisPoint.thickness) * (t - start)
         // const SIZE = 0.01
@@ -170,30 +180,28 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
           .subVectors(nextPoint, point)
           .rotateAround({ x: 0, y: 0 }, 0.25 * Math.PI * 2)
           .divideScalar(tangentVector.length() * width)
-        const index = (i - 1) * 4
+        const index = (j - 1) * 2
+
         positions[index].set(point.x, point.y, 0)
         positions[index + 1].set(
           point.x + tangentVector.x * thisSize,
           point.y + tangentVector.y * thisSize,
           0
         )
-        positions[index + 2].set(nextPoint.x, nextPoint.y, 0)
-        positions[index + 3].set(
-          nextPoint.x + tangentVector.x * nextSize,
-          nextPoint.y + tangentVector.y * nextSize,
-          0
-        )
-        thisSize = nextSize
 
         lineColor.setHSL(1, 1, 1, THREE.SRGBColorSpace)
-        // for (let i = 0; i < 6; i++) {
-        //   colors.push(lineColor.r, lineColor.g, lineColor.b)
-        // }
+        for (let i = 0; i < 4; i++) {
+          colors[index + i].set(lineColor.r, lineColor.g, lineColor.b)
+        }
       }
+      divisions += thisDivisions
+
       // uniforms.position.needsUpdate = true
       // line.material.needsUpdate = true
     })
   }
+
+  console.log(uniforms.position.array)
 
   reInitialize()
 

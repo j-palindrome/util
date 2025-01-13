@@ -648,6 +648,13 @@ ${this.curves
     return this
   }
 
+  newCurves(count: number, ...points: (Coordinate | PointBuilder)[]) {
+    for (let i = 0; i < count; i++) {
+      this.curves.push(this.toPoints(...points))
+    }
+    return this
+  }
+
   newPoints(...points: (Coordinate | PointBuilder)[]) {
     return this.lastCurve(c => c.push(...this.toPoints(...points)))
   }
