@@ -104,6 +104,9 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       // vertexColors: true
       color: 'white'
     })
+    matLineBasic.positionNode = Fn(() => {
+      return vec4(uniforms.position.element(vertexIndex), 1)
+    })()
 
     // matLineBasic.positionNode = Fn(() => {
     //   const position = attribute('position', 'vec2')
@@ -119,14 +122,12 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       color: uniformArray(range(divisions * 6).map(x => new THREE.Vector3()))
     }
 
-    matLineBasic.positionNode = Fn(() => {
-      return vec4(uniforms.position.element(vertexIndex), 1)
-    })()
-
     return { line, uniforms }
   })
 
   const reInitialize = () => {
+    const nextData = builder.reInitialize(resolution)
+    const points = nextData.positionArray
     lines.forEach(({ line, uniforms }, i) => {
       const spline = new THREE.Path(
         points[i].map(x => new THREE.Vector2(x.x, x.y))
@@ -158,6 +159,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
           thisPoint.thickness +
           (pointAfter.thickness - thisPoint.thickness) * (t - start)
         // const SIZE = 0.01
+        // (0, 1, 2, 1, 2, 3), (2, 3, 4, 3, 4, 5)
         tangentVector
           .subVectors(nextPoint, point)
           .rotateAround({ x: 0, y: 0 }, 0.25 * Math.PI * 2)
@@ -188,6 +190,8 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
         //   colors.push(lineColor.r, lineColor.g, lineColor.b)
         // }
       }
+      // uniforms.position.needsUpdate = true
+      // line.material.needsUpdate = true
     })
   }
 
@@ -205,7 +209,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
             : typeof r === 'number'
               ? nextTime.current + r / 1000
               : nextTime.current + r(nextTime.current * 1000) / 1000
-        console.log(nextTime.current)
+        // console.log(nextTime.current)
 
         reInitialize()
       }
