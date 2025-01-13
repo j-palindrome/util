@@ -79,41 +79,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
   const firstData = builder.reInitialize(resolution)
   const points = firstData.positionArray
 
-  const lines = points.map(points => {
-    const positions: number[] = []
-    const colors: number[] = []
-    const spline = new THREE.CatmullRomCurve3(
-      points.map(x => new THREE.Vector3(x.x, x.y, 0)),
-      false,
-      undefined,
-      30
-    )
-    const divisions = Math.round(12 * points.length)
-    const point = new THREE.Vector3()
-    const lineColor = new THREE.Color()
-
-    const l = divisions
-    const nextPoint = new THREE.Vector3()
-    spline.getPoint(0, nextPoint)
-    for (let i = 0; i < l - 1; i++) {
-      const t = i / l
-      point.copy(nextPoint)
-      spline.getPoint(t, nextPoint)
-      const SIZE = 0.01
-
-      positions.push(point.x + SIZE, point.y, 0)
-      positions.push(point.x, point.y + SIZE, 0)
-      positions.push(point.x, point.y, 0)
-      positions.push(point.x, point.y + SIZE, 0)
-      positions.push(point.x + SIZE, point.y, 0)
-      positions.push(point.x + SIZE, point.y + SIZE, 0)
-
-      lineColor.setHSL(1, 1, 1, THREE.SRGBColorSpace)
-      for (let i = 0; i < 6; i++) {
-        colors.push(lineColor.r, lineColor.g, lineColor.b)
-      }
-    }
-
+  const lines = points.map(() => {
     // const geometry = new LineGeometry()
     // geometry.setPositions(positions)
     // geometry.setColors(colors)
@@ -124,9 +90,6 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     // line.scale.set(1, 1, 1)
 
     const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-    console.log(geo)
 
     // const matLineBasic = new MeshBasicNodeMaterial({
     //   vertexColors: true
@@ -144,6 +107,102 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     // line1.computeLineDistances()
 
     return line1
+  })
+
+  const reInitialize = () => {
+    lines.forEach((line, i) => {
+      const positions: number[] = []
+      const colors: number[] = []
+      const spline = new THREE.Path(
+        points[i].map(x => new THREE.Vector2(x.x, x.y))
+        // false,
+        // undefined,
+        // 30
+      )
+      const divisions = points.length === 2 ? 2 : Math.round(12 * points.length)
+      const point = new THREE.Vector2()
+      const lineColor = new THREE.Color()
+
+      const l = divisions
+      const nextPoint = new THREE.Vector2()
+      spline.getPoint(0, nextPoint)
+      const tangentVector = new THREE.Vector2()
+      let thisSize = points[i][0].thickness
+      for (let i = 1; i < l; i++) {
+        const t = i / (l - 1 || 1)
+        point.copy(nextPoint)
+        spline.getPoint(t, nextPoint)
+
+        const start = Math.floor(t * (points.length - 2))
+        const thisPoint = points[i][start]
+        const pointAfter = points[i][start + 1]
+
+        const nextSize =
+          thisPoint.thickness +
+          (pointAfter.thickness - thisPoint.thickness) * (t - start)
+        // const SIZE = 0.01
+        tangentVector
+          .subVectors(nextPoint, point)
+          .rotateAround({ x: 0, y: 0 }, 0.25 * Math.PI * 2)
+          .divideScalar(tangentVector.length() * width)
+        positions.push(nextPoint.x, nextPoint.y, 0)
+        positions.push(
+          point.x + tangentVector.x * thisSize,
+          point.y + tangentVector.y * thisSize,
+          0
+        )
+        positions.push(point.x, point.y, 0)
+        positions.push(
+          point.x + tangentVector.x * thisSize,
+          point.y + tangentVector.y * thisSize,
+          0
+        )
+        positions.push(nextPoint.x, nextPoint.y, 0)
+        positions.push(
+          nextPoint.x + tangentVector.x * nextSize,
+          nextPoint.y + tangentVector.y * nextSize,
+          0
+        )
+        thisSize = nextSize
+
+        lineColor.setHSL(1, 1, 1, THREE.SRGBColorSpace)
+        for (let i = 0; i < 6; i++) {
+          colors.push(lineColor.r, lineColor.g, lineColor.b)
+        }
+      }
+      line.geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(positions, 3)
+      )
+      line.geometry.setAttribute(
+        'color',
+        new THREE.Float32BufferAttribute(colors, 3)
+      )
+      line.geometry.getAttribute('position').needsUpdate = true
+      line.geometry.getAttribute('color').needsUpdate = true
+      line.material.needsUpdate = true
+    })
+  }
+
+  reInitialize()
+
+  const nextTime = useRef<number>(firstData.settings.start / 1000)
+
+  useFrame(state => {
+    if (state.clock.elapsedTime > nextTime.current) {
+      if (firstData.settings.recalculate) {
+        const r = firstData.settings.recalculate
+        nextTime.current =
+          typeof r === 'boolean'
+            ? nextTime.current + 1 / 60
+            : typeof r === 'number'
+              ? nextTime.current + r / 1000
+              : nextTime.current + r(nextTime.current * 1000) / 1000
+        console.log(nextTime.current)
+
+        reInitialize()
+      }
+    }
   })
 
   useEffect(() => {

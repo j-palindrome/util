@@ -50,9 +50,12 @@ export class Builder {
     ...defaultCoordinateSettings
   }
 
-  repeat(runCount: number, func: ({ p, i }: { p: number; i: number }) => void) {
+  repeat(
+    runCount: number,
+    func: ({ p, i, count }: { p: number; i: number; count: number }) => void
+  ) {
     for (let i = 0; i < runCount; i++) {
-      func({ p: i / runCount, i })
+      func({ p: i / runCount, i, count: runCount })
     }
 
     return this
