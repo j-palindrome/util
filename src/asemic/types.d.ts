@@ -1,6 +1,6 @@
 import { Color, Vector2 } from 'three'
 import { PointBuilder } from './PointBuilder'
-import { float, Fn, ShaderNodeObject, uniform, vec2, vec4 } from 'three/tsl'
+import { float, Fn, ShaderNodeObject, vec2, vec4 } from 'three/tsl'
 import { Builder } from './Builder'
 
 const defaultFn = (input: ReturnType<typeof vec4>) => input
@@ -41,10 +41,6 @@ declare global {
     settings: Builder['settings']
   }
 
-  type PointInfo = {
-    curveProgress: ReturnType<typeof uniform>
-  }
-
   type ProcessData = {
     type: 'points' | 'line'
     gapType: 'count' | 'pixel' | 'width'
@@ -67,7 +63,7 @@ declare global {
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & { lastColor: ReturnType<typeof vec4> }
     ) => input
-    pointFrag: (input: ReturnType<typeof vec4>, info: PointInfo) => input
+    pointFrag: (input: ReturnType<typeof vec4>) => input
     curveVert: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & { lastPosition: ReturnType<typeof vec4> }
