@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
+  arrayBuffer,
   atan,
   Break,
   float,
@@ -15,6 +16,7 @@ import {
   mix,
   remap,
   screenSize,
+  select,
   storage,
   texture,
   textureLoad,
@@ -24,9 +26,11 @@ import {
   varyingProperty,
   vec2,
   vec3,
-  vec4
+  vec4,
+  vertexIndex
 } from 'three/tsl'
 import {
+  MeshBasicNodeMaterial,
   SpriteNodeMaterial,
   StorageBufferAttribute,
   StorageInstancedBufferAttribute,
@@ -36,6 +40,7 @@ import {
 import { bezierPoint, lineTangent } from '../tsl/curves'
 import { textureLoadFix } from '../tsl/utility'
 import { GroupBuilder } from './Builder'
+import _ from 'lodash'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -89,14 +94,26 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     )
     console.log(MAX_INSTANCE_COUNT)
 
-    const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
-    geometry.translate(firstData.settings.align - 0.5, 0.5, 0)
-    const material = new SpriteNodeMaterial({
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(MAX_INSTANCE_COUNT * 2 * 3, 3)
+    )
+    const indexGuide = [0, 1, 2, 1, 2, 3]
+    const indexes = _.range(MAX_INSTANCE_COUNT).flatMap(x =>
+      indexGuide.map(i => x * 2 + i)
+    )
+    geometry.setIndex(indexes)
+    // console.log(indexes)
+
+    const material = new MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      color: 'white'
     })
-    const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
+    const mesh = new THREE.Mesh(geometry, material)
     mesh.position.set(...firstData.transform.translate.toArray(), 0)
     mesh.scale.set(...firstData.transform.scale.toArray(), 0)
     mesh.rotation.set(0, 0, firstData.transform.rotate)
@@ -347,11 +364,11 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     const curvePositionTexU = texture(curvePositionTex)
 
     const main = Fn(() => {
-      // @ts-ignore
-      const t = tAttribute.toAttribute()
-      // dimU = 9 t.y = 8.5/9
+      const t = tAttribute.element(vertexIndex.div(2))
+      const up = vertexIndex.modInt(2).toVar('up')
+
       const controlPointsCount = controlPointCounts.element(t.y)
-      const position = vec2().toVar()
+      const position = vec2().toVar('thisPosition')
 
       If(t.x.equal(-1), () => {
         varyingProperty('vec4', 'colorV').assign(vec4(0, 0, 0, 0))
@@ -457,19 +474,21 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
           })
         })
       })
-
+      position.assign(
+        vec2(t.x, select(vertexIndex.modInt(2).equal(0), 0.5, 0.7))
+      )
       return vec4(position, 0, 1)
     })
 
     material.positionNode = main()
-    material.rotationNode = rotation
+    // material.rotationNode = rotation
 
-    material.scaleNode = firstData.settings.pointScale(
-      vec2(thickness, firstData.settings.spacing).mul(pixel)
-    )
+    // material.scaleNode = firstData.settings.pointScale(
+    //   vec2(thickness, firstData.settings.spacing).mul(pixel)
+    // )
 
-    const colorV = varying(vec4(), 'colorV')
-    material.colorNode = firstData.settings.pointFrag(colorV)
+    // const colorV = varying(vec4(), 'colorV')
+    // material.colorNode = firstData.settings.pointFrag(colorV)
     material.needsUpdate = true
 
     return {
@@ -565,7 +584,7 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
     }
     return () => {
       scene.remove(mesh)
-      mesh.dispose()
+      // mesh.dispose()
       material.dispose()
       geometry.dispose()
       curvePositionTex.dispose()
