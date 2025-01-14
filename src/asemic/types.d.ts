@@ -53,8 +53,8 @@ declare global {
     maxLength: number
     maxCurves: number
     maxPoints: number
-    pointScale: (input: ReaturnType<typeof vec2>) => input
-    pointRotate: (input: ReturnType<typeof float>, info: ParticleInfo) => input
+    // pointScale: (input: ReaturnType<typeof vec2>) => input
+    // pointRotate: (input: ReturnType<typeof float>, info: ParticleInfo) => input
     pointVert: (input: ReturnType<typeof vec2>, info: ParticleInfo) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
