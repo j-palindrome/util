@@ -42,19 +42,14 @@ declare global {
   }
 
   type ProcessData = {
-    type: 'points' | 'line'
-    gapType: 'count' | 'pixel' | 'width'
     recalculate: boolean | number | ((lastFrame: number) => number)
     start: number
-    gap: number
     update: boolean
     align: number
     resample: boolean
     maxLength: number
     maxCurves: number
     maxPoints: number
-    // pointScale: (input: ReaturnType<typeof vec2>) => input
-    // pointRotate: (input: ReturnType<typeof float>, info: ParticleInfo) => input
     pointVert: (input: ReturnType<typeof vec2>, info: ParticleInfo) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
@@ -69,6 +64,20 @@ declare global {
       info: ParticleInfo & { lastPosition: ReturnType<typeof vec4> }
     ) => input
   }
+
+  type BrushTypes = 'dash' | 'line'
+  type BrushData<T extends BrushTypes> = T extends 'dash'
+    ? {
+        type: 'dash'
+        pointScale: (input: ReturnType<typeof vec2>) => input
+        pointRotate: (
+          input: ReturnType<typeof float>,
+          info: ParticleInfo
+        ) => input
+        gapType: 'count' | 'pixel' | 'width'
+        gap: number
+      }
+    : { type: T }
 
   type CoordinateData = PreTransformData & Partial<CoordinateSettings>
   type GroupData = {

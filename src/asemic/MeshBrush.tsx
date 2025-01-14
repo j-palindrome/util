@@ -3,49 +3,37 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Vector2 } from 'three'
 import {
-  arrayBuffer,
   atan,
-  atan2,
-  Break,
-  Discard,
   float,
   Fn,
   If,
   instanceIndex,
-  int,
   ivec2,
-  Loop,
   mix,
-  PI,
   PI2,
-  remap,
   rotateUV,
   screenSize,
   select,
-  storage,
   texture,
   textureLoad,
   textureStore,
   uniform,
+  uniformArray,
   varying,
   varyingProperty,
   vec2,
-  vec3,
   vec4,
   vertexIndex
 } from 'three/tsl'
 import {
   MeshBasicNodeMaterial,
-  SpriteNodeMaterial,
-  StorageBufferAttribute,
   StorageInstancedBufferAttribute,
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { bezierPoint, lineTangent, rotate2d } from '../tsl/curves'
+import { bezierPoint } from '../tsl/curves'
 import { textureLoadFix } from '../tsl/utility'
 import { GroupBuilder } from './Builder'
-import _ from 'lodash'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -67,7 +55,11 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
+export default function MeshBrush({
+  builder
+}: {
+  builder: GroupBuilder<'line'>
+}) {
   const [rendering, setRendering] = useState(true)
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
@@ -124,8 +116,9 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
       firstData.dimensions.x,
       firstData.dimensions.y
     )
-    const controlPointCounts = storage(
-      new StorageBufferAttribute(new Int16Array(firstData.dimensions.y), 1),
+    const controlPointCounts = uniformArray(
+      // firstData.positionArray.map(x => x.length),
+      firstData.positionArray.map(x => 0),
       'int'
     )
     return {
@@ -236,21 +229,6 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
         p2,
         strength
       })
-    }
-
-    const generateSpacing = () => {
-      switch (firstData.settings.gapType) {
-        case 'pixel':
-          return int(firstData.settings.maxLength * width).div(
-            firstData.settings.gap
-          )
-        case 'width':
-          return int(firstData.settings.maxLength * width).div(
-            int(float(firstData.settings.gap).mul(screenSize.x))
-          )
-        case 'count':
-          return int(firstData.settings.gap)
-      }
     }
 
     const rotation = float(0).toVar('rotation')
@@ -409,29 +387,18 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
 
   const reInitialize = () => {
     const newData = builder.reInitialize(resolution)
+    for (let i = 0; i < newData.dimensions.y; i++) {
+      controlPointCounts.array[i] = newData.positionArray[i].length
+    }
 
-    const updateCurveCounts = Fn(() => {
-      controlPointCounts
-        .element(instanceIndex)
-        .assign(textureLoad(newData.countTex, ivec2(0, instanceIndex)))
-      return undefined as any
-    })().compute(newData.dimensions.y, undefined as any)
-
-    gl.computeAsync(updateCurveCounts)
-      .catch(() => {
-        console.log('out of memory')
-        setRendering(false)
-      })
-      .then(() => {
-        lastCurveColorLoadU.value.dispose()
-        lastCurveColorLoadU.value.dispose()
-        firstData.countTex.dispose()
-        lastCurvePositionLoadU.value = curvePositionLoadU.value
-        lastCurveColorLoadU.value = curveColorLoadU.value
-        curvePositionLoadU.value = newData.positionTex
-        curveColorLoadU.value = newData.colorTex
-        gl.computeAsync(advanceControlPoints)
-      })
+    lastCurveColorLoadU.value.dispose()
+    lastCurveColorLoadU.value.dispose()
+    firstData.countTex.dispose()
+    lastCurvePositionLoadU.value = curvePositionLoadU.value
+    lastCurveColorLoadU.value = curveColorLoadU.value
+    curvePositionLoadU.value = newData.positionTex
+    curveColorLoadU.value = newData.colorTex
+    gl.computeAsync(advanceControlPoints)
   }
 
   const nextTime = useRef<number>(firstData.settings.start / 1000)
@@ -452,16 +419,9 @@ export default function MeshBrush({ builder }: { builder: GroupBuilder }) {
   })
 
   const update = () => {
-    if (firstData.settings.gapType === 'count') {
-      gl.computeAsync(advanceControlPoints)
-      material.needsUpdate = true
-      updating = requestAnimationFrame(update)
-    } else {
-      Promise.all([gl.computeAsync(advanceControlPoints)]).then(() => {
-        material.needsUpdate = true
-        updating = requestAnimationFrame(update)
-      })
-    }
+    gl.computeAsync(advanceControlPoints)
+    material.needsUpdate = true
+    updating = requestAnimationFrame(update)
   }
 
   useEffect(() => {

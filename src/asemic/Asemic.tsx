@@ -1,7 +1,7 @@
 import { Canvas, useThree } from '@react-three/fiber'
 import { useState } from 'react'
 import { OrthographicCamera, Vector2 } from 'three'
-import Brush from './Brush'
+import PointBrush from './PointBrush'
 import SceneBuilder from './Builder'
 import { WebGPURenderer } from 'three/webgpu'
 import MeshBrush from './MeshBrush'

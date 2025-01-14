@@ -57,7 +57,11 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function Brush({ builder }: { builder: GroupBuilder }) {
+export default function PointBrush({
+  builder
+}: {
+  builder: GroupBuilder<'dash'>
+}) {
   const [rendering, setRendering] = useState(true)
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
@@ -76,15 +80,16 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     tArray
   } = useMemo(() => {
     const MAX_INSTANCE_COUNT = Math.floor(
-      firstData.settings.gapType === 'pixel'
+      firstData.brushSettings.gapType === 'pixel'
         ? firstData.dimensions.y *
-            ((firstData.settings.maxLength * width) / firstData.settings.gap)
-        : firstData.settings.gapType === 'width'
+            ((firstData.settings.maxLength * width) /
+              firstData.brushSettings.gap)
+        : firstData.brushSettings.gapType === 'width'
           ? firstData.dimensions.y *
             ((firstData.settings.maxLength * width) /
-              (firstData.settings.gap * width))
-          : firstData.settings.gapType === 'count'
-            ? firstData.dimensions.y * firstData.settings.gap
+              (firstData.brushSettings.gap * width))
+          : firstData.brushSettings.gapType === 'count'
+            ? firstData.dimensions.y * firstData.brushSettings.gap
             : 0
     )
     console.log(MAX_INSTANCE_COUNT)
@@ -230,17 +235,17 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     }
 
     const generateSpacing = () => {
-      switch (firstData.settings.gapType) {
+      switch (firstData.brushSettings.gapType) {
         case 'pixel':
           return int(firstData.settings.maxLength * width).div(
-            firstData.settings.gap
+            firstData.brushSettings.gap
           )
         case 'width':
           return int(firstData.settings.maxLength * width).div(
-            int(float(firstData.settings.gap).mul(screenSize.x))
+            int(float(firstData.brushSettings.gap).mul(screenSize.x))
           )
         case 'count':
-          return int(firstData.settings.gap)
+          return int(firstData.brushSettings.gap)
       }
     }
 
@@ -287,13 +292,15 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
           .mul(firstData.settings.maxLength)
         Loop(
           {
+            // @ts-ignore
             start: 1,
             end: count,
-            type: 'float'
+            type: 'float',
+            condition: '<'
           },
           ({ i }) => {
             lastPoint.assign(thisPoint)
-            const t = i.div(count).mul(controlPointsCount.sub(2))
+            const t = float(i).div(count).mul(controlPointsCount.sub(2))
             thisPoint.assign(
               getBezier(t, curveProgress, controlPointsCount).position
             ).xy
@@ -307,7 +314,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
                   .element(instanceIndex)
                   .assign(
                     vec2(
-                      i
+                      float(i)
                         .sub(1)
                         .add(remapped)
                         .div(count)
@@ -381,7 +388,10 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             position.assign(progressPoint)
             rotation.assign(
               vec2(
-                firstData.settings.pointRotate(atan(rotate.y, rotate.x), info),
+                firstData.brushSettings.pointRotate(
+                  atan(rotate.y, rotate.x),
+                  info
+                ),
                 0
               )
             )
@@ -449,7 +459,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
             )
             rotation.assign(
               vec3(
-                firstData.settings.pointRotate(thisPoint.rotation, info),
+                firstData.brushSettings.pointRotate(thisPoint.rotation, info),
                 0,
                 0
               )
@@ -464,7 +474,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
     material.positionNode = main()
     material.rotationNode = rotation
 
-    material.scaleNode = firstData.settings.pointScale(
+    material.scaleNode = firstData.brushSettings.pointScale(
       vec2(thickness, firstData.settings.spacing).mul(pixel)
     )
 
@@ -531,7 +541,7 @@ export default function Brush({ builder }: { builder: GroupBuilder }) {
   })
 
   const update = () => {
-    if (firstData.settings.gapType === 'count') {
+    if (firstData.brushSettings.gapType === 'count') {
       gl.computeAsync(advanceControlPoints)
       material.needsUpdate = true
       updating = requestAnimationFrame(update)

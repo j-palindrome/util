@@ -17,6 +17,7 @@ import {
 import invariant from 'tiny-invariant'
 import { lerp } from '../math'
 import { PointBuilder } from './PointBuilder'
+import { isBrushType } from './typeGuards'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
@@ -35,14 +36,9 @@ export class Builder {
     maxPoints: 0,
     align: 0.5,
     resample: true,
-    gap: 3,
     recalculate: false,
     start: 0,
-    gapType: 'pixel',
     update: false,
-    type: 'line',
-    pointScale: input => input,
-    pointRotate: input => input,
     pointVert: input => input,
     pointFrag: input => input,
     curveVert: input => input,
@@ -70,7 +66,7 @@ export class Builder {
     return this
   }
 
-  transform(transform: Partial<GroupBuilder['settings']>) {
+  transform(transform: Partial<Builder['settings']>) {
     if (transform.reset) {
       switch (transform.reset) {
         case 'pop':
@@ -189,11 +185,12 @@ export class Builder {
   constructor() {}
 }
 
-export class GroupBuilder extends Builder {
+export class GroupBuilder<T extends BrushTypes> extends Builder {
   h: number
   protected randomTable?: number[]
   protected curves: PointBuilder[][] = []
-  protected initialize: (t: GroupBuilder) => GroupBuilder | void
+  protected initialize: (t: GroupBuilder<T>) => GroupBuilder<T> | void
+  protected brushSettings: BrushData<T>
 
   getPoint(index: number = -1, curve: number = -1) {
     if (curve < 0) curve += this.curves.length
@@ -341,6 +338,7 @@ export class GroupBuilder extends Builder {
       dimensions,
       transform: this.toTransform(),
       settings: this.settings,
+      brushSettings: this.brushSettings,
       positionArray
     }
   }
@@ -673,7 +671,7 @@ ${this.curves
     return this
   }
 
-  protected letters: Record<string, () => GroupBuilder> = {
+  protected letters: Record<string, () => GroupBuilder<T>> = {
     ' ': () => this.transform({ translate: [0.5, 0], push: true }),
     '\t': () => this.transform({ translate: [2, 0], push: true }),
     a: () =>
@@ -916,25 +914,38 @@ ${this.curves
   }
 
   constructor(
-    initialize: (builder: GroupBuilder) => GroupBuilder | void,
+    type: T,
+    initialize: (builder: GroupBuilder<T>) => GroupBuilder<T> | void,
     settings: GroupData['settings']
   ) {
     super()
     this.initialize = initialize
     this.h = 0
     this.settings = settings
+    this.brushSettings = isBrushType(type, 'dash')
+      ? {
+          type,
+          pointScale: input => input,
+          pointRotate: input => input,
+          gapType: 'count',
+          gap: 3
+        }
+      : isBrushType(type, 'line')
+        ? { type }
+        : ({} as any)
   }
 }
 
 export default class SceneBuilder extends Builder {
-  groups: GroupBuilder[] = []
+  groups: GroupBuilder<any>[] = []
 
-  newGroup(
-    render: (g: GroupBuilder) => GroupBuilder | void,
+  newGroup<T extends BrushTypes>(
+    type: T,
+    render: (g: GroupBuilder<T>) => GroupBuilder<T> | void,
     settings?: Partial<Builder['settings']>
   ) {
     this.groups.push(
-      new GroupBuilder(render, { ...this.settings, ...settings })
+      new GroupBuilder(type, render, { ...this.settings, ...settings })
     )
     return this
   }
