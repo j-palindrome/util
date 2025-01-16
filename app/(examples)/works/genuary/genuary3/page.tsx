@@ -32,7 +32,7 @@ export default function Page() {
         // )
         b.repeat(
           (p, i) =>
-            b.newGroup(g => {
+            b.group(g => {
               for (let j = 0; j < 3; j++) {
                 strings[i][Math.floor(Math.random() * strings[i].length)] =
                   sample(sampleString)

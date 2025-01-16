@@ -3,7 +3,7 @@ import GroupBuilder from '@/util/src/asemic/Builder'
 import { useInterval } from '@/util/src/dom'
 import { useState } from 'react'
 import Asemic from '@/util/src/asemic/Asemic'
-import Brush from '@/util/src/asemic/Brush'
+import PointBrush from '@/util/src/asemic/PointBrush'
 
 const yin = (b: GroupBuilder) =>
   b
@@ -142,7 +142,7 @@ export default function IChing() {
         {
           <Asemic>
             {days[day].asemic[timeSwitch].map((x, i) => (
-              <Brush key={i} render={x} />
+              <PointBrush key={i} render={x} />
             ))}
           </Asemic>
         }

@@ -17,7 +17,7 @@ export default function Page() {
       dimensions={[1080, 1920]}
       builder={b =>
         b
-          .newGroup({
+          .group({
             curveVert: (input, pointCurve, aspectRatio) =>
               input.add(
                 vec2(

@@ -12,7 +12,7 @@ export default function Tests() {
       builder={
         b =>
           b
-            .newGroup({
+            .group({
               curveVert: (input, pointCurve) =>
                 input.add(
                   vec4(

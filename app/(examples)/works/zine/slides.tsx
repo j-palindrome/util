@@ -27,7 +27,7 @@ export const slides: {
         b.repeat(
           () =>
             b
-              .newGroup({
+              .group({
                 translate: [Math.random() * 0.2 + 0.4, 0],
                 reset: true,
                 scale: [1, 0.5]
@@ -53,7 +53,7 @@ export const slides: {
         b.transform({ translate: [0, 1], scale: [1, -1], push: true }).repeat(
           () =>
             b
-              .newGroup({
+              .group({
                 reset: 'last',
                 translate: [Math.random() * 0.2 + 0.4, 0],
                 scale: [1, 0.5]
@@ -81,7 +81,7 @@ export const slides: {
         }),
       b =>
         b
-          .newGroup({
+          .group({
             reset: 'last',
             scale: 0.7,
             translate: [0.15, 0.15]
@@ -116,7 +116,7 @@ export const slides: {
           .repeat(
             () =>
               b
-                .newGroup({ scale: b.getRandomWithin(0.8, 0.1) })
+                .group({ scale: b.getRandomWithin(0.8, 0.1) })
                 .newCurve([-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]),
             10
           )
@@ -139,7 +139,7 @@ export const slides: {
         b.repeat(
           () =>
             b
-              .newGroup({ translate: [0, 0.05 * Math.random()] })
+              .group({ translate: [0, 0.05 * Math.random()] })
               .newCurve([0, 0], [1, 0]),
           20
         )
@@ -174,7 +174,7 @@ signals
         b.repeat(
           () =>
             b
-              .newGroup()
+              .group()
               .newCurve(
                 b.getRandomWithin([0.5, 0], [0.5, 0]),
                 b.getRandomWithin([0.5, 1], [0.5, 0])
@@ -199,7 +199,7 @@ signals
         b.repeat(
           () =>
             b
-              .newGroup()
+              .group()
               .newCurve(
                 [0, Math.random()],
                 [0.25, Math.random()],
@@ -243,7 +243,7 @@ via digital remix`,
           .repeat(
             () =>
               b
-                .newGroup()
+                .group()
                 .newCurve(
                   [0, Math.random()],
                   [0.25, Math.random()],
@@ -279,9 +279,7 @@ early cyberfeminists`,
       b =>
         b.repeat(
           () =>
-            b
-              .newGroup({ reset: true })
-              .newCurve([0.5, 0.3], [Math.random(), 1]),
+            b.group({ reset: true }).newCurve([0.5, 0.3], [Math.random(), 1]),
           10
         ),
       b =>
@@ -328,7 +326,7 @@ so that more than a certain count
         b.repeat(
           () =>
             b
-              .newGroup({ reset: true, translate: [0, Math.random()] })
+              .group({ reset: true, translate: [0, Math.random()] })
               .newCurve([0, 0], [1, 0]),
           10
         )
@@ -340,7 +338,7 @@ so that more than a certain count
         b.repeat(
           () =>
             b
-              .newGroup({
+              .group({
                 reset: true,
                 translate: b.getRandomAlong([0, 0], [1, 1]),
                 scale: b.getRandomWithin(0.2, 0.1)
