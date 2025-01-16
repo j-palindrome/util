@@ -1,4 +1,4 @@
-import _, { last, max, min, random, range } from 'lodash'
+import _, { last, max, min, now, random, range } from 'lodash'
 import {
   AnyPixelFormat,
   ClampToEdgeWrapping,
@@ -18,6 +18,9 @@ import invariant from 'tiny-invariant'
 import { lerp } from '../math'
 import { PointBuilder } from './PointBuilder'
 import { isBrushType } from './typeGuards'
+import { Node, PassNode, PostProcessing } from 'three/webgpu'
+import { pass, ShaderNodeObject } from 'three/tsl'
+import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
@@ -28,9 +31,10 @@ export const defaultCoordinateSettings: CoordinateSettings = {
 }
 
 export class Builder {
+  protected noiseFuncs = {}
   protected transforms: TransformData[] = []
   currentTransform: TransformData = this.toTransform()
-  settings: GroupData['settings'] = {
+  settings: ProcessData = {
     maxLength: 0,
     maxCurves: 0,
     maxPoints: 0,
@@ -42,9 +46,12 @@ export class Builder {
     pointVert: input => input,
     pointFrag: input => input,
     curveVert: input => input,
-    curveFrag: input => input,
-    ...defaultCoordinateSettings
+    curveFrag: input => input
   }
+  pointSettings: PreTransformData & CoordinateSettings =
+    defaultCoordinateSettings
+  protected randomTable?: number[]
+  protected hashIndex: number = 0
 
   repeat(
     runCount: number,
@@ -58,7 +65,7 @@ export class Builder {
   }
 
   protected reset(clear = false) {
-    this.currentTransform.scale = new PointBuilder([1, 1], this.settings)
+    this.currentTransform.scale = new PointBuilder([1, 1], this.pointSettings)
     this.currentTransform.rotate = 0
     this.currentTransform.translate = new PointBuilder()
 
@@ -66,7 +73,7 @@ export class Builder {
     return this
   }
 
-  transform(transform: Partial<Builder['settings']>) {
+  transform(transform: Partial<Builder['pointSettings']>) {
     if (transform.reset) {
       switch (transform.reset) {
         case 'pop':
@@ -92,7 +99,7 @@ export class Builder {
       this.transforms.push(this.cloneTransform(this.currentTransform))
     }
 
-    Object.assign(this.settings, transform)
+    Object.assign(this.pointSettings, transform)
 
     return this
   }
@@ -182,15 +189,63 @@ export class Builder {
     return rotation / Math.PI / 2
   }
 
+  toRange(input: number, bounds: [number, number], exponent: number = 1) {
+    return input ** exponent * (bounds[1] - bounds[0]) + bounds[0]
+  }
+
+  /**
+   * i: int 1-100
+   */
+  hash(i?: number, reseed: boolean = false) {
+    if (!this.randomTable || reseed) {
+      this.randomTable = range(100).map(() => Math.random())
+    }
+
+    if (i === undefined) {
+      this.hashIndex++
+      i = this.hashIndex
+    }
+
+    i = i % this.randomTable.length
+
+    const first = this.randomTable[Math.floor(i)]
+    const second = this.randomTable[Math.ceil(i)]
+    return first + (second - first) * (i % 1)
+  }
+
+  noise(
+    coords:
+      | [number, number]
+      | [number, number, number]
+      | [number, number, number, number],
+    index: number | string = '0'
+  ) {
+    if (!this.noiseFuncs[index]) {
+      switch (coords.length) {
+        case 2:
+          this.noiseFuncs[index] = createNoise2D()
+          break
+        case 3:
+          this.noiseFuncs[index] = createNoise3D()
+          break
+        case 4:
+          this.noiseFuncs[index] = createNoise4D()
+          break
+      }
+    }
+
+    return (this.noiseFuncs[index](...coords) + 1) / 2
+  }
+
   constructor() {}
 }
 
 export class GroupBuilder<T extends BrushTypes> extends Builder {
   h: number
-  protected randomTable?: number[]
+  time: number = performance.now() / 1000
   protected curves: PointBuilder[][] = []
   protected initialize: (t: GroupBuilder<T>) => GroupBuilder<T> | void
-  protected brushSettings: BrushData<T>
+  brushSettings: BrushData<T>
 
   getPoint(index: number = -1, curve: number = -1) {
     if (curve < 0) curve += this.curves.length
@@ -221,7 +276,9 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     }
 
     return this.applyTransform(
-      new PointBuilder([coordinate[0], coordinate[1]], { ...this.settings }),
+      new PointBuilder([coordinate[0], coordinate[1]], {
+        ...this.pointSettings
+      }),
       this.currentTransform
     )
   }
@@ -621,17 +678,6 @@ ${this.curves
     })
   }
 
-  /**
-   * i: int 1-100
-   */
-  hash(i: number, reseed: boolean = false) {
-    if (!this.randomTable || reseed)
-      this.randomTable = range(100).map(() => random())
-    const first = this.randomTable[Math.floor(i)]
-    const second = this.randomTable[Math.ceil(i)]
-    return first + (second - first) * (i % 1)
-  }
-
   newCurvesBlank(curveCount: number, pointCount: number) {
     this.curves.push(
       ...range(curveCount).map(() =>
@@ -907,8 +953,10 @@ ${this.curves
 
   reInitialize(resolution: Vector2) {
     this.reset(true)
+    this.hashIndex = 0
     this.curves = []
     this.h = resolution.y / resolution.x
+    this.time = performance.now() / 1000
     this.initialize(this)
     return this.packToTexture()
   }
@@ -916,7 +964,8 @@ ${this.curves
   constructor(
     type: T,
     initialize: (builder: GroupBuilder<T>) => GroupBuilder<T> | void,
-    settings: GroupData['settings']
+    settings: ProcessData,
+    brushSettings?: Partial<BrushData<T>>
   ) {
     super()
     this.initialize = initialize
@@ -927,31 +976,50 @@ ${this.curves
           type,
           pointScale: input => input,
           pointRotate: input => input,
-          gapType: 'count',
-          gap: 3
+          gapType: 'pixel',
+          gap: 10
         }
       : isBrushType(type, 'line')
         ? { type }
         : ({} as any)
+    Object.assign(this.brushSettings, brushSettings)
   }
 }
 
 export default class SceneBuilder extends Builder {
   groups: GroupBuilder<any>[] = []
+  sceneSettings: {
+    postProcessing: (
+      input: ReturnType<PassNode['getTextureNode']>,
+      scenePass: ReturnType<typeof pass>
+    ) => PostProcessing['outputNode']
+  } = {
+    postProcessing: input => input
+  }
 
   newGroup<T extends BrushTypes>(
     type: T,
     render: (g: GroupBuilder<T>) => GroupBuilder<T> | void,
-    settings?: Partial<Builder['settings']>
+    settings?: Partial<Builder['settings']>,
+    brushSettings?: Partial<BrushData<T>>
   ) {
     this.groups.push(
-      new GroupBuilder(type, render, { ...this.settings, ...settings })
+      new GroupBuilder(
+        type,
+        render,
+        { ...this.settings, ...settings },
+        brushSettings
+      )
     )
     return this
   }
 
-  constructor(initialize: (b: SceneBuilder) => SceneBuilder | void) {
+  constructor(
+    initialize: (b: SceneBuilder) => SceneBuilder | void,
+    settings?: Partial<SceneBuilder['sceneSettings']>
+  ) {
     super()
     initialize(this)
+    Object.assign(this.sceneSettings, settings)
   }
 }

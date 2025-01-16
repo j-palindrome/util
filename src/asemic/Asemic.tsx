@@ -1,10 +1,12 @@
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useState } from 'react'
 import { OrthographicCamera, Vector2 } from 'three'
 import PointBrush from './PointBrush'
 import SceneBuilder from './Builder'
-import { WebGPURenderer } from 'three/webgpu'
+import { PostProcessing, WebGPURenderer } from 'three/webgpu'
 import MeshBrush from './MeshBrush'
+import { float, mrt, output, pass } from 'three/tsl'
+import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 
 export function AsemicCanvas({
   children,
@@ -24,6 +26,7 @@ export function AsemicCanvas({
     <Canvas
       style={{ height: height ?? '100%', width: width ?? '100%', ...style }}
       frameloop={frameloop}
+      // frameloop={'never'}
       className={className}
       orthographic
       camera={{
@@ -40,8 +43,10 @@ export function AsemicCanvas({
           canvas: canvas as HTMLCanvasElement,
           powerPreference: 'high-performance',
           antialias: true,
+          depth: false,
           alpha: true
         })
+
         renderer.init().then(() => {
           setFrameloop('always')
         })
@@ -72,11 +77,34 @@ export default function Asemic({
   builder: (b: SceneBuilder) => SceneBuilder | void
 } & React.PropsWithChildren) {
   const b = new SceneBuilder(builder)
+
+  const { renderer, scene, camera } = useThree(({ gl, scene, camera }) => ({
+    // @ts-expect-error
+    renderer: gl as WebGPURenderer,
+    scene,
+    camera
+  }))
+
+  const postProcessing = new PostProcessing(renderer)
+  const scenePass = pass(scene, camera)
+  postProcessing.outputNode = b.sceneSettings.postProcessing(
+    scenePass.getTextureNode('output'),
+    scenePass
+  )
+
+  useFrame(() => {
+    postProcessing.render()
+  }, 1)
+
   return (
     <>
-      {b.groups.map((group, i) => (
-        <MeshBrush builder={group} key={i} />
-      ))}
+      {b.groups.map((group, i) =>
+        group.brushSettings.type === 'line' ? (
+          <MeshBrush builder={group} key={i} />
+        ) : (
+          <PointBrush builder={group} key={i} />
+        )
+      )}
     </>
   )
 }

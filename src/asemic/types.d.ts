@@ -80,9 +80,4 @@ declare global {
     : { type: T }
 
   type CoordinateData = PreTransformData & Partial<CoordinateSettings>
-  type GroupData = {
-    curves: PointBuilder[][]
-    transform: TransformData
-    settings: PreTransformData & CoordinateSettings & ProcessData
-  }
 }

@@ -10,6 +10,7 @@ import {
   instanceIndex,
   ivec2,
   mix,
+  mrt,
   PI2,
   rotateUV,
   screenSize,
@@ -68,7 +69,7 @@ export default function MeshBrush({
   const firstData = useMemo(() => builder.reInitialize(resolution), [builder])
 
   const verticesPerCurve = Math.floor(
-    (firstData.settings.maxLength * width) / 50
+    (firstData.settings.maxLength * width) / (firstData.settings.spacing * 5)
   )
 
   const {
@@ -98,10 +99,11 @@ export default function MeshBrush({
     const material = new MeshBasicNodeMaterial({
       transparent: true,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
       side: THREE.DoubleSide,
       color: 'white'
     })
+
     const mesh = new THREE.Mesh(geometry, material)
     mesh.position.set(...firstData.transform.translate.toArray(), 0)
     mesh.scale.set(...firstData.transform.scale.toArray(), 0)
@@ -117,8 +119,7 @@ export default function MeshBrush({
       firstData.dimensions.y
     )
     const controlPointCounts = uniformArray(
-      // firstData.positionArray.map(x => x.length),
-      firstData.positionArray.map(x => 0),
+      firstData.positionArray.map(x => x.length),
       'int'
     )
     return {
@@ -129,7 +130,7 @@ export default function MeshBrush({
       curveColorTex,
       controlPointCounts
     }
-  }, [])
+  }, [builder])
 
   const {
     advanceControlPoints,
@@ -449,7 +450,7 @@ export default function MeshBrush({
       curvePositionTex.dispose()
       curveColorTex.dispose()
     }
-  }, [])
+  }, [builder])
 
   return <></>
 }

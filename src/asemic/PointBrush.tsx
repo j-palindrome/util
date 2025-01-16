@@ -67,7 +67,9 @@ export default function PointBrush({
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
   const resolution = new Vector2()
   const width = gl.getDrawingBufferSize(resolution).x
-  const firstData = useMemo(() => builder.reInitialize(resolution), [builder])
+  const firstData = useMemo(() => {
+    return builder.reInitialize(resolution)
+  }, [builder])
 
   const {
     mesh,
@@ -92,7 +94,6 @@ export default function PointBrush({
             ? firstData.dimensions.y * firstData.brushSettings.gap
             : 0
     )
-    console.log(MAX_INSTANCE_COUNT)
 
     const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
     geometry.translate(firstData.settings.align - 0.5, 0.5, 0)
@@ -130,7 +131,7 @@ export default function PointBrush({
       controlPointCounts,
       tArray
     }
-  }, [])
+  }, [builder])
 
   const {
     advanceControlPoints,
@@ -387,11 +388,12 @@ export default function PointBrush({
             thickness.assign(texture(curvePositionTex, textureVector).w)
             position.assign(progressPoint)
             rotation.assign(
-              vec2(
+              vec3(
                 firstData.brushSettings.pointRotate(
                   atan(rotate.y, rotate.x),
                   info
                 ),
+                0,
                 0
               )
             )
@@ -557,8 +559,6 @@ export default function PointBrush({
   }
 
   useEffect(() => {
-    console.log('reinit')
-
     reInitialize()
     if (rendering && firstData.settings.update) {
       updating = requestAnimationFrame(update)
@@ -581,7 +581,7 @@ export default function PointBrush({
       curvePositionTex.dispose()
       curveColorTex.dispose()
     }
-  }, [])
+  }, [builder])
 
   return <></>
 }
