@@ -698,13 +698,13 @@ ${this.curves
   }
 
   text(str: string, transform?: CoordinateData) {
-    let lineCount = 0
     if (transform) {
       this.transform({ ...transform, push: true })
     }
+
     for (let letter of str) {
       if (this.letters[letter]) {
-        this.transform({ translate: [0.2, 0], push: true })
+        this.transform({ strength: 0, translate: [0.2, 0], push: true })
         this.letters[letter]()
       } else if (letter === '\n') {
         this.transform({
@@ -719,8 +719,8 @@ ${this.curves
   }
 
   protected letters: Record<string, () => GroupBuilder<T>> = {
-    ' ': () => this.transform({ translate: [0.5, 0], push: true }),
-    '\t': () => this.transform({ translate: [2, 0], push: true }),
+    ' ': () => this.transform({ translate: [0.5, 0], reset: 'pop' }),
+    '\t': () => this.transform({ translate: [2, 0], reset: 'pop' }),
     a: () =>
       this.newCurve([1, 1], [0.5, 1.3], [0, 0.5], [0.5, -0.3], [1, 0])
         .newCurve([0, 1, { translate: [1, 0] }], [-0.1, 0.5], [0, -0.3])
@@ -781,7 +781,7 @@ ${this.curves
         [0.5, 0.5]
       )
         .newCurve([0.5, 0.5], [0.5, 0], [0.5, -0.5], [0, -0.5], [0.05, -0.25])
-        .within([0, -0.5], [0.5, 0.5], 2)
+        .within([0, -0.5, { reset: 'pop' }], [0.5, 0.5], 2)
         .transform({ translate: [0.5, 0] }),
     h: () =>
       this.newCurve([0, 0], [0, 1])
@@ -798,7 +798,8 @@ ${this.curves
           [1, 0],
           [0, 0]
         )
-        .transform({ translate: [0.2, 0], reset: 'last' }),
+        .transform({ reset: 'pop' })
+        .transform({ translate: [0.2, 0], reset: 'pop' }),
     j: () =>
       this.transform({ translate: [-0.25, 0], push: true })
         .newCurve(
