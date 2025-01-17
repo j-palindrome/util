@@ -28,7 +28,6 @@ declare global {
     thickness: number
     color: [number, number, number]
     alpha: number
-    spacing: number
   }
   type ProgressInfo = {
     p: number
@@ -44,6 +43,8 @@ declare global {
   type ProcessData = {
     recalculate: boolean | number | ((lastFrame: number) => number)
     start: number
+    spacing: number
+    spacingType: 'count' | 'pixel' | 'width'
     update: boolean
     align: number
     resample: boolean
@@ -74,8 +75,7 @@ declare global {
           input: ReturnType<typeof float>,
           info: ParticleInfo
         ) => input
-        gapType: 'count' | 'pixel' | 'width'
-        gap: number
+        dashSize: number
       }
     : { type: T }
 

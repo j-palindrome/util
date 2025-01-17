@@ -72,11 +72,13 @@ function Adjust() {
 }
 
 export default function Asemic({
-  builder
+  builder,
+  settings
 }: {
   builder: (b: SceneBuilder) => SceneBuilder | void
+  settings?: Partial<SceneBuilder['sceneSettings']>
 } & React.PropsWithChildren) {
-  const b = new SceneBuilder(builder)
+  const b = new SceneBuilder(builder, settings)
 
   const { renderer, scene, camera } = useThree(({ gl, scene, camera }) => ({
     // @ts-expect-error

@@ -26,7 +26,6 @@ export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
   alpha: 1,
   color: [1, 1, 1],
-  spacing: 3,
   thickness: 1
 }
 
@@ -46,7 +45,9 @@ export class Builder {
     pointVert: input => input,
     pointFrag: input => input,
     curveVert: input => input,
-    curveFrag: input => input
+    curveFrag: input => input,
+    spacing: 3,
+    spacingType: 'pixel'
   }
   pointSettings: PreTransformData & CoordinateSettings =
     defaultCoordinateSettings
@@ -104,7 +105,7 @@ export class Builder {
     return this
   }
 
-  combineTransforms(
+  protected combineTransforms(
     transformData: TransformData,
     nextTransformData: TransformData,
     invert: boolean = false
@@ -130,7 +131,7 @@ export class Builder {
     return transformData
   }
 
-  applyTransform<T extends Vector2>(
+  protected applyTransform<T extends Vector2>(
     vector: T,
     transformData: TransformData,
     invert: boolean = false
@@ -976,8 +977,7 @@ ${this.curves
           type,
           pointScale: input => input,
           pointRotate: input => input,
-          gapType: 'pixel',
-          gap: 10
+          dashSize: 10
         }
       : isBrushType(type, 'line')
         ? { type }

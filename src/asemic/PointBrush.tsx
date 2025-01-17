@@ -82,16 +82,16 @@ export default function PointBrush({
     tArray
   } = useMemo(() => {
     const MAX_INSTANCE_COUNT = Math.floor(
-      firstData.brushSettings.gapType === 'pixel'
+      firstData.settings.spacingType === 'pixel'
         ? firstData.dimensions.y *
             ((firstData.settings.maxLength * width) /
-              firstData.brushSettings.gap)
-        : firstData.brushSettings.gapType === 'width'
+              firstData.settings.spacing)
+        : firstData.settings.spacingType === 'width'
           ? firstData.dimensions.y *
             ((firstData.settings.maxLength * width) /
-              (firstData.brushSettings.gap * width))
-          : firstData.brushSettings.gapType === 'count'
-            ? firstData.dimensions.y * firstData.brushSettings.gap
+              (firstData.settings.spacing * width))
+          : firstData.settings.spacingType === 'count'
+            ? firstData.dimensions.y * firstData.settings.spacing
             : 0
     )
 
@@ -236,17 +236,17 @@ export default function PointBrush({
     }
 
     const generateSpacing = () => {
-      switch (firstData.brushSettings.gapType) {
+      switch (firstData.settings.spacingType) {
         case 'pixel':
           return int(firstData.settings.maxLength * width).div(
-            firstData.brushSettings.gap
+            firstData.brushSettings.dashSize
           )
         case 'width':
           return int(firstData.settings.maxLength * width).div(
-            int(float(firstData.brushSettings.gap).mul(screenSize.x))
+            int(float(firstData.brushSettings.dashSize).mul(screenSize.x))
           )
         case 'count':
-          return int(firstData.brushSettings.gap)
+          return int(firstData.brushSettings.dashSize)
       }
     }
 
@@ -543,7 +543,7 @@ export default function PointBrush({
   })
 
   const update = () => {
-    if (firstData.brushSettings.gapType === 'count') {
+    if (firstData.settings.spacingType === 'count') {
       gl.computeAsync(advanceControlPoints)
       material.needsUpdate = true
       updating = requestAnimationFrame(update)
