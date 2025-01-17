@@ -9,21 +9,25 @@ export default function Genuary14() {
     <AsemicCanvas dimensions={[1080, 1920]}>
       <Asemic
         builder={b =>
-          b
-            .transformScene({
-              postProcessing: (input, scenePass) => {
-                return Fn(() => {
-                  return vec4(floor(input.x.mul(19234).mod(2)))
-                })()
-              }
-            })
-            .transform({ thickness: 100, alpha: 0.01, recalculate: 50 })
-            .newGroup('line', g => {
+          b.transform({ thickness: 100, alpha: 0.01 }).newGroup(
+            'line',
+            g => {
               g.repeat(50, () => {
                 g.newCurve([Math.random(), 0], [Math.random(), g.h])
               })
-            })
+            },
+            {
+              recalculate: 50
+            }
+          )
         }
+        settings={{
+          postProcessing: (input, scenePass) => {
+            return Fn(() => {
+              return vec4(floor(input.x.mul(19234).mod(2)))
+            })()
+          }
+        }}
       />
     </AsemicCanvas>
   )
