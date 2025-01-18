@@ -71,6 +71,8 @@ export default function MeshBrush({
     (builder.settings.maxLength * width) / (builder.settings.spacing * 5)
   )
 
+  const { getBezier } = useControlPoints(builder)
+
   const { mesh, material, geometry } = useMemo(() => {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
@@ -96,23 +98,19 @@ export default function MeshBrush({
     material.mrtNode = builder.settings.renderTargets
     const mesh = new THREE.Mesh(geometry, material)
 
-    return {
-      mesh,
-      material,
-      geometry
-    }
-  }, [builder])
-
-  const { getBezier } = useControlPoints(builder)
-
-  useMemo(() => {
     const position = vec2().toVar('thisPosition')
     const rotation = float(0).toVar('rotation')
     const thickness = float(0).toVar('thickness')
     const color = varyingProperty('vec4', 'color')
 
     const main = Fn(() => {
-      getBezier(vertexIndex, position, rotation, thickness, color)
+      getBezier(
+        () => vertexIndex.div(2).toFloat().div(verticesPerCurve),
+        position,
+        rotation,
+        thickness,
+        color
+      )
 
       position.addAssign(
         rotateUV(
@@ -131,6 +129,12 @@ export default function MeshBrush({
     material.positionNode = main()
     material.colorNode = varying(vec4(), 'color')
     material.needsUpdate = true
+
+    return {
+      mesh,
+      material,
+      geometry
+    }
   }, [builder])
 
   const scene = useThree(({ scene }) => scene)

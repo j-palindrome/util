@@ -16,8 +16,10 @@ import { Fn } from 'three/src/nodes/TSL.js'
 import {
   atan,
   float,
+  floor,
   If,
   instanceIndex,
+  int,
   ivec2,
   mix,
   PI2,
@@ -27,6 +29,7 @@ import {
   textureLoad,
   textureStore,
   uniformArray,
+  varyingProperty,
   vec2,
   vec4
 } from 'three/tsl'
@@ -46,7 +49,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       builder.settings.maxPoints,
       builder.settings.maxCurves
     )
-
     const controlPointCounts = uniformArray(
       builder.curves.map(x => x.length),
       'int'
@@ -207,31 +209,32 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     }
   }, [builder])
 
-  const { curvePositionTex, curveColorTex, controlPointCounts } = data
-  const curvePositionTexU = texture(curvePositionTex)
-  const verticesPerCurve = Math.floor(
-    (builder.settings.maxLength * resolution.x) / (builder.settings.spacing * 5)
-  )
+  const curvePositionTexU = texture(data.curvePositionTex)
 
   const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
 
-  const getBezier = (index, position, rotation, thickness, color) => {
-    const curveIndex = index.div(2).div(verticesPerCurve).toVar('curveIndex')
-    const controlPointsCount = controlPointCounts.element(curveIndex)
+  const getBezier = (
+    getIndex: (
+      controlPointCounts: ReturnType<typeof uniformArray>
+    ) => ReturnType<typeof float>,
+    position: ReturnType<typeof vec2>,
+    rotation: ReturnType<typeof float>,
+    thickness: ReturnType<typeof float>,
+    color: ReturnType<typeof varyingProperty>
+  ) => {
+    const progress = getIndex(data.controlPointCounts).toVar('progress')
+    const controlPointsCount = data.controlPointCounts.element(int(progress))
     const subdivisions = select(
       controlPointsCount.equal(2),
       1,
       controlPointsCount.sub(2)
     ).toVar('subdivisions')
+
+    //4 points: 4-2 = 2 0->1 1->2 (if it goes to the last value then it starts interpolating another curve)
     const t = vec2(
-      index
-        .div(2)
-        .toFloat()
-        .mod(verticesPerCurve)
-        .div(verticesPerCurve - 0.99)
-        .mul(subdivisions),
-      curveIndex
-    )
+      progress.fract().mul(0.999).mul(subdivisions),
+      floor(progress)
+    ).toVar('t')
 
     If(t.x.equal(-1), () => {
       color.assign(vec4(0, 0, 0, 0))
@@ -253,20 +256,16 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         )
         color.assign(
           builder.settings.pointFrag(
-            vec4(texture(curveColorTex, textureVector)),
+            vec4(texture(data.curveColorTex, textureVector)),
             info
           )
         )
-        thickness.assign(texture(curvePositionTex, textureVector).w)
+        thickness.assign(texture(data.curvePositionTex, textureVector).w)
         position.assign(progressPoint)
 
         rotation.assign(atan(p1.sub(p0).y, p1.sub(p0).x).add(PI2.mul(0.25)))
       }).Else(() => {
         const pointProgress = t.x
-        const p2 = textureLoadFix(
-          curvePositionTexU,
-          ivec2(pointProgress.add(2), t.y)
-        ).xy.toVar('p2')
         const p0 = textureLoadFix(
           curvePositionTexU,
           ivec2(pointProgress, t.y)
@@ -275,6 +274,10 @@ export function useControlPoints(builder: GroupBuilder<any>) {
           curvePositionTexU,
           ivec2(pointProgress.add(1), t.y)
         ).xy.toVar('p1')
+        const p2 = textureLoadFix(
+          curvePositionTexU,
+          ivec2(pointProgress.add(2), t.y)
+        ).xy.toVar('p2')
 
         If(pointProgress.greaterThan(float(1)), () => {
           p0.assign(mix(p0, p1, float(0.5)))
@@ -303,7 +306,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
           t.y.add(0.5).div(builder.settings.maxCurves)
         )
         const pointUV = vec2(
-          pointProgress.div(controlPointsCount.sub(2)),
+          pointProgress.div(subdivisions),
           t.y.div(builder.settings.maxCurves)
         )
         const info = {
@@ -312,9 +315,12 @@ export function useControlPoints(builder: GroupBuilder<any>) {
           settings: builder.settings
         }
         color.assign(
-          builder.settings.pointFrag(vec4(texture(curveColorTex, tt)), info)
+          builder.settings.pointFrag(
+            vec4(texture(data.curveColorTex, tt)),
+            info
+          )
         )
-        thickness.assign(texture(curvePositionTex, tt).w)
+        thickness.assign(texture(data.curvePositionTex, tt).w)
         position.assign(builder.settings.pointVert(thisPoint.position, info))
         rotation.assign(thisPoint.rotation)
       })
@@ -324,8 +330,8 @@ export function useControlPoints(builder: GroupBuilder<any>) {
 
   useEffect(() => {
     return () => {
-      curvePositionTex.dispose()
-      curveColorTex.dispose()
+      data.curvePositionTex.dispose()
+      data.curveColorTex.dispose()
     }
   }, [])
 
