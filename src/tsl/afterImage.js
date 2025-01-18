@@ -23,10 +23,7 @@ import {
 
 /** @module AfterImageNode **/
 
-const _size = /*@__PURE__*/ new Vector2()
-const _quadMeshComp = /*@__PURE__*/ new QuadMesh()
-
-let _rendererState
+const _size = new Vector2()
 
 /**
  * Post processing node for creating an after image effect.
@@ -34,6 +31,8 @@ let _rendererState
  * @augments TempNode
  */
 class AfterImageNode extends TempNode {
+  _quadMeshComp = new QuadMesh()
+
   static get type() {
     return 'AfterImageNode'
   }
@@ -132,7 +131,10 @@ class AfterImageNode extends TempNode {
   updateBefore(frame) {
     const { renderer } = frame
 
-    _rendererState = RendererUtils.resetRendererState(renderer, _rendererState)
+    this._rendererState = RendererUtils.resetRendererState(
+      renderer,
+      this._rendererState
+    )
 
     //
 
@@ -155,7 +157,7 @@ class AfterImageNode extends TempNode {
     // comp
 
     renderer.setRenderTarget(this._compRT)
-    _quadMeshComp.render(renderer)
+    this._quadMeshComp.render(renderer)
 
     // Swap the textures
 
@@ -167,7 +169,7 @@ class AfterImageNode extends TempNode {
 
     textureNode.value = currentTexture
 
-    RendererUtils.restoreRendererState(renderer, _rendererState)
+    RendererUtils.restoreRendererState(renderer, this._rendererState)
   }
 
   /**
@@ -199,7 +201,7 @@ class AfterImageNode extends TempNode {
       const texelOld = vec4(textureNodeOld)
       const texelNew = vec4(sampleTexture(uvNode))
 
-      texelOld.mulAssign(this.damp.mul(when_gt(texelOld, 0.1)))
+      texelOld.mulAssign(this.damp.mul(when_gt(texelOld, 0.01)))
       return max(texelNew, texelOld)
     })
 
@@ -210,7 +212,7 @@ class AfterImageNode extends TempNode {
     materialComposed.name = 'AfterImage'
     materialComposed.fragmentNode = afterImg()
 
-    _quadMeshComp.material = materialComposed
+    this._quadMeshComp.material = materialComposed
 
     //
 

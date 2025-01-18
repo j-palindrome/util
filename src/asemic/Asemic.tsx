@@ -151,7 +151,7 @@ export default function Asemic({
   outputTex.type = HalfFloatType
   const lastOutput = texture(outputTex)
   postProcessing.outputNode = b.sceneSettings.postProcessing(
-    scenePass.getTextureNode('output'),
+    scenePass.getTextureNode('output').toVar('outputAssign'),
     { scenePass, lastOutput }
   )
 
