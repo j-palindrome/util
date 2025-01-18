@@ -102,6 +102,7 @@ export default function PointBrush({
       depthWrite: false,
       blending: THREE.AdditiveBlending
     })
+    material.mrtNode = firstData.settings.renderTargets
     const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
     mesh.position.set(...firstData.transform.translate.toArray(), 0)
     mesh.scale.set(...firstData.transform.scale.toArray(), 0)
@@ -141,8 +142,6 @@ export default function PointBrush({
     lastCurvePositionLoadU,
     lastCurveColorLoadU
   } = useMemo(() => {
-    const pixel = 1 / width
-
     const dimensionsU = uniform(firstData.dimensions, 'vec2')
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
     const tAttribute = storage(tArray, 'vec2', MAX_INSTANCE_COUNT)
@@ -477,7 +476,7 @@ export default function PointBrush({
     material.rotationNode = rotation
 
     material.scaleNode = firstData.brushSettings.pointScale(
-      vec2(thickness, firstData.settings.spacing).mul(pixel)
+      vec2(thickness, firstData.settings.spacing).div(screenSize.x)
     )
 
     const colorV = varying(vec4(), 'colorV')

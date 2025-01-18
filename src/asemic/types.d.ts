@@ -1,11 +1,11 @@
 import { Color, Vector2 } from 'three'
 import { PointBuilder } from './PointBuilder'
-import { float, Fn, ShaderNodeObject, vec2, vec4 } from 'three/tsl'
+import { float, Fn, mrt, ShaderNodeObject, vec2, vec4 } from 'three/tsl'
 import { Builder } from './Builder'
 
 const defaultFn = (input: ReturnType<typeof vec4>) => input
 declare global {
-  type Coordinate = [number, number, CoordinateData] | [number, number]
+  type Coordinate = [number, number] | [number, number, CoordinateData]
 
   type TransformData = {
     translate: Vector2
@@ -51,6 +51,7 @@ declare global {
     maxLength: number
     maxCurves: number
     maxPoints: number
+    renderTargets: ReturnTypeq<typeof mrt>
     pointVert: (input: ReturnType<typeof vec2>, info: ParticleInfo) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
@@ -59,7 +60,7 @@ declare global {
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & { lastColor: ReturnType<typeof vec4> }
     ) => input
-    pointFrag: (input: ReturnType<typeof vec4>) => input
+    pointFrag: (input: ReturnType<typeof vec4>, info: ParticleInfo) => input
     curveVert: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & { lastPosition: ReturnType<typeof vec4> }

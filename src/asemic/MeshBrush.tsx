@@ -104,6 +104,8 @@ export default function MeshBrush({
       color: 'white'
     })
 
+    material.mrtNode = firstData.settings.renderTargets
+
     const mesh = new THREE.Mesh(geometry, material)
     mesh.position.set(...firstData.transform.translate.toArray(), 0)
     mesh.scale.set(...firstData.transform.scale.toArray(), 0)
@@ -139,8 +141,6 @@ export default function MeshBrush({
     lastCurvePositionLoadU,
     lastCurveColorLoadU
   } = useMemo(() => {
-    const pixel = 1 / width
-
     const dimensionsU = uniform(firstData.dimensions, 'vec2')
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
 
@@ -281,7 +281,10 @@ export default function MeshBrush({
               t.y.add(0.5).div(dimensionsU.y)
             )
             varyingProperty('vec4', 'colorV').assign(
-              vec4(texture(curveColorTex, textureVector))
+              firstData.settings.pointFrag(
+                vec4(texture(curveColorTex, textureVector)),
+                info
+              )
             )
             thickness.assign(texture(curvePositionTex, textureVector).w)
             position.assign(progressPoint)
@@ -343,7 +346,10 @@ export default function MeshBrush({
               settings: firstData.settings
             }
             varyingProperty('vec4', 'colorV').assign(
-              vec4(texture(curveColorTex, tt))
+              firstData.settings.pointFrag(
+                vec4(texture(curveColorTex, tt)),
+                info
+              )
             )
             thickness.assign(texture(curvePositionTex, tt).w)
             position.assign(
@@ -353,7 +359,7 @@ export default function MeshBrush({
           })
         })
       })
-      thickness.mulAssign(pixel)
+      thickness.divAssign(screenSize.x)
       position.addAssign(
         rotateUV(
           vec2(
@@ -364,15 +370,14 @@ export default function MeshBrush({
           vec2(0, 0)
         )
       )
+
       return vec4(position, 0, 1)
     })
 
     material.positionNode = main()
 
     const colorV = varying(vec4(), 'colorV')
-    material.colorNode = Fn(() => {
-      return firstData.settings.pointFrag(colorV)
-    })()
+    material.colorNode = colorV
     material.needsUpdate = true
 
     return {

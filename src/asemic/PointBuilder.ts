@@ -7,7 +7,6 @@ export class PointBuilder extends Vector2 {
   alpha: CoordinateSettings['alpha'] = defaultCoordinateSettings.alpha
   thickness: CoordinateSettings['thickness'] =
     defaultCoordinateSettings.thickness
-  spacing: CoordinateSettings['spacing'] = defaultCoordinateSettings.spacing
 
   constructor(
     point: [number, number] = [0, 0],

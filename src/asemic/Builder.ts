@@ -18,8 +18,22 @@ import invariant from 'tiny-invariant'
 import { lerp } from '../math'
 import { PointBuilder } from './PointBuilder'
 import { isBrushType } from './typeGuards'
-import { Node, PassNode, PostProcessing } from 'three/webgpu'
-import { pass, ShaderNodeObject } from 'three/tsl'
+import {
+  Node,
+  PassNode,
+  PostProcessing,
+  Renderer,
+  WebGPURenderer
+} from 'three/webgpu'
+import {
+  float,
+  instance,
+  mrt,
+  output,
+  pass,
+  ShaderNodeObject,
+  texture
+} from 'three/tsl'
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
@@ -47,7 +61,10 @@ export class Builder {
     curveVert: input => input,
     curveFrag: input => input,
     spacing: 3,
-    spacingType: 'pixel'
+    spacingType: 'pixel',
+    renderTargets: mrt({
+      output
+    })
   }
   pointSettings: PreTransformData & CoordinateSettings =
     defaultCoordinateSettings
@@ -66,9 +83,8 @@ export class Builder {
   }
 
   protected reset(clear = false) {
-    this.currentTransform.scale = new PointBuilder([1, 1], this.pointSettings)
-    this.currentTransform.rotate = 0
-    this.currentTransform.translate = new PointBuilder()
+    this.currentTransform = this.toTransform()
+    this.pointSettings = { ...defaultCoordinateSettings }
 
     if (clear) this.transforms = []
     return this
@@ -266,22 +282,33 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     return this.applyTransform(point, this.currentTransform, true).toArray()
   }
 
-  toPoints(...coordinates: (Coordinate | PointBuilder)[]) {
-    return coordinates.map(x => this.toPoint(x))
+  toPoints(...coordinates: (Coordinate | PointBuilder | CoordinateData)[]) {
+    let points: PointBuilder[] = []
+    for (let i = 0; i < coordinates.length; i++) {
+      if (coordinates[i] instanceof Array) {
+        points.push(this.toPoint(coordinates[i] as Coordinate))
+      } else if (coordinates[i] instanceof PointBuilder) {
+        points.push(coordinates[i] as PointBuilder)
+      } else {
+        this.transform(coordinates[i] as CoordinateData)
+      }
+    }
+    return points
   }
 
   toPoint(coordinate: Coordinate | PointBuilder) {
     if (coordinate instanceof PointBuilder) return coordinate
-    if (coordinate[2]) {
-      this.transform(coordinate[2])
+    else {
+      if (coordinate[2]) {
+        this.transform(coordinate[2])
+      }
+      return this.applyTransform(
+        new PointBuilder([coordinate[0], coordinate[1]], {
+          ...this.pointSettings
+        }),
+        this.currentTransform
+      )
     }
-
-    return this.applyTransform(
-      new PointBuilder([coordinate[0], coordinate[1]], {
-        ...this.pointSettings
-      }),
-      this.currentTransform
-    )
   }
 
   protected interpolateCurve(
@@ -688,12 +715,19 @@ ${this.curves
     return this
   }
 
-  newCurve(...points: (Coordinate | PointBuilder)[]) {
+  newCurve(...points: (Coordinate | PointBuilder | CoordinateData)[]) {
     this.curves.push(this.toPoints(...points))
     return this
   }
 
-  newPoints(...points: (Coordinate | PointBuilder)[]) {
+  newCurves(
+    count: number,
+    ...points: (Coordinate | PointBuilder | CoordinateData)[]
+  ) {
+    return this.repeat(count, () => this.newCurve(...points))
+  }
+
+  newPoints(...points: (Coordinate | PointBuilder | CoordinateData)[]) {
     return this.lastCurve(c => c.push(...this.toPoints(...points)))
   }
 
@@ -992,7 +1026,10 @@ export default class SceneBuilder extends Builder {
   sceneSettings: {
     postProcessing: (
       input: ReturnType<PassNode['getTextureNode']>,
-      scenePass: ReturnType<typeof pass>
+      info: {
+        scenePass: ReturnType<typeof pass>
+        lastOutput: ReturnType<typeof texture>
+      }
     ) => PostProcessing['outputNode']
   } = {
     postProcessing: input => input
