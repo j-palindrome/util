@@ -260,7 +260,7 @@ export class Builder {
 export class GroupBuilder<T extends BrushTypes> extends Builder {
   h: number
   time: number = performance.now() / 1000
-  protected curves: PointBuilder[][] = []
+  curves: PointBuilder[][] = []
   protected initialize: (t: GroupBuilder<T>) => GroupBuilder<T> | void
   brushSettings: BrushData<T>
 
@@ -334,98 +334,6 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
       length += testVec.subVectors(curve[i], curve[i - 1]).length()
     }
     return length * 1.5 // estimation for Bezier curve
-  }
-
-  protected packToTexture() {
-    if (this.settings.maxPoints === 0) {
-      this.settings.maxPoints = max(this.curves.flatMap(x => x.length))!
-    }
-    if (this.settings.maxCurves === 0) {
-      this.settings.maxCurves = this.curves.length
-    }
-    if (this.settings.maxLength === 0) {
-      this.settings.maxLength = max(this.curves.map(x => this.getLength(x)))!
-    }
-    const width = this.settings.maxPoints
-    const maxCurves =
-      this.settings.maxCurves === 0
-        ? this.curves.length
-        : this.settings.maxCurves
-    const height = maxCurves
-
-    const dimensions = new Vector2(width, height)
-
-    const createTexture = (
-      array: Float32Array,
-      format: AnyPixelFormat,
-      filter: MagnificationTextureFilter = NearestFilter
-    ) => {
-      const tex = new DataTexture(array, width, height)
-      tex.format = format
-      tex.type = FloatType
-      tex.minFilter = tex.magFilter = filter
-      tex.wrapS = tex.wrapT = ClampToEdgeWrapping
-      tex.needsUpdate = true
-      return tex
-    }
-
-    const pos = new Float32Array(
-      range(height).flatMap(i => {
-        const c = this.curves[i]
-        return c
-          ? range(width).flatMap(i => {
-              const point = c[i]
-              return point
-                ? [point.x, point.y, point.strength, point.thickness]
-                : [-1111, 0, 0, 0]
-            })
-          : range(width).flatMap(() => [-1111, 0, 0, 0])
-      })
-    )
-    const positionArray = this.curves
-    const positionTex = createTexture(pos, RGBAFormat, LinearFilter)
-
-    const colorTex = createTexture(
-      new Float32Array(
-        range(height).flatMap(i => {
-          const c = this.curves[i]
-          return c
-            ? range(width).flatMap(i => {
-                const point = c[i]
-                return point ? [...point.color, point.alpha] : [-1111, 0, 0, 0]
-              })
-            : range(width).flatMap(() => [-1111, 0, 0, 0])
-        })
-      ),
-      RGBAFormat,
-      LinearFilter
-    )
-
-    const countTex = createTexture(
-      new Float32Array(
-        range(height).flatMap(i => {
-          const c = this.curves[i]
-          return c
-            ? range(width).flatMap(i => {
-                return [c.length]
-              })
-            : range(width).flatMap(() => [0])
-        })
-      ),
-      RedFormat,
-      LinearFilter
-    )
-
-    return {
-      positionTex,
-      colorTex,
-      countTex,
-      dimensions,
-      transform: this.toTransform(),
-      settings: this.settings,
-      brushSettings: this.brushSettings,
-      positionArray
-    }
   }
 
   protected getTransformAt(transforms: TransformData[], progress: number) {
@@ -590,6 +498,9 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     } else return random()
   }
 
+  /**
+   * @param {number} variation variation limits
+   */
   getRandomAround(origin: number, variation: number): number
   getRandomAround(
     origin: [number, number],
@@ -608,7 +519,7 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
   ): number | [number, number] | (number | [number, number])[] {
     const random = () => {
       if (typeof origin === 'number' && typeof variation === 'number') {
-        return origin + (Math.random() - 0.5) * 2 * variation
+        return origin + (Math.random() - 0.5) * variation
       } else {
         return new Vector2(...(origin as [number, number]))
           .add(
@@ -738,6 +649,9 @@ ${this.curves
       left: number
       width: number
       top: number
+      middle: number
+      varyThickness: number
+      varyPosition: number | [number, number]
     }>,
     transform?: CoordinateData
   ) {
@@ -762,7 +676,32 @@ ${this.curves
 
     if (settings) {
       const textCurves = this.curves.slice(lines[0])
+      const flatCurves = textCurves.flat()
       const bounds = this.getBounds(textCurves.flat())
+
+      if (settings.varyThickness) {
+        flatCurves.forEach(point => {
+          point.thickness = this.getRandomAround(
+            point.thickness,
+            settings.varyThickness!
+          )
+        })
+      }
+
+      if (settings.varyPosition) {
+        const varyPosition: [number, number] =
+          settings.varyPosition instanceof Array
+            ? settings.varyPosition
+            : [settings.varyPosition, settings.varyPosition]
+        flatCurves.forEach(point => {
+          this.applyTransform(
+            point,
+            this.toTransform({
+              translate: this.getRandomAround([0, 0], varyPosition)
+            })
+          )
+        })
+      }
 
       if (settings.width) {
         this.within(
@@ -773,6 +712,9 @@ ${this.curves
           textCurves.length
         )
         bounds.max = bounds.min.clone().add(bounds.size)
+        bounds.center = bounds.min
+          .clone()
+          .add(bounds.size.clone().divideScalar(2))
       }
 
       if (settings.center !== undefined) {
@@ -789,18 +731,12 @@ ${this.curves
       }
 
       if (settings.left !== undefined) {
-        let i = 0
-        for (let line of lines) {
-          const linePoints = this.curves.slice(line, lines[i + 1]).flat()
-          const lineBounds = this.getBounds(linePoints)
-          linePoints.forEach(point =>
-            point.add({
-              x: settings.left! - lineBounds.min.x,
-              y: 0
-            })
-          )
-          i++
-        }
+        textCurves.flat().forEach(point =>
+          point.add({
+            x: settings.left! - bounds.min.x,
+            y: 0
+          })
+        )
       }
 
       if (settings.top !== undefined) {
@@ -808,6 +744,14 @@ ${this.curves
           .flat()
           .forEach(point =>
             point.add({ x: 0, y: settings.top! - bounds.max.y })
+          )
+      }
+
+      if (settings.middle !== undefined) {
+        textCurves
+          .flat()
+          .forEach(point =>
+            point.add({ x: 0, y: settings.middle! - bounds.center.y })
           )
       }
     }
@@ -1057,7 +1001,16 @@ ${this.curves
     this.h = resolution.y / resolution.x
     this.time = performance.now() / 1000
     this.initialize(this)
-    return this.packToTexture()
+    if (this.settings.maxPoints === 0) {
+      this.settings.maxPoints = max(this.curves.flatMap(x => x.length))!
+    }
+    if (this.settings.maxLength === 0) {
+      this.settings.maxLength = max(this.curves.map(x => this.getLength(x)))!
+    }
+    if (this.settings.maxCurves === 0) {
+      this.settings.maxCurves = this.curves.length
+    }
+    return this
   }
 
   constructor(

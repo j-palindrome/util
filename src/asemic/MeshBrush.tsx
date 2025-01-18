@@ -35,6 +35,7 @@ import {
 import { bezierPoint } from '../tsl/curves'
 import { textureLoadFix } from '../tsl/utility'
 import { GroupBuilder } from './Builder'
+import { createTexture, packToTexture } from './util/packTexture'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -66,10 +67,9 @@ export default function MeshBrush({
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
   const resolution = new Vector2()
   const width = gl.getDrawingBufferSize(resolution).x
-  const firstData = useMemo(() => builder.reInitialize(resolution), [builder])
-
+  builder.reInitialize(resolution)
   const verticesPerCurve = Math.floor(
-    (firstData.settings.maxLength * width) / (firstData.settings.spacing * 5)
+    (builder.settings.maxLength * width) / (builder.settings.spacing * 5)
   )
 
   const {
@@ -80,57 +80,107 @@ export default function MeshBrush({
     curveColorTex,
     controlPointCounts
   } = useMemo(() => {
-    const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
-    const indexGuide = [0, 1, 2, 1, 2, 3]
+    const type: string = 'line'
+    if (type === 'mesh') {
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
+      const indexGuide = [0, 1, 2, 1, 2, 3]
 
-    let currentIndex = 0
-    const indexes: number[] = []
-    for (let i = 0; i < firstData.dimensions.y; i++) {
-      for (let i = 0; i < verticesPerCurve - 1; i++) {
-        indexes.push(...indexGuide.map(x => x + currentIndex))
+      let currentIndex = 0
+      const indexes: number[] = []
+      for (let i = 0; i < builder.settings.maxCurves; i++) {
+        for (let i = 0; i < verticesPerCurve - 1; i++) {
+          indexes.push(...indexGuide.map(x => x + currentIndex))
+          currentIndex += 2
+        }
         currentIndex += 2
       }
-      currentIndex += 2
-    }
 
-    geometry.setIndex(indexes)
+      geometry.setIndex(indexes)
 
-    const material = new MeshBasicNodeMaterial({
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.NormalBlending,
-      side: THREE.DoubleSide,
-      color: 'white'
-    })
+      const material = new MeshBasicNodeMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.NormalBlending,
+        side: THREE.DoubleSide,
+        color: 'white'
+      })
 
-    material.mrtNode = firstData.settings.renderTargets
+      material.mrtNode = builder.settings.renderTargets
 
-    const mesh = new THREE.Mesh(geometry, material)
-    mesh.position.set(...firstData.transform.translate.toArray(), 0)
-    mesh.scale.set(...firstData.transform.scale.toArray(), 0)
-    mesh.rotation.set(0, 0, firstData.transform.rotate)
+      const mesh = new THREE.Mesh(geometry, material)
 
-    const curvePositionTex = new StorageTexture(
-      firstData.dimensions.x,
-      firstData.dimensions.y
-    )
-    curvePositionTex.type = THREE.FloatType
-    const curveColorTex = new StorageTexture(
-      firstData.dimensions.x,
-      firstData.dimensions.y
-    )
-    const controlPointCounts = uniformArray(
-      firstData.positionArray.map(x => x.length),
-      'int'
-    )
-    return {
-      mesh,
-      material,
-      geometry,
-      curvePositionTex,
-      curveColorTex,
-      controlPointCounts
+      const curvePositionTex = new StorageTexture(
+        builder.settings.maxPoints,
+        builder.settings.maxCurves
+      )
+      curvePositionTex.type = THREE.FloatType
+      const curveColorTex = new StorageTexture(
+        builder.settings.maxPoints,
+        builder.settings.maxCurves
+      )
+      const controlPointCounts = uniformArray(
+        builder.curves.map(x => x.length),
+        'int'
+      )
+      return {
+        mesh,
+        material,
+        geometry,
+        curvePositionTex,
+        curveColorTex,
+        controlPointCounts
+      }
+    } else {
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
+      const indexGuide = [0, 1, 2, 1, 2, 3]
+
+      let currentIndex = 0
+      const indexes: number[] = []
+      for (let i = 0; i < builder.settings.maxCurves; i++) {
+        for (let i = 0; i < verticesPerCurve - 1; i++) {
+          indexes.push(...indexGuide.map(x => x + currentIndex))
+          currentIndex += 2
+        }
+        currentIndex += 2
+      }
+
+      geometry.setIndex(indexes)
+
+      const material = new MeshBasicNodeMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.NormalBlending,
+        side: THREE.DoubleSide,
+        color: 'white'
+      })
+
+      material.mrtNode = builder.settings.renderTargets
+
+      const mesh = new THREE.Mesh(geometry, material)
+
+      const curvePositionTex = new StorageTexture(
+        builder.settings.maxPoints,
+        builder.settings.maxCurves
+      )
+      curvePositionTex.type = THREE.FloatType
+      const curveColorTex = new StorageTexture(
+        builder.settings.maxPoints,
+        builder.settings.maxCurves
+      )
+      const controlPointCounts = uniformArray(
+        builder.curves.map(x => x.length),
+        'int'
+      )
+      return {
+        mesh,
+        material,
+        geometry,
+        curvePositionTex,
+        curveColorTex,
+        controlPointCounts
+      }
     }
   }, [builder])
 
@@ -141,45 +191,54 @@ export default function MeshBrush({
     lastCurvePositionLoadU,
     lastCurveColorLoadU
   } = useMemo(() => {
-    const dimensionsU = uniform(firstData.dimensions, 'vec2')
+    const { positions, colors } = packToTexture(
+      new Vector2(builder.settings.maxPoints, builder.settings.maxCurves),
+      builder.curves
+    )
+    const positionTex = createTexture(
+      positions,
+      builder.settings.maxPoints,
+      builder.settings.maxCurves
+    )
+    const colorTex = createTexture(
+      colors,
+      builder.settings.maxPoints,
+      builder.settings.maxCurves
+    )
+
+    const dimensionsU = uniform(
+      new Vector2(builder.settings.maxPoints, builder.settings.maxCurves),
+      'vec2'
+    )
     const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
 
-    const pointI = instanceIndex.modInt(firstData.dimensions.x)
-    const curveI = instanceIndex.div(firstData.dimensions.x)
-    const curvePositionLoadU = textureLoad(
-      firstData.positionTex,
-      vec2(pointI, curveI)
-    )
-    const curveColorLoadU = textureLoad(
-      firstData.colorTex,
-      vec2(pointI, curveI)
-    )
+    const pointI = instanceIndex.modInt(builder.settings.maxPoints)
+    const curveI = instanceIndex.div(builder.settings.maxPoints)
+    const curvePositionLoadU = textureLoad(positionTex, vec2(pointI, curveI))
+    const curveColorLoadU = textureLoad(colorTex, vec2(pointI, curveI))
     const lastCurvePositionLoadU = textureLoad(
-      firstData.positionTex,
+      positionTex,
       vec2(pointI, curveI)
     )
-    const lastCurveColorLoadU = textureLoad(
-      firstData.colorTex,
-      vec2(pointI, curveI)
-    )
+    const lastCurveColorLoadU = textureLoad(colorTex, vec2(pointI, curveI))
 
     const advanceControlPoints = Fn(() => {
       const textureVector = vec2(
         pointI.toFloat().div(controlPointCounts.element(curveI)),
-        curveI.toFloat().div(firstData.dimensions.y)
+        curveI.toFloat().div(builder.settings.maxCurves)
       )
       const info = {
         pointUV: textureVector,
         aspectRatio: aspectRatio.y,
-        settings: firstData.settings
+        settings: builder.settings
       }
-      const point = firstData.settings.curveVert(vec4(curvePositionLoadU), {
+      const point = builder.settings.curveVert(vec4(curvePositionLoadU), {
         ...info,
         lastPosition: vec4(lastCurvePositionLoadU)
       })
       textureStore(curvePositionTex, vec2(pointI, curveI), point).toWriteOnly()
 
-      const color = firstData.settings.curveFrag(vec4(curveColorLoadU), {
+      const color = builder.settings.curveFrag(vec4(curveColorLoadU), {
         ...info,
         lastColor: vec4(lastCurveColorLoadU)
       })
@@ -189,48 +248,42 @@ export default function MeshBrush({
         color
       ).toWriteOnly()
     })().compute(
-      firstData.dimensions.x * firstData.dimensions.y,
+      builder.settings.maxPoints * builder.settings.maxCurves,
       undefined as any
     )
 
-    const sampleCurveLengthsTex = new StorageTexture(
-      100,
-      firstData.dimensions.y
-    )
-    sampleCurveLengthsTex.type = THREE.FloatType
+    // const getBezier = (pointProgress, curveProgress, controlPointsCount) => {
+    //   const p2 = textureLoadFix(
+    //     curvePositionTexU,
+    //     ivec2(pointProgress.add(2), curveProgress)
+    //   ).xy.toVar('p2')
+    //   const p0 = textureLoadFix(
+    //     curvePositionTexU,
+    //     ivec2(pointProgress, curveProgress)
+    //   ).xy.toVar('p0')
+    //   const p1 = textureLoadFix(
+    //     curvePositionTexU,
+    //     ivec2(pointProgress.add(1), curveProgress)
+    //   ).xy.toVar('p1')
 
-    const getBezier = (pointProgress, curveProgress, controlPointsCount) => {
-      const p2 = textureLoadFix(
-        curvePositionTexU,
-        ivec2(pointProgress.add(2), curveProgress)
-      ).xy.toVar('p2')
-      const p0 = textureLoadFix(
-        curvePositionTexU,
-        ivec2(pointProgress, curveProgress)
-      ).xy.toVar('p0')
-      const p1 = textureLoadFix(
-        curvePositionTexU,
-        ivec2(pointProgress.add(1), curveProgress)
-      ).xy.toVar('p1')
-
-      If(pointProgress.greaterThan(float(1)), () => {
-        p0.assign(mix(p0, p1, float(0.5)))
-      })
-      If(pointProgress.lessThan(float(controlPointsCount).sub(3)), () => {
-        p2.assign(mix(p1, p2, 0.5))
-      })
-      const strength = textureLoadFix(
-        curvePositionTexU,
-        ivec2(pointProgress.add(1), curveProgress)
-      ).z.toVar('strength')
-      return bezierPoint({
-        t: pointProgress.fract(),
-        p0,
-        p1,
-        p2,
-        strength
-      })
-    }
+    //   If(pointProgress.greaterThan(float(1)), () => {
+    //     p0.assign(mix(p0, p1, float(0.5)))
+    //   })
+    //   If(pointProgress.lessThan(float(controlPointsCount).sub(3)), () => {
+    //     p2.assign(mix(p1, p2, 0.5))
+    //   })
+    //   const strength = textureLoadFix(
+    //     curvePositionTexU,
+    //     ivec2(pointProgress.add(1), curveProgress)
+    //   ).z.toVar('strength')
+    //   return bezierPoint({
+    //     t: pointProgress.fract(),
+    //     p0,
+    //     p1,
+    //     p2,
+    //     strength
+    //   })
+    // }
 
     const rotation = float(0).toVar('rotation')
     const thickness = float(0).toVar('thickness')
@@ -272,7 +325,7 @@ export default function MeshBrush({
             const info = {
               pointUV,
               aspectRatio: aspectRatio.y,
-              settings: firstData.settings
+              settings: builder.settings
             }
             const progressPoint = mix(p0, p1, t.x)
             // const rotate = lineTangent(p0, p1).toVar('rotate')
@@ -281,7 +334,7 @@ export default function MeshBrush({
               t.y.add(0.5).div(dimensionsU.y)
             )
             varyingProperty('vec4', 'colorV').assign(
-              firstData.settings.pointFrag(
+              builder.settings.pointFrag(
                 vec4(texture(curveColorTex, textureVector)),
                 info
               )
@@ -343,17 +396,14 @@ export default function MeshBrush({
             const info = {
               pointUV,
               aspectRatio: aspectRatio.y,
-              settings: firstData.settings
+              settings: builder.settings
             }
             varyingProperty('vec4', 'colorV').assign(
-              firstData.settings.pointFrag(
-                vec4(texture(curveColorTex, tt)),
-                info
-              )
+              builder.settings.pointFrag(vec4(texture(curveColorTex, tt)), info)
             )
             thickness.assign(texture(curvePositionTex, tt).w)
             position.assign(
-              firstData.settings.pointVert(thisPoint.position, info)
+              builder.settings.pointVert(thisPoint.position, info)
             )
             rotation.assign(thisPoint.rotation)
           })
@@ -392,27 +442,35 @@ export default function MeshBrush({
   let updating: number
 
   const reInitialize = () => {
-    const newData = builder.reInitialize(resolution)
-    for (let i = 0; i < newData.dimensions.y; i++) {
-      controlPointCounts.array[i] = newData.positionArray[i].length
+    builder.reInitialize(resolution)
+    for (let i = 0; i < builder.settings.maxCurves; i++) {
+      controlPointCounts.array[i] = builder.curves[i].length
     }
 
-    lastCurveColorLoadU.value.dispose()
-    lastCurveColorLoadU.value.dispose()
-    firstData.countTex.dispose()
     lastCurvePositionLoadU.value = curvePositionLoadU.value
     lastCurveColorLoadU.value = curveColorLoadU.value
-    curvePositionLoadU.value = newData.positionTex
-    curveColorLoadU.value = newData.colorTex
+    const newData = packToTexture(
+      new Vector2(builder.settings.maxPoints, builder.settings.maxCurves),
+      builder.curves
+    )
+
+    const loadPositions = curvePositionLoadU.value.source.data
+      .data as Float32Array
+    loadPositions.set(newData.positions)
+    const loadColors = curveColorLoadU.value.source.data.data as Float32Array
+    loadColors.set(newData.colors)
+    curvePositionLoadU.value.needsUpdate = true
+    curveColorLoadU.value.needsUpdate = true
+
     gl.computeAsync(advanceControlPoints)
   }
 
-  const nextTime = useRef<number>(firstData.settings.start / 1000)
+  const nextTime = useRef<number>(builder.settings.start / 1000)
 
   useFrame(state => {
     if (state.clock.elapsedTime > nextTime.current) {
-      if (firstData.settings.recalculate) {
-        const r = firstData.settings.recalculate
+      if (builder.settings.recalculate) {
+        const r = builder.settings.recalculate
         nextTime.current =
           typeof r === 'boolean'
             ? nextTime.current + 1 / 60
@@ -434,7 +492,7 @@ export default function MeshBrush({
     console.log('reinit')
 
     reInitialize()
-    if (rendering && firstData.settings.update) {
+    if (rendering && builder.settings.update) {
       updating = requestAnimationFrame(update)
     }
     return () => {

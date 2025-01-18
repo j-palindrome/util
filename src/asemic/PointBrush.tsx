@@ -104,9 +104,6 @@ export default function PointBrush({
     })
     material.mrtNode = firstData.settings.renderTargets
     const mesh = new THREE.InstancedMesh(geometry, material, MAX_INSTANCE_COUNT)
-    mesh.position.set(...firstData.transform.translate.toArray(), 0)
-    mesh.scale.set(...firstData.transform.scale.toArray(), 0)
-    mesh.rotation.set(0, 0, firstData.transform.rotate)
 
     const curvePositionTex = new StorageTexture(
       firstData.dimensions.x,
