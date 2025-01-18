@@ -296,16 +296,16 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     return points
   }
 
-  toPoint(coordinate: Coordinate | PointBuilder) {
+  toPoint(coordinate: Coordinate | PointBuilder | Vector2) {
     if (coordinate instanceof PointBuilder) return coordinate
+    else if (coordinate instanceof Vector2)
+      return new PointBuilder([coordinate.x, coordinate.y], this.pointSettings)
     else {
       if (coordinate[2]) {
         this.transform(coordinate[2])
       }
       return this.applyTransform(
-        new PointBuilder([coordinate[0], coordinate[1]], {
-          ...this.pointSettings
-        }),
+        new PointBuilder([coordinate[0], coordinate[1]], this.pointSettings),
         this.currentTransform
       )
     }
@@ -646,7 +646,7 @@ ${this.curves
     return this
   }
 
-  within(from: Coordinate, to: Coordinate, curves: number) {
+  within(from: Coordinate | Vector2, to: Coordinate | Vector2, curves: number) {
     const fromV = this.toPoint(from)
     const size = new Vector2().copy(this.toPoint(to)).sub(fromV)
 
@@ -731,21 +731,84 @@ ${this.curves
     return this.lastCurve(c => c.push(...this.toPoints(...points)))
   }
 
-  text(str: string, transform?: CoordinateData) {
+  text(
+    str: string,
+    settings?: Partial<{
+      center: number
+      left: number
+      width: number
+      top: number
+    }>,
+    transform?: CoordinateData
+  ) {
     if (transform) {
       this.transform({ ...transform, push: true })
     }
 
+    const lines: number[] = [this.curves.length]
     for (let letter of str) {
       if (this.letters[letter]) {
         this.transform({ strength: 0, translate: [0.2, 0], push: true })
         this.letters[letter]()
       } else if (letter === '\n') {
+        lines.push(this.curves.length)
         this.transform({
           reset: 'pop',
           translate: [0, -1.5],
           push: true
         })
+      }
+    }
+
+    if (settings) {
+      const textCurves = this.curves.slice(lines[0])
+      const bounds = this.getBounds(textCurves.flat())
+
+      if (settings.width) {
+        this.within(
+          bounds.min,
+          bounds.min
+            .clone()
+            .add(bounds.size.divideScalar(bounds.size.x / settings.width)),
+          textCurves.length
+        )
+        bounds.max = bounds.min.clone().add(bounds.size)
+      }
+
+      if (settings.center !== undefined) {
+        let i = 0
+        for (let line of lines) {
+          const linePoints = this.curves.slice(line, lines[i + 1]).flat()
+          const lineBounds = this.getBounds(linePoints)
+
+          linePoints.forEach(point =>
+            point.add({ x: settings.center! - lineBounds.center.x, y: 0 })
+          )
+          i++
+        }
+      }
+
+      if (settings.left !== undefined) {
+        let i = 0
+        for (let line of lines) {
+          const linePoints = this.curves.slice(line, lines[i + 1]).flat()
+          const lineBounds = this.getBounds(linePoints)
+          linePoints.forEach(point =>
+            point.add({
+              x: settings.left! - lineBounds.min.x,
+              y: 0
+            })
+          )
+          i++
+        }
+      }
+
+      if (settings.top !== undefined) {
+        textCurves
+          .flat()
+          .forEach(point =>
+            point.add({ x: 0, y: settings.top! - bounds.max.y })
+          )
       }
     }
 

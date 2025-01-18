@@ -5,38 +5,18 @@ import {
   useFrame,
   useThree
 } from '@react-three/fiber'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
+import { HalfFloatType, OrthographicCamera, Vector2 } from 'three'
+import { pass, texture } from 'three/tsl'
 import {
-  FloatType,
-  HalfFloatType,
-  MeshBasicMaterial,
-  NearestFilter,
-  OrthographicCamera,
-  RenderTarget,
-  Vector2
-} from 'three'
-import PointBrush from './PointBrush'
-import SceneBuilder from './Builder'
-import {
-  MeshBasicNodeMaterial,
   PostProcessing,
   QuadMesh,
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
+import SceneBuilder from './Builder'
 import MeshBrush from './MeshBrush'
-import {
-  color,
-  diffuseColor,
-  float,
-  mrt,
-  output,
-  pass,
-  texture,
-  vec4,
-  vertexColor
-} from 'three/tsl'
-import { bloom } from 'three/addons/tsl/display/BloomNode.js'
+import PointBrush from './PointBrush'
 
 extend({
   QuadMesh
@@ -134,19 +114,6 @@ export default function Asemic({
   const postProcessing = new PostProcessing(renderer)
   const scenePass = pass(scene, camera)
 
-  // const renderTargets = {
-  //   old: new RenderTarget(
-  //     window.innerWidth * window.devicePixelRatio,
-  //     window.innerHeight * window.devicePixelRatio,
-  //     { count: 1, minFilter: NearestFilter, magFilter: NearestFilter }
-  //   ),
-  //   new: new RenderTarget(
-  //     window.innerWidth * window.devicePixelRatio,
-  //     window.innerHeight * window.devicePixelRatio,
-  //     { count: 1, minFilter: NearestFilter, magFilter: NearestFilter }
-  //   )
-  // }
-
   const outputTex = new StorageTexture(resolution.x, resolution.y)
   outputTex.type = HalfFloatType
   const lastOutput = texture(outputTex)
@@ -155,31 +122,8 @@ export default function Asemic({
     { scenePass, lastOutput }
   )
 
-  // let done = false
-  // const mat = new MeshBasicNodeMaterial({ map: lastOutput.value })
-  // mat.colorNode = vec4(1).sub(texture(mat.map!))
-  useFrame(({ clock }) => {
-    // lastOutput.value = renderTargets.old.texture
-    // postProcessing.renderer.setRenderTarget(renderTargets.new)
+  useFrame(() => {
     postProcessing.render()
-    // if (!done) {
-    //   console.log('done')
-
-    //   // done = true
-    //   renderer.copyTextureToTexture(
-    //     scenePass.renderTarget.texture,
-    //     lastOutput.value
-    //   )
-    //   // lastOutput.value.needsUpdate = true
-    //   // lastOutput.needsUpdate = true
-    //   // mat.needsUpdate = true
-    // }
-    // scenePass.toggleTexture('texture2')
-    // postProcessing.renderer.setRenderTarget(null)
-    // postProcessing.render()
-    // const temp = renderTargets.new
-    // renderTargets.new = renderTargets.old
-    // renderTargets.old = temp
   }, 1)
 
   return (

@@ -5,7 +5,10 @@ import {
   NodeMaterial,
   RendererUtils,
   TempNode,
-  NodeUpdateType
+  NodeUpdateType,
+  NodeFrame,
+  NodeBuilder,
+  UniformNode
 } from 'three/webgpu'
 import {
   nodeObject,
@@ -18,12 +21,17 @@ import {
   uniform,
   sign,
   max,
-  convertToTexture
+  convertToTexture,
+  ShaderNodeObject
 } from 'three/tsl'
 
-/** @module AfterImageNode **/
-
 const _size = new Vector2()
+
+type PassTextureNode = any
+type TextureNode = any
+type vec2 = any
+type vec4 = any
+type float = any
 
 /**
  * Post processing node for creating an after image effect.
@@ -31,7 +39,14 @@ const _size = new Vector2()
  * @augments TempNode
  */
 class AfterImageNode extends TempNode {
-  _quadMeshComp = new QuadMesh()
+  private _quadMeshComp: QuadMesh = new QuadMesh()
+  private _compRT: RenderTarget
+  private _oldRT: RenderTarget
+  private _textureNode: PassTextureNode
+  private _rendererState: any
+  private textureNodeOld: TextureNode
+  public damp: ShaderNodeObject<UniformNode<number>>
+  _materialComposed = new NodeMaterial()
 
   static get type() {
     return 'AfterImageNode'
@@ -41,24 +56,20 @@ class AfterImageNode extends TempNode {
    * Constructs a new after image node.
    *
    * @param {TextureNode} textureNode - The texture node that represents the input of the effect.
-   * @param {Number} [damp=0.96] - The damping intensity. A higher value means a stronger after image effect.
+   * @param {number} [damp=0.96] - The damping intensity. A higher value means a stronger after image effect.
    */
-  constructor(textureNode, damp = 0.96) {
+  constructor(
+    public textureNode: TextureNode,
+    damp: number = 0.96
+  ) {
     super('vec4')
 
     /**
-     * The texture node that represents the input of the effect.
+     * The texture represents the previous frame.
      *
      * @type {TextureNode}
      */
-    this.textureNode = textureNode
-
-    /**
-     * The texture represents the pervious frame.
-     *
-     * @type {TextureNode}
-     */
-    this.textureNodeOld = texture()
+    this.textureNodeOld = texture(undefined as any)
 
     /**
      * The damping intensity as a uniform node.
@@ -91,13 +102,13 @@ class AfterImageNode extends TempNode {
      * @private
      * @type {PassTextureNode}
      */
-    this._textureNode = passTexture(this, this._compRT.texture)
+    this._textureNode = passTexture(this as any, this._compRT.texture)
 
     /**
      * The `updateBeforeType` is set to `NodeUpdateType.FRAME` since the node renders
      * its effect once per frame in `updateBefore()`.
      *
-     * @type {String}
+     * @type {string}
      * @default 'frame'
      */
     this.updateBeforeType = NodeUpdateType.FRAME
@@ -108,17 +119,17 @@ class AfterImageNode extends TempNode {
    *
    * @return {PassTextureNode} A texture node that represents the result of the effect.
    */
-  getTextureNode() {
+  getTextureNode(): PassTextureNode {
     return this._textureNode
   }
 
   /**
    * Sets the size of the effect.
    *
-   * @param {Number} width - The width of the effect.
-   * @param {Number} height - The height of the effect.
+   * @param {number} width - The width of the effect.
+   * @param {number} height - The height of the effect.
    */
-  setSize(width, height) {
+  setSize(width: number, height: number): void {
     this._compRT.setSize(width, height)
     this._oldRT.setSize(width, height)
   }
@@ -128,15 +139,13 @@ class AfterImageNode extends TempNode {
    *
    * @param {NodeFrame} frame - The current node frame.
    */
-  updateBefore(frame) {
-    const { renderer } = frame
+  updateBefore(frame: NodeFrame): void {
+    const renderer = frame.renderer!
 
     this._rendererState = RendererUtils.resetRendererState(
       renderer,
       this._rendererState
     )
-
-    //
 
     const textureNode = this.textureNode
     const map = textureNode.value
@@ -165,8 +174,6 @@ class AfterImageNode extends TempNode {
     this._oldRT = this._compRT
     this._compRT = temp
 
-    //
-
     textureNode.value = currentTexture
 
     RendererUtils.restoreRendererState(renderer, this._rendererState)
@@ -178,48 +185,32 @@ class AfterImageNode extends TempNode {
    * @param {NodeBuilder} builder - The current node builder.
    * @return {PassTextureNode}
    */
-  setup(builder) {
+  setup(builder: NodeBuilder): PassTextureNode {
     const textureNode = this.textureNode
     const textureNodeOld = this.textureNodeOld
-
-    //
 
     const uvNode = textureNode.uvNode || uv()
 
     textureNodeOld.uvNode = uvNode
 
-    const sampleTexture = uv => textureNode.sample(uv)
-
-    const when_gt = Fn(([x_immutable, y_immutable]) => {
-      const y = float(y_immutable).toVar()
-      const x = vec4(x_immutable).toVar()
-
-      return max(sign(x.sub(y)), 0.0)
-    })
+    const sampleTexture = (uv: vec2) => textureNode.sample(uv)
 
     const afterImg = Fn(() => {
       const texelOld = vec4(textureNodeOld)
       const texelNew = vec4(sampleTexture(uvNode))
 
-      texelOld.mulAssign(this.damp.mul(when_gt(texelOld, 0.01)))
+      texelOld.mulAssign(this.damp)
       return max(texelNew, texelOld)
     })
 
-    //
-
-    const materialComposed =
-      this._materialComposed || (this._materialComposed = new NodeMaterial())
+    const materialComposed = this._materialComposed
     materialComposed.name = 'AfterImage'
     materialComposed.fragmentNode = afterImg()
 
     this._quadMeshComp.material = materialComposed
 
-    //
-
     const properties = builder.getNodeProperties(this)
     properties.textureNode = textureNode
-
-    //
 
     return this._textureNode
   }
@@ -228,7 +219,7 @@ class AfterImageNode extends TempNode {
    * Frees internal resources. This method should be called
    * when the effect is no longer required.
    */
-  dispose() {
+  dispose(): void {
     this._compRT.dispose()
     this._oldRT.dispose()
   }
@@ -239,10 +230,10 @@ class AfterImageNode extends TempNode {
  *
  * @function
  * @param {Node<vec4>} node - The node that represents the input of the effect.
- * @param {Number} [damp=0.96] - The damping intensity. A higher value means a stronger after image effect.
+ * @param {number} [damp=0.96] - The damping intensity. A higher value means a stronger after image effect.
  * @returns {AfterImageNode}
  */
-export const afterImage = (node, damp) =>
+export const afterImage = (node: any, damp?: number): AfterImageNode =>
   nodeObject(new AfterImageNode(convertToTexture(node), damp))
 
 export default AfterImageNode
