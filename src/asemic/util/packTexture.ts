@@ -139,18 +139,15 @@ export function useControlPoints(builder: GroupBuilder<any>) {
 
     const curvePositionTexU = texture(curvePositionTex)
 
-    const getBezier = ({
-      progress,
-      extra
-    }: {
-      progress: ReturnType<typeof vec2>
+    const getBezier = (
+      progress: ReturnType<typeof float>,
+      position: ReturnType<typeof vec2>,
       extra?: {
         rotation: ReturnType<typeof float>
         thickness: ReturnType<typeof float>
         color: ReturnType<typeof varyingProperty>
       }
-    }) => {
-      const position = vec2().toVar()
+    ) => {
       If(progress.equal(-1), () => {
         extra?.color.assign(vec4(0, 0, 0, 0))
       }).Else(() => {
@@ -256,7 +253,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       if (extra) {
         extra.thickness.divAssign(screenSize.x)
       }
-      return position
+      // return position
     }
 
     return {
