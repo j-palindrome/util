@@ -80,14 +80,21 @@ export const polyLine = ({
   )
 }
 
+export const bezierPosition = ({ t, p0, p1, p2, strength }) => {
+  const position = vec2().toVar()
+  If(strength.equal(1), () => {
+    position.assign(polyLine({ t, p0, p1, p2 }))
+  }).Else(() => {
+    position.assign(bezier2({ t, p0, p1, p2 }))
+  })
+  return position
+}
+
 // Function to calculate a point on a Bezier curve
-export const bezierPoint = ({ t, p0, p1, p2, strength }) => {
-  const positionCurve = bezier2({ t, p0, p1, p2 })
-  const positionStraight = polyLine({ t, p0, p1, p2 })
-  const position = mix(positionCurve, positionStraight, strength)
+export const bezierRotation = ({ t, p0, p1, p2, strength }) => {
   const tangent = bezier2Tangent({ t, p0, p1, p2 })
   const rotation = atan(tangent.y, tangent.x)
-  return { position, rotation }
+  return rotation
 }
 
 export const bezierPointSimple = ({ t, p0, p1, p2, strength }) => {

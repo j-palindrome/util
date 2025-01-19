@@ -1,25 +1,13 @@
-import { extend, Object3DNode, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { extend, Object3DNode, useThree } from '@react-three/fiber'
+import { useMemo } from 'react'
 import * as THREE from 'three'
-import { Vector2 } from 'three'
 import {
-  atan,
+  Discard,
   float,
   Fn,
   If,
-  instanceIndex,
-  ivec2,
-  mix,
-  mrt,
-  PI2,
   rotateUV,
-  screenSize,
   select,
-  texture,
-  textureLoad,
-  textureStore,
-  uniform,
-  uniformArray,
   varying,
   varyingProperty,
   vec2,
@@ -29,11 +17,8 @@ import {
 import {
   MeshBasicNodeMaterial,
   StorageInstancedBufferAttribute,
-  StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { bezierPoint } from '../tsl/curves'
-import { textureLoadFix } from '../tsl/utility'
 import { GroupBuilder } from './Builder'
 import { useControlPoints } from './util/packTexture'
 
@@ -64,24 +49,19 @@ export default function MeshBrush({
 }) {
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
-  const resolution = new Vector2()
-  const width = gl.getDrawingBufferSize(resolution).x
-  builder.reInitialize(resolution)
-  const verticesPerCurve = Math.floor(
-    (builder.settings.maxLength * width) / (builder.settings.spacing * 5)
-  )
 
-  const { getBezier } = useControlPoints(builder)
-
-  const { mesh, material, geometry } = useMemo(() => {
+  const { getBezier, resolution, instancesPerCurve } = useControlPoints(builder)
+  const { material, geometry } = useMemo(() => {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
     const indexGuide = [0, 1, 2, 1, 2, 3]
 
     let currentIndex = 0
     const indexes: number[] = []
+
+    const width = resolution.x
     for (let i = 0; i < builder.settings.maxCurves; i++) {
-      for (let i = 0; i < verticesPerCurve - 1; i++) {
+      for (let i = 0; i < instancesPerCurve - 1; i++) {
         indexes.push(...indexGuide.map(x => x + currentIndex))
         currentIndex += 2
       }
@@ -96,7 +76,6 @@ export default function MeshBrush({
       color: 'white'
     })
     material.mrtNode = builder.settings.renderTargets
-    const mesh = new THREE.Mesh(geometry, material)
 
     const position = vec2().toVar('thisPosition')
     const rotation = float(0).toVar('rotation')
@@ -105,11 +84,9 @@ export default function MeshBrush({
 
     const main = Fn(() => {
       getBezier(
-        () => vertexIndex.div(2).toFloat().div(verticesPerCurve),
+        () => vertexIndex.div(2).toFloat().div(instancesPerCurve),
         position,
-        rotation,
-        thickness,
-        color
+        { rotation, thickness, color }
       )
 
       position.addAssign(
@@ -127,25 +104,18 @@ export default function MeshBrush({
     })
 
     material.positionNode = main()
-    material.colorNode = varying(vec4(), 'color')
+    material.colorNode = Fn(() => {
+      const color = varying(vec4(), 'color')
+      If(color.a.equal(0), () => Discard())
+      return color
+    })()
     material.needsUpdate = true
 
     return {
-      mesh,
       material,
       geometry
     }
   }, [builder])
 
-  const scene = useThree(({ scene }) => scene)
-  useEffect(() => {
-    scene.add(mesh)
-    return () => {
-      scene.remove(mesh)
-      material.dispose()
-      geometry.dispose()
-    }
-  }, [builder])
-
-  return <></>
+  return <mesh geometry={geometry} material={material} />
 }

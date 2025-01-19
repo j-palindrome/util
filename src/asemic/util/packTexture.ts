@@ -1,28 +1,28 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { range } from 'lodash'
 import { useEffect, useMemo, useRef } from 'react'
 import {
-  ClampToEdgeWrapping,
   DataTexture,
   FloatType,
-  LinearFilter,
-  MagnificationTextureFilter,
   NearestFilter,
-  PixelFormat,
+  RenderTarget,
   RGBAFormat,
   Vector2
 } from 'three'
 import { Fn } from 'three/src/nodes/TSL.js'
 import {
   atan,
+  Break,
   float,
   floor,
   If,
+  instancedArray,
   instanceIndex,
   int,
   ivec2,
+  Loop,
   mix,
   PI2,
+  remap,
   screenSize,
   select,
   texture,
@@ -34,11 +34,28 @@ import {
   vec4
 } from 'three/tsl'
 import { StorageTexture, WebGPURenderer } from 'three/webgpu'
-import { GroupBuilder } from '../Builder'
+import { bezierPosition, bezierRotation } from '../../tsl/curves'
 import { textureLoadFix } from '../../tsl/utility'
-import { bezierPoint } from '../../tsl/curves'
+import { GroupBuilder } from '../Builder'
 
 export function useControlPoints(builder: GroupBuilder<any>) {
+  // @ts-ignore
+  const gl = useThree(({ gl }) => gl as WebGPURenderer)
+  const resolution = new Vector2()
+  gl.getDrawingBufferSize(resolution)
+  builder.reInitialize(resolution)
+
+  const instancesPerCurve = Math.floor(
+    builder.settings.spacingType === 'pixel'
+      ? (builder.settings.maxLength * resolution.x) / builder.settings.spacing
+      : builder.settings.spacingType === 'width'
+        ? (builder.settings.maxLength * resolution.x) /
+          (builder.settings.spacing * resolution.x)
+        : builder.settings.spacingType === 'count'
+          ? builder.settings.spacing
+          : 0
+  )
+
   const data = useMemo(() => {
     const curvePositionTex = new StorageTexture(
       builder.settings.maxPoints,
@@ -49,6 +66,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       builder.settings.maxPoints,
       builder.settings.maxCurves
     )
+    curveColorTex.type = FloatType
     const controlPointCounts = uniformArray(
       builder.curves.map(x => x.length),
       'int'
@@ -87,7 +105,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       vec2(pointI, curveI)
     )
     const lastCurveColorLoadU = textureLoad(colorTex, vec2(pointI, curveI))
-    const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
+    const aspectRatio = screenSize.div(screenSize.x)
 
     const advanceControlPoints = Fn(() => {
       const textureVector = vec2(
@@ -119,6 +137,128 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       undefined as any
     )
 
+    const curvePositionTexU = texture(curvePositionTex)
+
+    const getBezier = ({
+      progress,
+      extra
+    }: {
+      progress: ReturnType<typeof vec2>
+      extra?: {
+        rotation: ReturnType<typeof float>
+        thickness: ReturnType<typeof float>
+        color: ReturnType<typeof varyingProperty>
+      }
+    }) => {
+      const position = vec2().toVar()
+      If(progress.equal(-1), () => {
+        extra?.color.assign(vec4(0, 0, 0, 0))
+      }).Else(() => {
+        const controlPointsCount = controlPointCounts.element(int(progress))
+        const subdivisions = select(
+          controlPointsCount.equal(2),
+          1,
+          controlPointsCount.sub(2)
+        )
+
+        //4 points: 4-2 = 2 0->1 1->2 (if it goes to the last value then it starts interpolating another curve)
+        const t = vec2(
+          progress.fract().mul(0.999).mul(subdivisions),
+          floor(progress)
+        )
+
+        If(controlPointsCount.equal(2), () => {
+          const p0 = textureLoadFix(curvePositionTexU, ivec2(0, t.y)).xy
+          const p1 = textureLoadFix(curvePositionTexU, ivec2(1, t.y)).xy
+          const pointUV = vec2(t.x, t.y.div(builder.settings.maxCurves))
+          const info = {
+            pointUV,
+            aspectRatio: aspectRatio.y,
+            settings: builder.settings
+          }
+          const progressPoint = mix(p0, p1, t.x)
+
+          const textureVector = vec2(
+            t.x.add(0.5).div(builder.settings.maxPoints),
+            t.y.add(0.5).div(builder.settings.maxCurves)
+          )
+          position.assign(builder.settings.pointVert(progressPoint, info))
+          if (extra) {
+            extra.color.assign(vec4(texture(data.curveColorTex, textureVector)))
+            extra.thickness.assign(
+              texture(data.curvePositionTex, textureVector).w
+            )
+            extra.rotation.assign(
+              atan(p1.sub(p0).y, p1.sub(p0).x).add(PI2.mul(0.25))
+            )
+          }
+        }).Else(() => {
+          const p0 = textureLoadFix(
+            curvePositionTexU,
+            ivec2(t.x, t.y)
+          ).xy.toVar()
+          const p1 = textureLoadFix(
+            curvePositionTexU,
+            ivec2(t.x.add(1), t.y)
+          ).xy
+          const p2 = textureLoadFix(
+            curvePositionTexU,
+            ivec2(t.x.add(2), t.y)
+          ).xy.toVar()
+
+          If(t.x.greaterThan(float(1)), () => {
+            p0.assign(mix(p0, p1, float(0.5)))
+          })
+          const controlPointsCount = controlPointCounts.element(int(t.y))
+          If(t.x.lessThan(float(controlPointsCount).sub(3)), () => {
+            p2.assign(mix(p1, p2, 0.5))
+          })
+          const strength = textureLoadFix(
+            curvePositionTexU,
+            ivec2(t.x.add(1), t.y)
+          ).z
+          const pos = bezierPosition({
+            t: t.x.fract(),
+            p0,
+            p1,
+            p2,
+            strength
+          })
+
+          const pointUV = vec2(
+            t.x.div(subdivisions),
+            t.y.div(builder.settings.maxCurves)
+          )
+          const info = {
+            pointUV,
+            aspectRatio: aspectRatio.y,
+            settings: builder.settings
+          }
+          position.assign(builder.settings.pointVert(pos, info))
+          if (extra) {
+            const tt = vec2(
+              // 2 points: 0.5-1.5
+              t.x
+                .div(controlPointsCount.sub(2))
+                .mul(controlPointsCount.sub(1))
+                .add(0.5)
+                .div(builder.settings.maxPoints),
+              t.y.add(0.5).div(builder.settings.maxCurves)
+            )
+            extra.color.assign(vec4(texture(data.curveColorTex, tt)))
+            extra.thickness.assign(texture(data.curvePositionTex, tt).w)
+            extra.rotation.assign(
+              bezierRotation({ t: t.x.fract(), p0, p1, p2, strength })
+            )
+          }
+        })
+      })
+      if (extra) {
+        extra.thickness.divAssign(screenSize.x)
+      }
+      return position
+    }
+
     return {
       advanceControlPoints,
       curvePositionLoadU,
@@ -127,16 +267,16 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       lastCurveColorLoadU,
       curvePositionTex,
       curveColorTex,
-      controlPointCounts
+      controlPointCounts,
+      getBezier
     }
   }, [builder])
+  const renderTarget = new RenderTarget(4, 1, {
+    count: 1,
+    type: FloatType
+  })
 
   let updating: number
-
-  // @ts-ignore
-  const gl = useThree(({ gl }) => gl as WebGPURenderer)
-  const resolution = new Vector2()
-  gl.getDrawingBufferSize(resolution)
 
   const reInitialize = () => {
     builder.reInitialize(resolution)
@@ -174,7 +314,16 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     data.curvePositionLoadU.value.needsUpdate = true
     data.curveColorLoadU.value.needsUpdate = true
 
-    gl.computeAsync(data.advanceControlPoints)
+    gl.compute(data.advanceControlPoints)
+    // data.curvePositionTex.needsUpdate = true
+    gl.copyTextureToTexture(data.curvePositionTex, renderTarget.texture)
+    ;(async () =>
+      console.log(
+        await gl.readRenderTargetPixelsAsync(renderTarget, 0, 0, 4, 1)
+      ))()
+    if (hooks.onInit) {
+      hooks.onInit()
+    }
   }
 
   const nextTime = useRef<number>(builder.settings.start / 1000)
@@ -194,141 +343,29 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     }
   })
 
-  const update = () => {
-    gl.computeAsync(data.advanceControlPoints)
-    updating = requestAnimationFrame(update)
+  const hooks: { onUpdate?: () => void; onInit?: () => void } = {}
+  const update = (again = true) => {
+    gl.compute(data.advanceControlPoints)
+    // data.curvePositionTex.needsUpdate = true
+    if (hooks.onUpdate) {
+      hooks.onUpdate()
+    }
+    if (again) {
+      updating = requestAnimationFrame(() => update())
+    }
   }
 
-  reInitialize()
   useEffect(() => {
     if (builder.settings.update) {
-      updating = requestAnimationFrame(update)
+      updating = requestAnimationFrame(() => update())
     }
     return () => {
       cancelAnimationFrame(updating)
     }
   }, [builder])
 
-  const curvePositionTexU = texture(data.curvePositionTex)
-
-  const aspectRatio = screenSize.div(screenSize.x).toVar('screenSize')
-
-  const getBezier = (
-    getIndex: (
-      controlPointCounts: ReturnType<typeof uniformArray>
-    ) => ReturnType<typeof float>,
-    position: ReturnType<typeof vec2>,
-    rotation: ReturnType<typeof float>,
-    thickness: ReturnType<typeof float>,
-    color: ReturnType<typeof varyingProperty>
-  ) => {
-    const progress = getIndex(data.controlPointCounts).toVar('progress')
-    const controlPointsCount = data.controlPointCounts.element(int(progress))
-    const subdivisions = select(
-      controlPointsCount.equal(2),
-      1,
-      controlPointsCount.sub(2)
-    ).toVar('subdivisions')
-
-    //4 points: 4-2 = 2 0->1 1->2 (if it goes to the last value then it starts interpolating another curve)
-    const t = vec2(
-      progress.fract().mul(0.999).mul(subdivisions),
-      floor(progress)
-    ).toVar('t')
-
-    If(t.x.equal(-1), () => {
-      color.assign(vec4(0, 0, 0, 0))
-    }).Else(() => {
-      If(controlPointsCount.equal(2), () => {
-        const p0 = textureLoadFix(curvePositionTexU, ivec2(0, t.y)).xy
-        const p1 = textureLoadFix(curvePositionTexU, ivec2(1, t.y)).xy
-        const pointUV = vec2(t.x, t.y.div(builder.settings.maxCurves))
-        const info = {
-          pointUV,
-          aspectRatio: aspectRatio.y,
-          settings: builder.settings
-        }
-        const progressPoint = mix(p0, p1, t.x)
-
-        const textureVector = vec2(
-          t.x.add(0.5).div(builder.settings.maxPoints),
-          t.y.add(0.5).div(builder.settings.maxCurves)
-        )
-        color.assign(
-          builder.settings.pointFrag(
-            vec4(texture(data.curveColorTex, textureVector)),
-            info
-          )
-        )
-        thickness.assign(texture(data.curvePositionTex, textureVector).w)
-        position.assign(progressPoint)
-
-        rotation.assign(atan(p1.sub(p0).y, p1.sub(p0).x).add(PI2.mul(0.25)))
-      }).Else(() => {
-        const pointProgress = t.x
-        const p0 = textureLoadFix(
-          curvePositionTexU,
-          ivec2(pointProgress, t.y)
-        ).xy.toVar('p0')
-        const p1 = textureLoadFix(
-          curvePositionTexU,
-          ivec2(pointProgress.add(1), t.y)
-        ).xy.toVar('p1')
-        const p2 = textureLoadFix(
-          curvePositionTexU,
-          ivec2(pointProgress.add(2), t.y)
-        ).xy.toVar('p2')
-
-        If(pointProgress.greaterThan(float(1)), () => {
-          p0.assign(mix(p0, p1, float(0.5)))
-        })
-        If(pointProgress.lessThan(float(controlPointsCount).sub(3)), () => {
-          p2.assign(mix(p1, p2, 0.5))
-        })
-        const strength = textureLoadFix(
-          curvePositionTexU,
-          ivec2(pointProgress.add(1), t.y)
-        ).z.toVar('strength')
-        const thisPoint = bezierPoint({
-          t: pointProgress.fract(),
-          p0,
-          p1,
-          p2,
-          strength
-        })
-        const tt = vec2(
-          // 2 points: 0.5-1.5
-          pointProgress
-            .div(controlPointsCount.sub(2))
-            .mul(controlPointsCount.sub(1))
-            .add(0.5)
-            .div(builder.settings.maxPoints),
-          t.y.add(0.5).div(builder.settings.maxCurves)
-        )
-        const pointUV = vec2(
-          pointProgress.div(subdivisions),
-          t.y.div(builder.settings.maxCurves)
-        )
-        const info = {
-          pointUV,
-          aspectRatio: aspectRatio.y,
-          settings: builder.settings
-        }
-        color.assign(
-          builder.settings.pointFrag(
-            vec4(texture(data.curveColorTex, tt)),
-            info
-          )
-        )
-        thickness.assign(texture(data.curvePositionTex, tt).w)
-        position.assign(builder.settings.pointVert(thisPoint.position, info))
-        rotation.assign(thisPoint.rotation)
-      })
-    })
-    thickness.divAssign(screenSize.x)
-  }
-
   useEffect(() => {
+    reInitialize()
     return () => {
       data.curvePositionTex.dispose()
       data.curveColorTex.dispose()
@@ -336,6 +373,9 @@ export function useControlPoints(builder: GroupBuilder<any>) {
   }, [])
 
   return {
-    getBezier
+    getBezier: data.getBezier,
+    resolution,
+    instancesPerCurve,
+    hooks
   }
 }
