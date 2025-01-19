@@ -95,7 +95,7 @@ export default function PointBrush({
         const found = int(0).toVar()
         const totalLength = float(0).toVar()
         const lastEnd = float(0).toVar()
-        const lastPoint = vec2(0.123, 0.123).toVar()
+        const lastPoint = vec2(0, 0).toVar()
         const thisPoint = vec2(0, 0).toVar()
         getBezier(curveIndex, thisPoint)
 
@@ -104,20 +104,30 @@ export default function PointBrush({
           Return()
         })
 
+        getBezier(curveStart, thisPoint)
         const count = 10
-        Loop(count, ({ i }) => {
+        Loop({ start: 1, end: count }, ({ i }) => {
           lastPoint.assign(thisPoint)
-          getBezier(curveStart.add(float(i).div(count - 1)), thisPoint)
+          const t = curveStart.add(
+            float(i)
+              .div(count - 1)
+              .mul(0.999)
+          )
+          getBezier(t, thisPoint)
           lastEnd.assign(totalLength)
           totalLength.addAssign(thisPoint.sub(lastPoint).length())
           If(totalLength.greaterThanEqual(targetLength), () => {
             const remapped = remap(targetLength, lastEnd, totalLength, 0, 1)
             found.assign(1)
             // assign the t-property to be the progress through the total length of each curve
-            tAttribute
-              .element(instanceIndex)
-              // @ts-expect-error
-              .assign(float(curveIndex).add(i.sub(1).add(remapped).div(count)))
+            tAttribute.element(instanceIndex).assign(
+              curveStart.add(
+                float(i)
+                  .sub(1)
+                  .add(remapped)
+                  .div(count - 1)
+              )
+            )
             Break()
           })
         })
@@ -134,11 +144,16 @@ export default function PointBrush({
 
       const position = vec2().toVar()
       material.positionNode = Fn(() => {
-        getBezier(instanceIndex.toFloat().div(instancesPerCurve), position, {
-          rotation,
-          thickness,
-          color
-        })
+        getBezier(
+          tAttribute.element(instanceIndex),
+          // instanceIndex.toFloat().div(instancesPerCurve),
+          position,
+          {
+            rotation,
+            thickness,
+            color
+          }
+        )
         return vec4(position, 0, 1)
       })()
       material.rotationNode = rotation
