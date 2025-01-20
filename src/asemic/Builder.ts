@@ -12,6 +12,7 @@ import {
   QuadraticBezierCurve,
   RedFormat,
   RGBAFormat,
+  UnsignedByteType,
   Vector2
 } from 'three'
 import invariant from 'tiny-invariant'
@@ -44,7 +45,11 @@ export const defaultCoordinateSettings: CoordinateSettings = {
   thickness: 1
 }
 
-export class Builder {
+abstract class Builder {
+  readonly globals: {
+    postProcessing: PostProcessing
+    h: number
+  }
   protected noiseFuncs = {}
   protected transforms: TransformData[] = []
   currentTransform: TransformData = this.toTransform()
@@ -287,11 +292,12 @@ export class Builder {
     return (this.noiseFuncs[index](...coords) + 1) / 2
   }
 
-  constructor() {}
+  constructor(globals: Builder['globals']) {
+    this.globals = globals
+  }
 }
 
 export class GroupBuilder<T extends BrushTypes> extends Builder {
-  h: number
   time: number = performance.now() / 1000
   curves: PointBuilder[][] = []
   protected initialize: (t: GroupBuilder<T>) => GroupBuilder<T> | void
@@ -1036,11 +1042,10 @@ ${this.curves
       ).transform({ translate: [0.5, 0], reset: 'pop' })
   }
 
-  reInitialize(resolution: Vector2) {
+  reInitialize() {
     this.reset(true)
     this.hashIndex = 0
     this.curves = []
-    this.h = resolution.y / resolution.x
     this.time = performance.now() / 1000
     this.initialize(this)
     if (this.settings.maxPoints === 0) {
@@ -1059,11 +1064,11 @@ ${this.curves
     type: T,
     initialize: (builder: GroupBuilder<T>) => GroupBuilder<T> | void,
     settings: ProcessData,
+    globals: Builder['globals'],
     brushSettings?: Partial<BrushData<T>>
   ) {
-    super()
+    super(globals)
     this.initialize = initialize
-    this.h = 0
     this.settings = settings
     const defaultBrushSettings: { [T in BrushTypes]: BrushData<T> } = {
       line: { type: 'line' },
@@ -1093,11 +1098,12 @@ export default class SceneBuilder extends Builder {
       input: ReturnType<PassNode['getTextureNode']>,
       info: {
         scenePass: ReturnType<typeof pass>
-        lastOutput: ReturnType<typeof texture>
       }
     ) => PostProcessing['outputNode']
+    readbackTexture: boolean
   } = {
-    postProcessing: input => input
+    postProcessing: input => input,
+    readbackTexture: false
   }
 
   newGroup<T extends BrushTypes>(
@@ -1111,6 +1117,7 @@ export default class SceneBuilder extends Builder {
         type,
         render,
         { ...this.settings, ...settings },
+        this.globals,
         brushSettings
       )
     )
@@ -1119,9 +1126,13 @@ export default class SceneBuilder extends Builder {
 
   constructor(
     initialize: (b: SceneBuilder) => SceneBuilder | void,
+    globals: {
+      postProcessing: PostProcessing
+      h: number
+    },
     settings?: Partial<SceneBuilder['sceneSettings']>
   ) {
-    super()
+    super(globals)
     initialize(this)
     Object.assign(this.sceneSettings, settings)
   }

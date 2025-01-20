@@ -5,7 +5,7 @@ import {
   useFrame,
   useThree
 } from '@react-three/fiber'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { HalfFloatType, OrthographicCamera, Vector2 } from 'three'
 import { pass, texture } from 'three/tsl'
 import {
@@ -98,8 +98,6 @@ export default function Asemic({
   builder: (b: SceneBuilder) => SceneBuilder | void
   settings?: Partial<SceneBuilder['sceneSettings']>
 } & React.PropsWithChildren) {
-  const b = new SceneBuilder(builder, settings)
-
   const { renderer, scene, camera } = useThree(({ gl, scene, camera }) => ({
     // @ts-expect-error
     renderer: gl as WebGPURenderer,
@@ -115,12 +113,14 @@ export default function Asemic({
   const postProcessing = new PostProcessing(renderer)
   const scenePass = pass(scene, camera)
 
-  const outputTex = new StorageTexture(resolution.x, resolution.y)
-  outputTex.type = HalfFloatType
-  const lastOutput = texture(outputTex)
+  const b = new SceneBuilder(
+    builder,
+    { postProcessing, h: resolution.y / resolution.x },
+    settings
+  )
   postProcessing.outputNode = b.sceneSettings.postProcessing(
     scenePass.getTextureNode('output').toVar('outputAssign'),
-    { scenePass, lastOutput }
+    { scenePass }
   )
 
   useFrame(() => {

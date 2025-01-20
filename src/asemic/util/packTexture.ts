@@ -43,7 +43,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
   const resolution = new Vector2()
   gl.getDrawingBufferSize(resolution)
-  builder.reInitialize(resolution)
+  builder.reInitialize()
 
   const instancesPerCurve = Math.floor(
     builder.settings.spacingType === 'pixel'
@@ -111,7 +111,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         progress: curveI.add(
           pointI.toFloat().div(controlPointCounts.element(curveI).sub(1))
         ),
-        height: builder.h,
         settings: builder.settings
       }
       const point = builder.settings.curveVert(vec4(curvePositionLoadU), {
@@ -253,7 +252,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     }
 
     const reInitialize = () => {
-      builder.reInitialize(resolution)
+      builder.reInitialize()
       for (let i = 0; i < builder.settings.maxCurves; i++) {
         data.controlPointCounts.array[i] = builder.curves[i].length
       }

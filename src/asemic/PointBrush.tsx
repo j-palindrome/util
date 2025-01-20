@@ -150,7 +150,6 @@ export default function PointBrush({
       return vec4(
         builder.settings.pointVert(position, {
           progress,
-          height: builder.h,
           settings: builder.settings
         }),
         0,
@@ -159,16 +158,14 @@ export default function PointBrush({
     })()
     material.rotationNode = builder.brushSettings.pointRotate(rotation, {
       progress,
-      height: builder.h,
       settings: builder.settings
     })
     material.scaleNode = builder.brushSettings.pointScale(
       vec2(thickness, float(builder.brushSettings.dashSize).div(screenSize.x)),
-      { progress, height: builder.h, settings: builder.settings }
+      { progress, settings: builder.settings }
     )
     material.colorNode = builder.settings.pointFrag(varying(vec4(), 'color'), {
       progress,
-      height: builder.h,
       settings: builder.settings
     })
     material.needsUpdate = true

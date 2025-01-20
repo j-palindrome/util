@@ -78,7 +78,9 @@ export default function AttractorsBrush({
         position.assign(
           vec2(
             hash(instanceIndex),
-            hash(instanceIndex.add(Math.random() * 100)).mul(builder.h)
+            hash(instanceIndex.add(Math.random() * 100)).mul(
+              screenSize.y.div(screenSize.x)
+            )
           )
         )
       }
@@ -129,7 +131,7 @@ export default function AttractorsBrush({
       })
       velocity.mulAssign(float(builder.brushSettings.damping).oneMinus())
       position.addAssign(velocity.mul(delta))
-      position.modAssign(vec2(1, builder.h))
+      position.modAssign(vec2(1, screenSize.y.div(screenSize.x)))
     })().compute(count)
 
     // nodes

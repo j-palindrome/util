@@ -44,7 +44,6 @@ declare global {
 
   type ParticleInfo = {
     progress: ReturnType<typeof float | typeof varyingProperty>
-    height: number
     settings: Builder['settings']
   }
 

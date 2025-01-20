@@ -108,7 +108,6 @@ export default function MeshBrush({
     material.positionNode = main()
     material.colorNode = builder.settings.pointFrag(varying(vec4(), 'color'), {
       progress,
-      height: builder.h,
       settings: builder.settings
     })
     material.needsUpdate = true
