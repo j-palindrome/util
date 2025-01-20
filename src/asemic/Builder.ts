@@ -1077,7 +1077,8 @@ ${this.curves
         type: 'attractors',
         damping: 1e-2,
         initialSpread: true,
-        maxSpeed: 1
+        maxSpeed: 1,
+        pointSize: 1
       }
     }
     this.brushSettings = { ...defaultBrushSettings[type] }

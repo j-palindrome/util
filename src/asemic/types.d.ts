@@ -95,6 +95,7 @@ declare global {
           maxSpeed: number
           damping: number
           initialSpread: boolean
+          pointSize: number
         }
       : { type: T }
 

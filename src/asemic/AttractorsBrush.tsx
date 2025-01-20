@@ -92,12 +92,11 @@ export default function AttractorsBrush({
       const velocity = velocityBuffer.element(instanceIndex)
       const force = vec2(0).toVar()
 
-      const count = 10
-      Loop(count, ({ i }) => {
+      Loop(builder.settings.maxCurves * builder.settings.maxPoints, ({ i }) => {
         const attractorPosition = vec2().toVar()
         const rotation = float().toVar()
         const thickness = float().toVar()
-        getBezier(float(i).div(count), attractorPosition, {
+        getBezier(float(i).div(builder.settings.maxPoints), attractorPosition, {
           rotation,
           thickness
         })
@@ -131,8 +130,7 @@ export default function AttractorsBrush({
       velocity.mulAssign(float(builder.brushSettings.damping).oneMinus())
       position.addAssign(velocity.mul(delta))
       position.modAssign(vec2(1, builder.h))
-    })
-    const updateCompute = update().compute(count)
+    })().compute(count)
 
     // nodes
     // @ts-ignore
@@ -145,16 +143,17 @@ export default function AttractorsBrush({
       return vec4(1, 1, 1, 1)
     })()
 
-    material.scaleNode = vec2(2, 2).div(screenSize.x)
+    material.scaleNode = vec2(1, 1)
+      .mul(builder.brushSettings.pointSize)
+      .div(screenSize.x)
 
     const geometry = new PlaneGeometry(1, 1)
     const mesh = new InstancedMesh(geometry, material, count)
 
-    hooks.onInit = () => {
-      renderer.compute(init)
-    }
+    renderer.compute(init)
+
     hooks.onUpdate = () => {
-      renderer.compute(updateCompute)
+      renderer.compute(update)
     }
 
     return {
@@ -171,7 +170,7 @@ export default function AttractorsBrush({
       mesh.dispose()
       material.dispose()
     }
-  }, [])
+  }, [builder])
 
   return <></>
 }
