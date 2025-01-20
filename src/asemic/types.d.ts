@@ -89,7 +89,14 @@ declare global {
         ) => input
         dashSize: number
       }
-    : { type: T }
+    : T extends 'attractors'
+      ? {
+          type: 'attractors'
+          maxSpeed: number
+          damping: number
+          initialSpread: boolean
+        }
+      : { type: T }
 
   type CoordinateData = PreTransformData & Partial<CoordinateSettings>
 }

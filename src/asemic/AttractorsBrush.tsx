@@ -1,8 +1,13 @@
-import { useFrame, useThree } from '@react-three/fiber'
+import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { AdditiveBlending, InstancedMesh, PlaneGeometry, Vector3 } from 'three'
 import {
-  color,
+  AdditiveBlending,
+  InstancedMesh,
+  PlaneGeometry,
+  Vector2,
+  Vector3
+} from 'three'
+import {
   cos,
   Discard,
   float,
@@ -12,9 +17,9 @@ import {
   instancedArray,
   instanceIndex,
   Loop,
-  mix,
-  mod,
   PI,
+  PI2,
+  rotateUV,
   screenSize,
   sin,
   uint,
@@ -26,9 +31,6 @@ import {
   vec4
 } from 'three/tsl'
 import { SpriteNodeMaterial, WebGPURenderer } from 'three/webgpu'
-import useHeight from './util'
-import { pi } from 'mathjs'
-import { createNoise2D } from 'simplex-noise'
 import { GroupBuilder } from './Builder'
 import { useControlPoints } from './util/packTexture'
 
@@ -43,23 +45,11 @@ export default function AttractorsBrush({
 
   const { getBezier, instancesPerCurve, hooks } = useControlPoints(builder)
 
-  const { mesh, material } = useMemo(() => {
-    const attractorsPositions = uniformArray([
-      new Vector3(Math.random(), Math.random() * builder.h, 0),
-      new Vector3(Math.random(), Math.random() * builder.h, 0),
-      new Vector3(Math.random(), Math.random() * builder.h, 0)
-    ])
-    const attractorsRotationAxes = uniformArray([
-      new Vector3(Math.random(), Math.random(), 0),
-      new Vector3(Math.random(), Math.random(), 0),
-      new Vector3(Math.random(), Math.random(), 0).normalize()
-    ])
-    const attractorsLength = uniform(attractorsPositions.array.length, 'uint')
-
+  const { mesh, material, geometry } = useMemo(() => {
     // particles
 
     // const count = 1e6
-    const count = builder.settings.maxCurves * builder.settings.maxLength
+    const count = builder.settings.maxCurves * instancesPerCurve
 
     const material = new SpriteNodeMaterial({
       transparent: true,
@@ -67,114 +57,80 @@ export default function AttractorsBrush({
       depthWrite: false
     })
 
-    const attractorMass = uniform(1e5)
-    const particleGlobalMass = uniform(10e6)
+    // const attractorMass = uniform(1e4)
+    // const particleGlobalMass = uniform(10e6)
+    // const timeScale = uniform(1)
+    // const spinningStrength = uniform(3)
+    // const maxSpeed = uniform(10)
+    // const gravityConstant = 6e-13
+    // const velocityDamping = uniform(0.1)
+    // const scale = float(3).div(screenSize.x)
+    // ------
     const timeScale = uniform(1)
-    const spinningStrength = uniform(3)
-    const maxSpeed = uniform(20)
-    const gravityConstant = 6e-11
-    const velocityDamping = uniform(0.1)
-    const scale = float(3).div(screenSize.x)
-
-    const positionBuffer = instancedArray(count, 'vec3')
-    const velocityBuffer = instancedArray(count, 'vec3')
-
-    const sphericalToVec3 = Fn(([phi, theta]) => {
-      const sinPhiRadius = sin(phi)
-
-      return vec3(
-        sinPhiRadius.mul(sin(theta)),
-        cos(phi),
-        sinPhiRadius.mul(cos(theta))
-      )
-    })
-
-    // init compute
+    const positionBuffer = instancedArray(count, 'vec2')
+    const velocityBuffer = instancedArray(count, 'vec2')
 
     const init = Fn(() => {
       const position = positionBuffer.element(instanceIndex)
-      const velocity = velocityBuffer.element(instanceIndex)
-
-      const basePosition = vec3(
-        hash(instanceIndex.add(uint(Math.random() * 0xffffff))),
-        hash(instanceIndex.add(uint(Math.random() * 0xffffff))),
-        0
-      )
-      position.assign(basePosition)
-
-      const phi = hash(instanceIndex.add(uint(Math.random() * 0xffffff)))
-        .mul(PI)
-        .mul(2)
-      const theta = hash(instanceIndex.add(uint(Math.random() * 0xffffff))).mul(
-        PI
-      )
-      const baseVelocity = sphericalToVec3(phi, theta).mul(0.05)
-      velocity.assign(baseVelocity)
-    })
-
-    const initCompute = init().compute(count)
-
-    const reset = () => {
-      renderer.computeAsync(initCompute)
-    }
-
-    reset()
-
-    // update compute
-
-    const particleMassMultiplier = hash(
-      instanceIndex.add(uint(Math.random() * 0xffffff))
-    )
-      .remap(0.25, 1)
-      .toVar()
-    const particleMass = particleMassMultiplier.mul(particleGlobalMass).toVar()
+      if (!builder.brushSettings.initialSpread) {
+        getBezier(instanceIndex.toFloat().div(instancesPerCurve), position)
+      } else {
+        position.assign(
+          vec2(
+            hash(instanceIndex),
+            hash(instanceIndex.add(Math.random() * 100)).mul(builder.h)
+          )
+        )
+      }
+    })().compute(count)
 
     const update = Fn(() => {
-      // const delta = timerDelta().mul( timeScale ).min( 1 / 30 ).toVar();
       const delta = float(1 / 60)
         .mul(timeScale)
         .toVar() // uses fixed delta to consistent result
       const position = positionBuffer.element(instanceIndex)
       const velocity = velocityBuffer.element(instanceIndex)
+      const force = vec2(0).toVar()
 
-      // force
+      const count = 10
+      Loop(count, ({ i }) => {
+        const attractorPosition = vec2().toVar()
+        const rotation = float().toVar()
+        const thickness = float().toVar()
+        getBezier(float(i).div(count), attractorPosition, {
+          rotation,
+          thickness
+        })
+        rotation.addAssign(PI2.mul(0.25))
 
-      const force = vec3(0).toVar()
-
-      Loop(attractorsLength, ({ i }) => {
-        const attractorPosition = attractorsPositions.element(i)
-        const attractorRotationAxis = attractorsRotationAxes.element(i)
+        // const attractorPosition = attractorsPositions.element(i)
+        // const rotation = attractorsRotationAxes.element(i)
         const toAttractor = attractorPosition.sub(position)
         const distance = toAttractor.length()
-        const direction = toAttractor.normalize()
-
-        // gravity
-        const gravityStrength = attractorMass
-          .mul(particleMass)
-          .mul(gravityConstant)
-          .div(distance.pow(2))
-          .toVar()
-        const gravityForce = direction.mul(gravityStrength)
-        force.addAssign(gravityForce)
+        const gravityStrength = float(thickness).div(distance.pow(2)).toVar()
+        // const gravityForce = direction.mul(gravityStrength)
+        // force.addAssign(gravityForce)
 
         // spinning
-        const spinningForce = attractorRotationAxis
+        const spinningForce = vec2(cos(rotation), sin(rotation))
+          .normalize()
           .mul(gravityStrength)
-          .mul(spinningStrength)
-        const spinningVelocity = spinningForce.cross(toAttractor)
-        force.addAssign(spinningVelocity)
+        // const spinningVelocity = spinningForce.cross(toAttractor)
+        force.addAssign(spinningForce)
       })
 
       // velocity
 
       velocity.addAssign(force.mul(delta))
       const speed = velocity.length()
-      If(speed.greaterThan(maxSpeed), () => {
-        velocity.assign(velocity.normalize().mul(maxSpeed))
+      If(speed.greaterThan(builder.brushSettings.maxSpeed), () => {
+        velocity.assign(
+          velocity.normalize().mul(builder.brushSettings.maxSpeed)
+        )
       })
-      velocity.mulAssign(velocityDamping.oneMinus())
+      velocity.mulAssign(float(builder.brushSettings.damping).oneMinus())
       position.addAssign(velocity.mul(delta))
-      position.modAssign(vec3(1, builder.h, 0))
+      position.modAssign(vec2(1, builder.h))
     })
     const updateCompute = update().compute(count)
 
@@ -183,28 +139,20 @@ export default function AttractorsBrush({
     material.positionNode = positionBuffer.toAttribute()
 
     material.colorNode = Fn(() => {
-      // @ts-ignore
-      const velocity = velocityBuffer.toAttribute()
-      const speed = velocity.length()
-      const colorMix = speed.div(maxSpeed).smoothstep(0, 1)
       If(uv().sub(0.5).length().greaterThan(0.5), () => {
         Discard()
       })
-      return vec4(
-        1,
-        1,
-        1,
-        colorMix.mul(uv().sub(0.5).length().mul(2).oneMinus().pow(2))
-      )
+      return vec4(1, 1, 1, 1)
     })()
 
-    material.scaleNode = particleMassMultiplier.mul(scale)
-
-    // mesh
+    material.scaleNode = vec2(2, 2).div(screenSize.x)
 
     const geometry = new PlaneGeometry(1, 1)
     const mesh = new InstancedMesh(geometry, material, count)
 
+    hooks.onInit = () => {
+      renderer.compute(init)
+    }
     hooks.onUpdate = () => {
       renderer.compute(updateCompute)
     }
@@ -214,34 +162,7 @@ export default function AttractorsBrush({
       geometry,
       material
     }
-  }, [])
-
-  // const noise = useMemo(() => {
-  //   const noise = createNoise2D()
-  //   return (x, y) => (noise(x, y) + 1) / 2
-  // }, [])
-  // const noise2 = useMemo(() => {
-  //   const noise = createNoise2D()
-  //   return (x, y) => (noise(x, y) + 1) / 2
-  // }, [])
-
-  // useFrame(({ clock }) => {
-  //   renderer.compute(updateCompute)
-  //   for (let i = 0; i < attractorsPositions.array.length; i++) {
-  //     const v = attractorsPositions.array[i] as Vector3
-  //     v.set(
-  //       noise(i, clock.elapsedTime / 2),
-  //       noise2(i, clock.elapsedTime / 2) * builder.h,
-  //       0
-  //     )
-  //     const v2 = attractorsRotationAxes.array[i] as Vector3
-  //     v2.set(
-  //       noise(i, clock.elapsedTime / 2 + 100) * 2 - 1,
-  //       (noise2(i, clock.elapsedTime / 2 + 100) * 2 - 1) * builder.h,
-  //       0
-  //     )
-  //   }
-  // })
+  }, [builder])
 
   useEffect(() => {
     scene.add(mesh)
@@ -249,7 +170,6 @@ export default function AttractorsBrush({
       scene.remove(mesh)
       mesh.dispose()
       material.dispose()
-      // geometry.dispose()
     }
   }, [])
 

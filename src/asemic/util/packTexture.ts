@@ -140,15 +140,15 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       progress: ReturnType<typeof float>,
       position: ReturnType<typeof vec2>,
       extra?: {
-        rotation: ReturnType<typeof float>
-        thickness: ReturnType<typeof float>
-        color: ReturnType<typeof varyingProperty>
-        progress: ReturnType<typeof varyingProperty>
+        rotation?: ReturnType<typeof float>
+        thickness?: ReturnType<typeof float>
+        color?: ReturnType<typeof varyingProperty>
+        progress?: ReturnType<typeof varyingProperty>
       }
     ) => {
-      extra?.progress.assign(progress)
+      extra?.progress?.assign(progress)
       If(progress.equal(-1), () => {
-        extra?.color.assign(vec4(0, 0, 0, 0))
+        extra?.color?.assign(vec4(0, 0, 0, 0))
       }).Else(() => {
         const controlPointsCount = controlPointCounts.element(int(progress))
         const subdivisions = select(
@@ -174,11 +174,13 @@ export function useControlPoints(builder: GroupBuilder<any>) {
               t.x.add(0.5).div(builder.settings.maxPoints),
               t.y.add(0.5).div(builder.settings.maxCurves)
             )
-            extra.color.assign(vec4(texture(data.curveColorTex, textureVector)))
-            extra.thickness.assign(
+            extra.color?.assign(
+              vec4(texture(data.curveColorTex, textureVector))
+            )
+            extra.thickness?.assign(
               texture(data.curvePositionTex, textureVector).w
             )
-            extra.rotation.assign(
+            extra.rotation?.assign(
               atan(p1.sub(p0).y, p1.sub(p0).x).add(PI2.mul(0.25))
             )
           }
@@ -226,16 +228,16 @@ export function useControlPoints(builder: GroupBuilder<any>) {
                 .div(builder.settings.maxPoints),
               t.y.add(0.5).div(builder.settings.maxCurves)
             )
-            extra.color.assign(vec4(texture(data.curveColorTex, tt)))
-            extra.thickness.assign(texture(data.curvePositionTex, tt).w)
-            extra.rotation.assign(
+            extra.color?.assign(vec4(texture(data.curveColorTex, tt)))
+            extra.thickness?.assign(texture(data.curvePositionTex, tt).w)
+            extra.rotation?.assign(
               bezierRotation({ t: t.x.fract(), p0, p1, p2, strength })
             )
           }
         })
       })
       if (extra) {
-        extra.thickness.divAssign(screenSize.x)
+        extra.thickness?.divAssign(screenSize.x)
       }
     }
 

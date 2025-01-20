@@ -72,6 +72,31 @@ export class Builder {
   protected randomTable?: number[]
   protected hashIndex: number = 0
 
+  repeatGrid(
+    dimensions: [number, number],
+    func: ({
+      p,
+      i,
+      count
+    }: {
+      p: [number, number]
+      i: [number, number]
+      count: [number, number]
+    }) => void
+  ) {
+    for (let y = 0; y < dimensions[1]; y++) {
+      for (let x = 0; x < dimensions[0]; x++) {
+        func({
+          p: [x / dimensions[0], y / dimensions[1]],
+          i: [x, y],
+          count: [dimensions[0], dimensions[1]]
+        })
+      }
+    }
+
+    return this
+  }
+
   repeat(
     runCount: number,
     func: ({ p, i, count }: { p: number; i: number; count: number }) => void
@@ -1040,16 +1065,22 @@ ${this.curves
     this.initialize = initialize
     this.h = 0
     this.settings = settings
-    this.brushSettings = isBrushType(type, 'dash')
-      ? {
-          type,
-          pointScale: input => input,
-          pointRotate: input => input,
-          dashSize: 10
-        }
-      : isBrushType(type, 'line')
-        ? { type }
-        : ({} as any)
+    const defaultBrushSettings: { [T in BrushTypes]: BrushData<T> } = {
+      line: { type: 'line' },
+      dash: {
+        type: 'dash',
+        pointScale: input => input,
+        pointRotate: input => input,
+        dashSize: 10
+      },
+      attractors: {
+        type: 'attractors',
+        damping: 1e-2,
+        initialSpread: true,
+        maxSpeed: 1
+      }
+    }
+    this.brushSettings = { ...defaultBrushSettings[type] }
     Object.assign(this.brushSettings, brushSettings)
   }
 }
