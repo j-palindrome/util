@@ -115,7 +115,7 @@ export default function Asemic({
 
   const b = new SceneBuilder(
     builder,
-    { postProcessing, h: resolution.y / resolution.x },
+    { postProcessing, h: resolution.y / resolution.x, scenePass },
     settings
   )
   postProcessing.outputNode = b.sceneSettings.postProcessing(

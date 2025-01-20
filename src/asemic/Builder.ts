@@ -49,6 +49,7 @@ abstract class Builder {
   readonly globals: {
     postProcessing: PostProcessing
     h: number
+    scenePass: ReturnType<typeof pass>
   }
   protected noiseFuncs = {}
   protected transforms: TransformData[] = []
@@ -1083,7 +1084,12 @@ ${this.curves
         damping: 1e-2,
         initialSpread: true,
         maxSpeed: 1,
-        pointSize: 1
+        pointSize: 1,
+        pointVelocity: input => input,
+        pointPosition: input => input,
+        gravityForce: 0,
+        spinningForce: 1,
+        particleCount: 1e4
       }
     }
     this.brushSettings = { ...defaultBrushSettings[type] }
@@ -1126,10 +1132,7 @@ export default class SceneBuilder extends Builder {
 
   constructor(
     initialize: (b: SceneBuilder) => SceneBuilder | void,
-    globals: {
-      postProcessing: PostProcessing
-      h: number
-    },
+    globals: Builder['globals'],
     settings?: Partial<SceneBuilder['sceneSettings']>
   ) {
     super(globals)

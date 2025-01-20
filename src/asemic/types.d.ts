@@ -9,7 +9,7 @@ import {
   vec2,
   vec4
 } from 'three/tsl'
-import { Builder } from './Builder'
+import { Builder, GroupBuilder } from './Builder'
 
 const defaultFn = (input: ReturnType<typeof vec4>) => input
 declare global {
@@ -44,7 +44,7 @@ declare global {
 
   type ParticleInfo = {
     progress: ReturnType<typeof float | typeof varyingProperty>
-    settings: Builder['settings']
+    builder: GroupBuilder
   }
 
   type ProcessData = {
@@ -95,6 +95,16 @@ declare global {
           damping: number
           initialSpread: boolean
           pointSize: number
+          gravityForce: number
+          spinningForce: number
+          particleCount: number
+          pointVelocity: (
+            velocity: ReturnType<typeof vec2>,
+            position: ReturnType<typeof vec2>
+          ) => ReturnType<typeof vec2>
+          pointPosition: (
+            position: ReturnType<typeof vec2>
+          ) => ReturnType<typeof vec2>
         }
       : { type: T }
 
