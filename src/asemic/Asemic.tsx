@@ -17,6 +17,7 @@ import {
 import SceneBuilder from './Builder'
 import MeshBrush from './MeshBrush'
 import PointBrush from './PointBrush'
+import AttractorsBrush from './AttractorsBrush'
 
 extend({
   QuadMesh
@@ -131,8 +132,10 @@ export default function Asemic({
       {b.groups.map((group, i) =>
         group.brushSettings.type === 'line' ? (
           <MeshBrush builder={group} key={i} />
-        ) : (
+        ) : group.brushSettings.type === 'dash' ? (
           <PointBrush builder={group} key={i} />
+        ) : (
+          <AttractorsBrush builder={group} key={i} />
         )
       )}
     </>

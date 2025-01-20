@@ -1,6 +1,14 @@
 import { Color, Vector2 } from 'three'
 import { PointBuilder } from './PointBuilder'
-import { float, Fn, mrt, ShaderNodeObject, vec2, vec4 } from 'three/tsl'
+import {
+  float,
+  Fn,
+  mrt,
+  ShaderNodeObject,
+  varyingProperty,
+  vec2,
+  vec4
+} from 'three/tsl'
 import { Builder } from './Builder'
 
 const defaultFn = (input: ReturnType<typeof vec4>) => input
@@ -35,8 +43,8 @@ declare global {
   }
 
   type ParticleInfo = {
-    pointUV: ReturnType<typeof vec2>
-    aspectRatio: ReturnType<typeof float>
+    progress: ReturnType<typeof float | typeof varyingProperty>
+    height: number
     settings: Builder['settings']
   }
 
@@ -67,11 +75,14 @@ declare global {
     ) => input
   }
 
-  type BrushTypes = 'dash' | 'line'
+  type BrushTypes = 'dash' | 'line' | 'attractors'
   type BrushData<T extends BrushTypes> = T extends 'dash'
     ? {
         type: 'dash'
-        pointScale: (input: ReturnType<typeof vec2>) => input
+        pointScale: (
+          input: ReturnType<typeof vec2>,
+          info: ParticleInfo
+        ) => input
         pointRotate: (
           input: ReturnType<typeof float>,
           info: ParticleInfo

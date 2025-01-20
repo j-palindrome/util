@@ -35,6 +35,7 @@ import {
   texture
 } from 'three/tsl'
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
+import { multiBezierJS } from '../shaders/bezier'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
@@ -198,6 +199,13 @@ export class Builder {
     }
   }
 
+  getAlong(t: number, ...curve: (Vector2 | Coordinate)[]) {
+    return multiBezierJS(
+      t,
+      ...curve.map(x => (x instanceof Array ? new Vector2(x[0], x[1]) : x))
+    )
+  }
+
   protected toRad(rotation: number) {
     return rotation * Math.PI * 2
   }
@@ -206,7 +214,7 @@ export class Builder {
     return rotation / Math.PI / 2
   }
 
-  toRange(input: number, bounds: [number, number], exponent: number = 1) {
+  getRange(input: number, bounds: [number, number], exponent: number = 1) {
     return input ** exponent * (bounds[1] - bounds[0]) + bounds[0]
   }
 
@@ -263,6 +271,15 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
   curves: PointBuilder[][] = []
   protected initialize: (t: GroupBuilder<T>) => GroupBuilder<T> | void
   brushSettings: BrushData<T>
+
+  cycle(frequency: number = 1, waveshape: 'sine' | 'saw' = 'sine') {
+    switch (waveshape) {
+      case 'sine':
+        return (Math.sin(this.time * frequency) + 1) / 2
+      case 'saw':
+        return Math.abs(0.5 - ((this.time * frequency) % 1)) * 2
+    }
+  }
 
   getPoint(index: number = -1, curve: number = -1) {
     if (curve < 0) curve += this.curves.length

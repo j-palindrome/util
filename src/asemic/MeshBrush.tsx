@@ -1,5 +1,5 @@
 import { extend, Object3DNode, useThree } from '@react-three/fiber'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import {
   Discard,
@@ -81,13 +81,15 @@ export default function MeshBrush({
     const rotation = float(0).toVar('rotation')
     const thickness = float(0).toVar('thickness')
     const color = varyingProperty('vec4', 'color')
+    const progress = varyingProperty('float', 'progress')
 
     const main = Fn(() => {
-      getBezier(
-        () => vertexIndex.div(2).toFloat().div(instancesPerCurve),
-        position,
-        { rotation, thickness, color }
-      )
+      getBezier(vertexIndex.div(2).toFloat().div(instancesPerCurve), position, {
+        rotation,
+        thickness,
+        color,
+        progress
+      })
 
       position.addAssign(
         rotateUV(
@@ -104,11 +106,11 @@ export default function MeshBrush({
     })
 
     material.positionNode = main()
-    material.colorNode = Fn(() => {
-      const color = varying(vec4(), 'color')
-      If(color.a.equal(0), () => Discard())
-      return color
-    })()
+    material.colorNode = builder.settings.pointFrag(varying(vec4(), 'color'), {
+      progress,
+      height: builder.h,
+      settings: builder.settings
+    })
     material.needsUpdate = true
 
     return {
@@ -117,5 +119,16 @@ export default function MeshBrush({
     }
   }, [builder])
 
-  return <mesh geometry={geometry} material={material} />
+  const scene = useThree(({ scene }) => scene)
+  useEffect(() => {
+    const mesh = new THREE.Mesh(geometry, material)
+    scene.add(mesh)
+    return () => {
+      scene.remove(mesh)
+      material.dispose()
+      geometry.dispose()
+    }
+  }, [builder])
+
+  return <></>
 }
