@@ -2,35 +2,33 @@ import { useContext, useEffect, useRef } from 'react'
 import SceneBuilder, { Constant, Ref, Uniform } from '../Builder'
 import { useThree } from '@react-three/fiber'
 import { AsemicContext } from '../Asemic'
+import { Vector2 } from 'three'
 
 export function useEvents(settings?: Partial<SceneBuilder['sceneSettings']>) {
   const renderer = useThree(state => state.gl)
   const { audio } = useContext(AsemicContext)
-  const constants: SceneBuilder['controls']['constants'] = {}
-  const uniforms: SceneBuilder['controls']['uniforms'] = {}
-  const refs: SceneBuilder['controls']['refs'] = {}
+  const constants: SceneBuilder['constants'] = {}
+  const uniforms: SceneBuilder['uniforms'] = {}
+  const refs: SceneBuilder['refs'] = {}
+  const resolution = new Vector2()
+  renderer.getDrawingBufferSize(resolution)
+  const height = resolution.y / resolution.x
+
   if (settings) {
-    if (settings.controls) {
-      if (settings.controls.constants) {
-        for (let constant of Object.keys(settings.controls.constants)) {
-          constants[constant] = new Constant(
-            settings.controls.constants[constant][0]
-          )
+    if (settings) {
+      if (settings.constants) {
+        for (let constant of Object.keys(settings.constants)) {
+          constants[constant] = new Constant(settings.constants[constant][0])
         }
       }
-      if (settings.controls.refs && audio) {
-        for (let constant of Object.keys(settings.controls.refs)) {
-          refs[constant] = new Ref(
-            settings.controls.refs[constant][0],
-            audio.elCore
-          )
+      if (settings.refs && audio) {
+        for (let constant of Object.keys(settings.refs)) {
+          refs[constant] = new Ref(settings.refs[constant][0], audio.elCore)
         }
       }
-      if (settings.controls.uniforms) {
-        for (let constant of Object.keys(settings.controls.uniforms)) {
-          uniforms[constant] = new Uniform(
-            settings.controls.uniforms[constant][0]
-          )
+      if (settings.uniforms) {
+        for (let constant of Object.keys(settings.uniforms)) {
+          uniforms[constant] = new Uniform(settings.uniforms[constant][0])
         }
       }
     }
@@ -43,10 +41,18 @@ export function useEvents(settings?: Partial<SceneBuilder['sceneSettings']>) {
   let dragging = useRef(false)
   let text = useRef('')
   useEffect(() => {
+    const drag = () => {
+      dragging.current = true
+    }
+    window.addEventListener('mousedown', drag)
+    const dragOff = () => {
+      dragging.current = false
+    }
+    window.addEventListener('mouseup', dragOff)
     const listeners: EventProps<any>[] = []
     const updateEvents = <T extends 'constants' | 'refs' | 'uniforms'>(
-      object: SceneBuilder['sceneSettings']['controls'][T],
-      constants: SceneBuilder['controls'][T]
+      object: SceneBuilder['sceneSettings'][T],
+      constants: SceneBuilder[T]
     ) => {
       for (let [key, [_value, events]] of Object.entries(object)) {
         if (events.onClick) {
@@ -58,8 +64,9 @@ export function useEvents(settings?: Partial<SceneBuilder['sceneSettings']>) {
                   (ev.clientX - renderer.domElement.clientLeft) /
                     renderer.domElement.clientWidth,
                   1 -
-                    (ev.clientY - renderer.domElement.clientTop) /
-                      renderer.domElement.clientHeight
+                    ((ev.clientY - renderer.domElement.clientTop) /
+                      renderer.domElement.clientHeight) *
+                      height
                 ])
               )
             }
@@ -70,16 +77,17 @@ export function useEvents(settings?: Partial<SceneBuilder['sceneSettings']>) {
           const clickEvent: EventProps<'mousemove'> = {
             type: 'mousemove',
             listener: (ev: MouseEvent) => {
-              if (!dragging) return
-              constants[key].update(
-                events.onDrag!([
-                  (ev.clientX - renderer.domElement.clientLeft) /
-                    renderer.domElement.clientWidth,
-                  1 -
-                    (ev.clientY - renderer.domElement.clientTop) /
-                      renderer.domElement.clientHeight
-                ])
-              )
+              if (!dragging.current) return
+              const coord: [number, number] = [
+                (ev.clientX - renderer.domElement.clientLeft) /
+                  renderer.domElement.clientWidth,
+                1 -
+                  ((ev.clientY - renderer.domElement.clientTop) /
+                    renderer.domElement.clientHeight) *
+                    height
+              ]
+
+              constants[key].update(events.onDrag!(coord))
             }
           }
           listeners.push(clickEvent)
@@ -88,16 +96,17 @@ export function useEvents(settings?: Partial<SceneBuilder['sceneSettings']>) {
           const clickEvent: EventProps<'mousemove'> = {
             type: 'mousemove',
             listener: (ev: MouseEvent) => {
-              if (dragging) return
-              constants[key].update(
-                events.onMove!([
-                  (ev.clientX - renderer.domElement.clientLeft) /
-                    renderer.domElement.clientWidth,
-                  1 -
-                    (ev.clientY - renderer.domElement.clientTop) /
-                      renderer.domElement.clientHeight
-                ])
-              )
+              if (dragging.current) return
+              const coord: [number, number] = [
+                (ev.clientX - renderer.domElement.clientLeft) /
+                  renderer.domElement.clientWidth,
+                height -
+                  ((ev.clientY - renderer.domElement.clientTop) /
+                    renderer.domElement.clientHeight) *
+                    height
+              ]
+
+              constants[key].update(events.onMove!(coord))
             }
           }
           listeners.push(clickEvent)
@@ -139,23 +148,30 @@ export function useEvents(settings?: Partial<SceneBuilder['sceneSettings']>) {
       }
     }
     if (settings) {
-      if (settings.controls) {
-        if (settings.controls.constants) {
-          updateEvents(settings.controls.constants, constants)
+      if (settings) {
+        if (settings.constants) {
+          updateEvents(settings.constants, constants)
         }
-        if (settings.controls.refs) {
-          updateEvents(settings.controls.refs, refs)
+        if (settings.refs) {
+          updateEvents(settings.refs, refs)
         }
-        if (settings.controls.uniforms) {
-          updateEvents(settings.controls.uniforms, uniforms)
+        if (settings.uniforms) {
+          updateEvents(settings.uniforms, uniforms)
         }
       }
     }
+    listeners.forEach(listener =>
+      window.addEventListener(listener.type, listener.listener)
+    )
+
     return () => {
+      window.removeEventListener('mouseup', dragOff)
+      window.removeEventListener('mousedown', drag)
       listeners.forEach(listener =>
         window.removeEventListener(listener.type, listener.listener)
       )
     }
-  })
+  }, [settings])
+
   return { constants, uniforms, refs }
 }

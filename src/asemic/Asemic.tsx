@@ -144,7 +144,7 @@ export default function Asemic({
   const postProcessing = new PostProcessing(renderer)
   const scenePass = pass(scene, camera)
 
-  const controls = useEvents(settings)
+  const { constants, uniforms, refs } = useEvents(settings)
 
   const b = new SceneBuilder(
     builder,
@@ -152,7 +152,9 @@ export default function Asemic({
       postProcessing: { postProcessing, scenePass, readback },
       h: resolution.y / resolution.x,
       audio,
-      controls
+      constants,
+      uniforms,
+      refs
     },
     settings
   )

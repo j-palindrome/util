@@ -1082,13 +1082,13 @@ abstract class Control<T, K> {
   abstract value: T
   abstract update(newValue: K): void
 }
-export class Constant extends Control<number, number> {
-  value: number
+export class Constant extends Control<number, any> {
+  value: any
 
-  update(newValue: number) {
+  update(newValue: any) {
     this.value = newValue
   }
-  constructor(value: number) {
+  constructor(value: any) {
     super()
     this.value = value
   }
@@ -1120,7 +1120,7 @@ export class Ref extends Control<ElemNode, number> {
 
 type BuilderGlobals = Pick<
   SceneBuilder,
-  'postProcessing' | 'audio' | 'controls' | 'h'
+  'postProcessing' | 'audio' | 'constants' | 'uniforms' | 'refs' | 'h'
 >
 
 export default class SceneBuilder extends Builder {
@@ -1136,11 +1136,11 @@ export default class SceneBuilder extends Builder {
     elNode: AudioWorkletNode
     elCore: WebAudioRenderer
   } | null
-  controls: {
-    constants: Record<string, Constant>
-    uniforms: Record<string, Uniform>
-    refs: Record<string, Ref>
-  }
+
+  constants: Record<string, Constant>
+  uniforms: Record<string, Uniform>
+  refs: Record<string, Ref>
+
   sceneSettings: {
     postProcessing: (
       input: ReturnType<PassNode['getTextureNode']>,
@@ -1151,17 +1151,13 @@ export default class SceneBuilder extends Builder {
     ) => ShaderNodeObject<Node>
     audio: (() => ElemNode | [ElemNode, ElemNode]) | null
     useReadback: boolean
-    controls: {
-      constants: Record<string, [value: number, events: Events<number>]>
-      uniforms: Record<string, [value: number, events: Events<number>]>
-      refs: Record<string, [value: number, events: Events<number>]>
-    }
+    constants: Record<string, [value: any, events: Events<any>]>
+    uniforms: Record<string, [value: number, events: Events<number>]>
+    refs: Record<string, [value: number, events: Events<number>]>
   } = {
-    controls: {
-      constants: {},
-      uniforms: {},
-      refs: {}
-    },
+    constants: {},
+    uniforms: {},
+    refs: {},
     postProcessing: input => input,
     useReadback: false,
     audio: null
@@ -1194,7 +1190,9 @@ export default class SceneBuilder extends Builder {
     Object.assign(this.sceneSettings, settings)
     this.h = globals.h
     this.audio = globals.audio
-    this.controls = globals.controls
+    this.constants = globals.constants
+    this.uniforms = globals.uniforms
+    this.refs = globals.refs
     this.postProcessing = globals.postProcessing
   }
 }
