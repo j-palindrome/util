@@ -92,18 +92,23 @@ declare global {
       ? {
           type: 'attractors'
           maxSpeed: number
+          minSpeed: number
           damping: number
           initialSpread: boolean
           pointSize: number
           gravityForce: number
           spinningForce: number
           particleCount: number
+          pointColor: [number, number, number]
+          pointAlpha: number
           pointVelocity: (
             velocity: ReturnType<typeof vec2>,
-            position: ReturnType<typeof vec2>
+            position: ReturnType<typeof vec2>,
+            info: ParticleInfo
           ) => ReturnType<typeof vec2>
           pointPosition: (
-            position: ReturnType<typeof vec2>
+            position: ReturnType<typeof vec2>,
+            info: ParticleInfo
           ) => ReturnType<typeof vec2>
         }
       : { type: T }

@@ -5,10 +5,22 @@ import {
   useFrame,
   useThree
 } from '@react-three/fiber'
-import { useEffect, useState } from 'react'
-import { HalfFloatType, OrthographicCamera, Vector2 } from 'three'
-import { pass, texture } from 'three/tsl'
+import { useEffect, useRef, useState } from 'react'
 import {
+  CanvasTexture,
+  DataTexture,
+  FloatType,
+  FramebufferTexture,
+  HalfFloatType,
+  OrthographicCamera,
+  RenderTarget,
+  RGBAFormat,
+  UnsignedByteType,
+  Vector2
+} from 'three'
+import { Fn, mrt, output, pass, texture, uv } from 'three/tsl'
+import {
+  MeshBasicNodeMaterial,
   PostProcessing,
   QuadMesh,
   StorageTexture,
@@ -18,6 +30,8 @@ import SceneBuilder from './Builder'
 import MeshBrush from './MeshBrush'
 import PointBrush from './PointBrush'
 import AttractorsBrush from './AttractorsBrush'
+import Feedback from './Feedback'
+import { range } from 'lodash'
 
 extend({
   QuadMesh
@@ -110,6 +124,14 @@ export default function Asemic({
     state.gl.getDrawingBufferSize(resolution)
   })
 
+  const renderTarget = new RenderTarget(resolution.x, resolution.y, {
+    type: HalfFloatType
+  })
+  const renderTarget2 = new RenderTarget(resolution.x, resolution.y, {
+    type: HalfFloatType
+  })
+  const readback = texture(renderTarget.texture)
+
   const postProcessing = new PostProcessing(renderer)
   const scenePass = pass(scene, camera)
 
@@ -118,13 +140,29 @@ export default function Asemic({
     { postProcessing, h: resolution.y / resolution.x, scenePass },
     settings
   )
-  postProcessing.outputNode = b.sceneSettings.postProcessing(
-    scenePass.getTextureNode('output').toVar('outputAssign'),
-    { scenePass }
-  )
+  // const feedback = new Feedback(resolution.x, resolution.y)
+  postProcessing.outputNode = Fn(() => {
+    const output = b.sceneSettings
 
+      .postProcessing(scenePass.getTextureNode('output'), {
+        scenePass,
+        readback
+      })
+      .toVar('outputAssign')
+    return output
+  })()
+
+  let phase = true
   useFrame(() => {
+    phase = !phase
+    postProcessing.renderer.setRenderTarget(
+      phase ? renderTarget : renderTarget2
+    )
     postProcessing.render()
+    postProcessing.renderer.setRenderTarget(null)
+    postProcessing.render()
+    readback.value = phase ? renderTarget.texture : renderTarget2.texture
+    readback.needsUpdate = true
   }, 1)
 
   return (

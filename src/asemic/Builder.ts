@@ -1,42 +1,12 @@
-import _, { last, max, min, now, random, range } from 'lodash'
-import {
-  AnyPixelFormat,
-  ClampToEdgeWrapping,
-  CurvePath,
-  DataTexture,
-  FloatType,
-  LinearFilter,
-  LineCurve,
-  MagnificationTextureFilter,
-  NearestFilter,
-  QuadraticBezierCurve,
-  RedFormat,
-  RGBAFormat,
-  UnsignedByteType,
-  Vector2
-} from 'three'
+import _, { last, max, min, range } from 'lodash'
+import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
+import { CurvePath, LineCurve, QuadraticBezierCurve, Vector2 } from 'three'
+import { mrt, output, pass, ShaderNodeObject } from 'three/tsl'
+import { Node, PassNode, PostProcessing, TextureNode } from 'three/webgpu'
 import invariant from 'tiny-invariant'
 import { lerp } from '../math'
-import { PointBuilder } from './PointBuilder'
-import { isBrushType } from './typeGuards'
-import {
-  Node,
-  PassNode,
-  PostProcessing,
-  Renderer,
-  WebGPURenderer
-} from 'three/webgpu'
-import {
-  float,
-  instance,
-  mrt,
-  output,
-  pass,
-  ShaderNodeObject,
-  texture
-} from 'three/tsl'
-import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import { multiBezierJS } from '../shaders/bezier'
+import { PointBuilder } from './PointBuilder'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
@@ -1084,12 +1054,15 @@ ${this.curves
         damping: 1e-2,
         initialSpread: true,
         maxSpeed: 1,
+        minSpeed: 0,
         pointSize: 1,
         pointVelocity: input => input,
         pointPosition: input => input,
         gravityForce: 0,
         spinningForce: 1,
-        particleCount: 1e4
+        particleCount: 1e4,
+        pointColor: [1, 1, 1],
+        pointAlpha: 1
       }
     }
     this.brushSettings = { ...defaultBrushSettings[type] }
@@ -1104,12 +1077,11 @@ export default class SceneBuilder extends Builder {
       input: ReturnType<PassNode['getTextureNode']>,
       info: {
         scenePass: ReturnType<typeof pass>
+        readback: ShaderNodeObject<TextureNode>
       }
-    ) => PostProcessing['outputNode']
-    readbackTexture: boolean
+    ) => ShaderNodeObject<Node>
   } = {
-    postProcessing: input => input,
-    readbackTexture: false
+    postProcessing: input => input
   }
 
   newGroup<T extends BrushTypes>(

@@ -36,9 +36,6 @@ export default function AttractorsBrush({
   const { getBezier, instancesPerCurve, hooks } = useControlPoints(builder)
 
   const { mesh, material, geometry } = useMemo(() => {
-    // particles
-
-    // const count = 1e6
     const count = builder.brushSettings.particleCount
 
     const material = new SpriteNodeMaterial({
@@ -47,15 +44,6 @@ export default function AttractorsBrush({
       depthWrite: false
     })
 
-    // const attractorMass = uniform(1e4)
-    // const particleGlobalMass = uniform(10e6)
-    // const timeScale = uniform(1)
-    // const spinningStrength = uniform(3)
-    // const maxSpeed = uniform(10)
-    // const gravityConstant = 6e-13
-    // const velocityDamping = uniform(0.1)
-    // const scale = float(3).div(screenSize.x)
-    // ------
     const timeScale = uniform(1)
     const positionBuffer = instancedArray(count, 'vec2')
     const velocityBuffer = instancedArray(count, 'vec2')
@@ -68,7 +56,7 @@ export default function AttractorsBrush({
       } else {
         position.assign(
           vec2(
-            hash(instanceIndex),
+            hash(instanceIndex.add(Math.random() * 100)),
             hash(instanceIndex.add(Math.random() * 100)).mul(
               screenSize.y.div(screenSize.x)
             )
@@ -76,10 +64,12 @@ export default function AttractorsBrush({
         )
         velocity.assign(
           vec2(
-            hash(instanceIndex.add(Math.random() * 100)),
-            hash(instanceIndex.add(Math.random() * 100)).mul(
-              screenSize.y.div(screenSize.x)
-            )
+            hash(instanceIndex.add(Math.random() * 100))
+              .mul(2)
+              .sub(1),
+            hash(instanceIndex.add(Math.random() * 100))
+              .mul(2)
+              .sub(1)
           )
         )
       }
@@ -136,11 +126,26 @@ export default function AttractorsBrush({
           velocity.normalize().mul(builder.brushSettings.maxSpeed)
         )
       })
+      If(speed.lessThan(builder.brushSettings.minSpeed), () => {
+        velocity.assign(
+          velocity.normalize().mul(builder.brushSettings.minSpeed)
+        )
+      })
 
       velocity.mulAssign(float(builder.brushSettings.damping).oneMinus())
 
-      position.assign(builder.brushSettings.pointPosition(position))
-      velocity.assign(builder.brushSettings.pointVelocity(velocity, position))
+      position.assign(
+        builder.brushSettings.pointPosition(position, {
+          builder,
+          progress: float(0)
+        })
+      )
+      velocity.assign(
+        builder.brushSettings.pointVelocity(velocity, position, {
+          builder,
+          progress: float(0)
+        })
+      )
 
       position.addAssign(velocity.mul(delta))
       position.modAssign(vec2(1, screenSize.y.div(screenSize.x)))
@@ -163,10 +168,16 @@ export default function AttractorsBrush({
       const alpha = float(
         uv().sub(0.5).length().remap(0, 0.5, 1, 0).pow(2)
       ).toVar()
-      return builder.settings.pointFrag(vec4(1, 1, 1, alpha), {
-        progress: float(0),
-        builder
-      })
+      return builder.settings.pointFrag(
+        vec4(
+          ...builder.brushSettings.pointColor,
+          builder.brushSettings.pointAlpha
+        ),
+        {
+          progress: float(0),
+          builder
+        }
+      )
     })()
 
     material.scaleNode = vec2(1, 1)
@@ -199,15 +210,6 @@ export default function AttractorsBrush({
       material.dispose()
     }
   }, [builder])
-
-  // const blur = float(0.0625)
-  // const grad = vec2(0, 0)
-
-  // .grad(grad, grad)
-  // const vuv = vec2(0.5, 1 - 0.99)
-  // const vuv = uv().mul(vec2(1, 0.2))
-
-  // testNode.fragmentNode =
 
   return <></>
 }
