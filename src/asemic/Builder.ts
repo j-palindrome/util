@@ -1072,8 +1072,8 @@ ${this.curves
 
 type Events<K> = {
   onClick?: (coords: [number, number]) => K
-  onMove?: (coords: [number, number], change: [number, number]) => K
-  onDrag?: (coords: [number, number], change: [number, number]) => K
+  onMove?: (coords: [number, number]) => K
+  onDrag?: (coords: [number, number]) => K
   onKeyDown?: (key: string) => K
   onKeyUp?: (key: string) => K
   onType?: (keys: string) => K
@@ -1082,7 +1082,7 @@ abstract class Control<T, K> {
   abstract value: T
   abstract update(newValue: K): void
 }
-class Constant extends Control<number, number> {
+export class Constant extends Control<number, number> {
   value: number
 
   update(newValue: number) {
@@ -1093,7 +1093,7 @@ class Constant extends Control<number, number> {
     this.value = value
   }
 }
-class Uniform extends Control<ReturnType<typeof uniform>, number> {
+export class Uniform extends Control<ReturnType<typeof uniform>, number> {
   value: ReturnType<typeof uniform>
   update(newValue: number) {
     this.value.value = newValue
@@ -1104,15 +1104,15 @@ class Uniform extends Control<ReturnType<typeof uniform>, number> {
     this.value = uniform(value)
   }
 }
-class Ref extends Control<ElemNode, number> {
+export class Ref extends Control<ElemNode, number> {
   value: ElemNode
   updateValue: (newProps: any) => Promise<any>
   update(newValue: number) {
     this.updateValue({ value: newValue })
   }
-  constructor(value: number, kind: string, core: WebAudioRenderer) {
+  constructor(value: number, core: WebAudioRenderer) {
     super()
-    const ref = core.createRef(kind, { value }, [])
+    const ref = core.createRef('const', { value }, [])
     this.value = ref[0] as unknown as ElemNode
     this.updateValue = ref[1] as ({ value }: { value: number }) => Promise<any>
   }

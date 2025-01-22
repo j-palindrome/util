@@ -6,14 +6,15 @@ import {
   useFrame,
   useThree
 } from '@react-three/fiber'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { HalfFloatType, OrthographicCamera, RenderTarget, Vector2 } from 'three'
 import { Fn, pass, texture } from 'three/tsl'
 import { PostProcessing, QuadMesh, WebGPURenderer } from 'three/webgpu'
 import AttractorsBrush from './AttractorsBrush'
-import SceneBuilder from './Builder'
+import SceneBuilder, { Constant, Ref, Uniform } from './Builder'
 import MeshBrush from './MeshBrush'
 import PointBrush from './PointBrush'
+import { useEvents } from './util/useEvents'
 
 extend({
   QuadMesh
@@ -27,7 +28,7 @@ declare module '@react-three/fiber' {
 type AsemicContextType = {
   audio: SceneBuilder['audio']
 }
-const AsemicContext = createContext<AsemicContextType>({ audio: null })
+export const AsemicContext = createContext<AsemicContextType>({ audio: null })
 
 export function AsemicCanvas({
   children,
@@ -143,13 +144,15 @@ export default function Asemic({
   const postProcessing = new PostProcessing(renderer)
   const scenePass = pass(scene, camera)
 
+  const controls = useEvents(settings)
+
   const b = new SceneBuilder(
     builder,
     {
       postProcessing: { postProcessing, scenePass, readback },
       h: resolution.y / resolution.x,
       audio,
-      controls: { constants: {}, uniforms: {}, refs: {} }
+      controls
     },
     settings
   )
@@ -191,8 +194,6 @@ export default function Asemic({
   }
 
   useEffect(renderAudio, [b])
-
-  // # CONTROLS
 
   return (
     <>
