@@ -1,12 +1,21 @@
 import _, { last, max, min, range } from 'lodash'
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import { CurvePath, LineCurve, QuadraticBezierCurve, Vector2 } from 'three'
-import { mrt, output, pass, ShaderNodeObject } from 'three/tsl'
+import {
+  mrt,
+  output,
+  pass,
+  ShaderNodeObject,
+  texture,
+  uniform
+} from 'three/tsl'
 import { Node, PassNode, PostProcessing, TextureNode } from 'three/webgpu'
 import invariant from 'tiny-invariant'
 import { lerp } from '../math'
 import { multiBezierJS } from '../shaders/bezier'
 import { PointBuilder } from './PointBuilder'
+import { el, ElemNode } from '@elemaudio/core'
+import WebAudioRenderer from '@elemaudio/web-renderer'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
@@ -16,11 +25,6 @@ export const defaultCoordinateSettings: CoordinateSettings = {
 }
 
 abstract class Builder {
-  readonly globals: {
-    postProcessing: PostProcessing
-    h: number
-    scenePass: ReturnType<typeof pass>
-  }
   protected noiseFuncs = {}
   protected transforms: TransformData[] = []
   currentTransform: TransformData = this.toTransform()
@@ -263,9 +267,7 @@ abstract class Builder {
     return (this.noiseFuncs[index](...coords) + 1) / 2
   }
 
-  constructor(globals: Builder['globals']) {
-    this.globals = globals
-  }
+  constructor() {}
 }
 
 export class GroupBuilder<T extends BrushTypes> extends Builder {
@@ -627,7 +629,6 @@ ${this.curves
    * Slide the curve along itself to offset its start point.
    */
   slide(amount: number) {
-    const amt = amount < 0 ? 1 + amount : amount
     return this.lastCurve(curve => {
       const path = this.makeCurvePath(curve)
       // const totalLength = path.getLength()
@@ -1035,10 +1036,9 @@ ${this.curves
     type: T,
     initialize: (builder: GroupBuilder<T>) => GroupBuilder<T> | void,
     settings: ProcessData,
-    globals: Builder['globals'],
     brushSettings?: Partial<BrushData<T>>
   ) {
-    super(globals)
+    super()
     this.initialize = initialize
     this.settings = settings
     const defaultBrushSettings: { [T in BrushTypes]: BrushData<T> } = {
@@ -1070,18 +1070,101 @@ ${this.curves
   }
 }
 
+type Events<K> = {
+  onClick?: (coords: [number, number]) => K
+  onMove?: (coords: [number, number], change: [number, number]) => K
+  onDrag?: (coords: [number, number], change: [number, number]) => K
+  onKeyDown?: (key: string) => K
+  onKeyUp?: (key: string) => K
+  onType?: (keys: string) => K
+}
+abstract class Control<T, K> {
+  abstract value: T
+  abstract update(newValue: K): void
+}
+class Constant extends Control<number, number> {
+  value: number
+
+  update(newValue: number) {
+    this.value = newValue
+  }
+  constructor(value: number) {
+    super()
+    this.value = value
+  }
+}
+class Uniform extends Control<ReturnType<typeof uniform>, number> {
+  value: ReturnType<typeof uniform>
+  update(newValue: number) {
+    this.value.value = newValue
+    this.value.needsUpdate = true
+  }
+  constructor(value: number) {
+    super()
+    this.value = uniform(value)
+  }
+}
+class Ref extends Control<ElemNode, number> {
+  value: ElemNode
+  updateValue: (newProps: any) => Promise<any>
+  update(newValue: number) {
+    this.updateValue({ value: newValue })
+  }
+  constructor(value: number, kind: string, core: WebAudioRenderer) {
+    super()
+    const ref = core.createRef(kind, { value }, [])
+    this.value = ref[0] as unknown as ElemNode
+    this.updateValue = ref[1] as ({ value }: { value: number }) => Promise<any>
+  }
+}
+
+type BuilderGlobals = Pick<
+  SceneBuilder,
+  'postProcessing' | 'audio' | 'controls' | 'h'
+>
+
 export default class SceneBuilder extends Builder {
   groups: GroupBuilder<any>[] = []
+  h: number
+  postProcessing: {
+    postProcessing: PostProcessing
+    scenePass: ReturnType<typeof pass>
+    readback: ReturnType<typeof texture> | null
+  }
+  audio: {
+    ctx: AudioContext
+    elNode: AudioWorkletNode
+    elCore: WebAudioRenderer
+  } | null
+  controls: {
+    constants: Record<string, Constant>
+    uniforms: Record<string, Uniform>
+    refs: Record<string, Ref>
+  }
   sceneSettings: {
     postProcessing: (
       input: ReturnType<PassNode['getTextureNode']>,
       info: {
-        scenePass: ReturnType<typeof pass>
-        readback: ShaderNodeObject<TextureNode>
+        scenePass: BuilderGlobals['postProcessing']['scenePass']
+        readback: BuilderGlobals['postProcessing']['readback']
       }
     ) => ShaderNodeObject<Node>
+    audio: (() => ElemNode | [ElemNode, ElemNode]) | null
+    useReadback: boolean
+    controls: {
+      constants: Record<string, [value: number, events: Events<number>]>
+      uniforms: Record<string, [value: number, events: Events<number>]>
+      refs: Record<string, [value: number, events: Events<number>]>
+    }
   } = {
-    postProcessing: input => input
+    controls: {
+      constants: {},
+      uniforms: {},
+      refs: {}
+    },
+    postProcessing: input => input,
+    useReadback: false,
+    audio: null
   }
 
   newGroup<T extends BrushTypes>(
@@ -1095,7 +1178,6 @@ export default class SceneBuilder extends Builder {
         type,
         render,
         { ...this.settings, ...settings },
-        this.globals,
         brushSettings
       )
     )
@@ -1104,11 +1186,15 @@ export default class SceneBuilder extends Builder {
 
   constructor(
     initialize: (b: SceneBuilder) => SceneBuilder | void,
-    globals: Builder['globals'],
+    globals: BuilderGlobals,
     settings?: Partial<SceneBuilder['sceneSettings']>
   ) {
-    super(globals)
+    super()
     initialize(this)
     Object.assign(this.sceneSettings, settings)
+    this.h = globals.h
+    this.audio = globals.audio
+    this.controls = globals.controls
+    this.postProcessing = globals.postProcessing
   }
 }

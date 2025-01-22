@@ -1,3 +1,4 @@
+import WebAudioRenderer from '@elemaudio/web-renderer'
 import {
   Canvas,
   extend,
@@ -5,33 +6,14 @@ import {
   useFrame,
   useThree
 } from '@react-three/fiber'
-import { useEffect, useRef, useState } from 'react'
-import {
-  CanvasTexture,
-  DataTexture,
-  FloatType,
-  FramebufferTexture,
-  HalfFloatType,
-  OrthographicCamera,
-  RenderTarget,
-  RGBAFormat,
-  UnsignedByteType,
-  Vector2
-} from 'three'
-import { Fn, mrt, output, pass, texture, uv } from 'three/tsl'
-import {
-  MeshBasicNodeMaterial,
-  PostProcessing,
-  QuadMesh,
-  StorageTexture,
-  WebGPURenderer
-} from 'three/webgpu'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { HalfFloatType, OrthographicCamera, RenderTarget, Vector2 } from 'three'
+import { Fn, pass, texture } from 'three/tsl'
+import { PostProcessing, QuadMesh, WebGPURenderer } from 'three/webgpu'
+import AttractorsBrush from './AttractorsBrush'
 import SceneBuilder from './Builder'
 import MeshBrush from './MeshBrush'
 import PointBrush from './PointBrush'
-import AttractorsBrush from './AttractorsBrush'
-import Feedback from './Feedback'
-import { range } from 'lodash'
 
 extend({
   QuadMesh
@@ -41,6 +23,11 @@ declare module '@react-three/fiber' {
     quadMesh: Object3DNode<QuadMesh, typeof QuadMesh>
   }
 }
+
+type AsemicContextType = {
+  audio: SceneBuilder['audio']
+}
+const AsemicContext = createContext<AsemicContextType>({ audio: null })
 
 export function AsemicCanvas({
   children,
@@ -55,12 +42,16 @@ export function AsemicCanvas({
   const [frameloop, setFrameloop] = useState<
     'never' | 'always' | 'demand' | undefined
   >('never')
-
-  return (
+  const [audio, setAudio] = useState<SceneBuilder['audio']>(null)
+  const [started, setStarted] = useState(false)
+  return !started ? (
+    <button className='text-white' onClick={() => setStarted(true)}>
+      start
+    </button>
+  ) : (
     <Canvas
       style={{ height: height ?? '100%', width: width ?? '100%', ...style }}
       frameloop={frameloop}
-      // frameloop={'never'}
       className={className}
       orthographic
       camera={{
@@ -81,12 +72,28 @@ export function AsemicCanvas({
           alpha: true
         })
 
-        renderer.init().then(() => {
+        const initAudio = async () => {
+          const audioContext = new AudioContext()
+          const core = new WebAudioRenderer()
+          const elNode = await core.initialize(audioContext, {
+            numberOfInputs: 0,
+            numberOfOutputs: 1,
+            outputChannelCount: [2]
+          })
+          elNode.connect(audioContext.destination)
+          return { ctx: audioContext, elCore: core, elNode }
+        }
+        Promise.all([renderer.init(), initAudio()]).then(result => {
+          setAudio(result[1])
           setFrameloop('always')
         })
         return renderer
       }}>
-      {frameloop === 'always' && children}
+      {frameloop === 'always' && audio && (
+        <AsemicContext.Provider value={{ audio }}>
+          {children}
+        </AsemicContext.Provider>
+      )}
       {frameloop === 'always' && <Adjust />}
     </Canvas>
   )
@@ -124,26 +131,31 @@ export default function Asemic({
     state.gl.getDrawingBufferSize(resolution)
   })
 
+  const { audio } = useContext(AsemicContext)
   const renderTarget = new RenderTarget(resolution.x, resolution.y, {
     type: HalfFloatType
   })
   const renderTarget2 = new RenderTarget(resolution.x, resolution.y, {
     type: HalfFloatType
   })
-  const readback = texture(renderTarget.texture)
+  const readback = settings?.useReadback ? texture(renderTarget.texture) : null
 
   const postProcessing = new PostProcessing(renderer)
   const scenePass = pass(scene, camera)
 
   const b = new SceneBuilder(
     builder,
-    { postProcessing, h: resolution.y / resolution.x, scenePass },
+    {
+      postProcessing: { postProcessing, scenePass, readback },
+      h: resolution.y / resolution.x,
+      audio,
+      controls: { constants: {}, uniforms: {}, refs: {} }
+    },
     settings
   )
-  // const feedback = new Feedback(resolution.x, resolution.y)
+
   postProcessing.outputNode = Fn(() => {
     const output = b.sceneSettings
-
       .postProcessing(scenePass.getTextureNode('output'), {
         scenePass,
         readback
@@ -154,16 +166,33 @@ export default function Asemic({
 
   let phase = true
   useFrame(() => {
-    phase = !phase
-    postProcessing.renderer.setRenderTarget(
-      phase ? renderTarget : renderTarget2
-    )
-    postProcessing.render()
-    postProcessing.renderer.setRenderTarget(null)
-    postProcessing.render()
-    readback.value = phase ? renderTarget.texture : renderTarget2.texture
-    readback.needsUpdate = true
+    if (b.sceneSettings.useReadback) {
+      phase = !phase
+      postProcessing.renderer.setRenderTarget(
+        phase ? renderTarget : renderTarget2
+      )
+      postProcessing.render()
+      postProcessing.renderer.setRenderTarget(null)
+      postProcessing.render()
+      readback!.value = phase ? renderTarget.texture : renderTarget2.texture
+      readback!.needsUpdate = true
+    } else {
+      postProcessing.render()
+    }
   }, 1)
+
+  // # AUDIO
+
+  const renderAudio = () => {
+    if (!b.audio) return
+    const render = b.sceneSettings.audio!()
+    if (render instanceof Array) b.audio.elCore.render(...render)
+    else b.audio.elCore.render(render, render)
+  }
+
+  useEffect(renderAudio, [b])
+
+  // # CONTROLS
 
   return (
     <>
