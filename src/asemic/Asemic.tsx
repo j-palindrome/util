@@ -11,10 +11,10 @@ import { HalfFloatType, OrthographicCamera, RenderTarget, Vector2 } from 'three'
 import { Fn, pass, texture } from 'three/tsl'
 import { PostProcessing, QuadMesh, WebGPURenderer } from 'three/webgpu'
 import AttractorsBrush from './AttractorsBrush'
-import SceneBuilder, { Constant, Ref, Uniform } from './Builder'
+import SceneBuilder from './Builder'
 import MeshBrush from './MeshBrush'
 import PointBrush from './PointBrush'
-import { useEvents } from './util/useEvents'
+import { SettingsInput, useEvents } from './util/useEvents'
 
 extend({
   QuadMesh
@@ -26,7 +26,7 @@ declare module '@react-three/fiber' {
 }
 
 type AsemicContextType = {
-  audio: SceneBuilder['audio']
+  audio: SceneBuilder<any>['audio']
 }
 export const AsemicContext = createContext<AsemicContextType>({ audio: null })
 
@@ -43,7 +43,7 @@ export function AsemicCanvas({
   const [frameloop, setFrameloop] = useState<
     'never' | 'always' | 'demand' | undefined
   >('never')
-  const [audio, setAudio] = useState<SceneBuilder['audio']>(null)
+  const [audio, setAudio] = useState<SceneBuilder<any>['audio']>(null)
   const [started, setStarted] = useState(false)
   return !started ? (
     <button className='text-white' onClick={() => setStarted(true)}>
@@ -113,12 +113,14 @@ function Adjust() {
   return <></>
 }
 
-export default function Asemic({
+export default function Asemic<T extends SettingsInput>({
   builder,
-  settings
+  settings,
+  controls
 }: {
-  builder: (b: SceneBuilder) => SceneBuilder | void
-  settings?: Partial<SceneBuilder['sceneSettings']>
+  controls: T
+  builder: (b: SceneBuilder<T>) => SceneBuilder<T> | void
+  settings?: Partial<SceneBuilder<T>['sceneSettings']>
 } & React.PropsWithChildren) {
   const { renderer, scene, camera } = useThree(({ gl, scene, camera }) => ({
     // @ts-expect-error
@@ -144,18 +146,16 @@ export default function Asemic({
   const postProcessing = new PostProcessing(renderer)
   const scenePass = pass(scene, camera)
 
-  const { constants, uniforms, refs } = useEvents(settings)
+  const controlsBuilt = useEvents(controls)
 
   const b = new SceneBuilder(
     builder,
     {
       postProcessing: { postProcessing, scenePass, readback },
       h: resolution.y / resolution.x,
-      audio,
-      constants,
-      uniforms,
-      refs
+      audio
     },
+    controlsBuilt,
     settings
   )
 

@@ -16,6 +16,7 @@ import { multiBezierJS } from '../shaders/bezier'
 import { PointBuilder } from './PointBuilder'
 import { el, ElemNode } from '@elemaudio/core'
 import WebAudioRenderer from '@elemaudio/web-renderer'
+import { Settings, SettingsInput } from './util/useEvents'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
@@ -1070,60 +1071,9 @@ ${this.curves
   }
 }
 
-type Events<K> = {
-  onClick?: (coords: [number, number]) => K
-  onMove?: (coords: [number, number]) => K
-  onDrag?: (coords: [number, number]) => K
-  onKeyDown?: (key: string) => K
-  onKeyUp?: (key: string) => K
-  onType?: (keys: string) => K
-}
-abstract class Control<T, K> {
-  abstract value: T
-  abstract update(newValue: K): void
-}
-export class Constant extends Control<number, any> {
-  value: any
+type BuilderGlobals = Pick<SceneBuilder<any>, 'postProcessing' | 'audio' | 'h'>
 
-  update(newValue: any) {
-    this.value = newValue
-  }
-  constructor(value: any) {
-    super()
-    this.value = value
-  }
-}
-export class Uniform extends Control<ReturnType<typeof uniform>, number> {
-  value: ReturnType<typeof uniform>
-  update(newValue: number) {
-    this.value.value = newValue
-    this.value.needsUpdate = true
-  }
-  constructor(value: number) {
-    super()
-    this.value = uniform(value)
-  }
-}
-export class Ref extends Control<ElemNode, number> {
-  value: ElemNode
-  updateValue: (newProps: any) => Promise<any>
-  update(newValue: number) {
-    this.updateValue({ value: newValue })
-  }
-  constructor(value: number, core: WebAudioRenderer) {
-    super()
-    const ref = core.createRef('const', { value }, [])
-    this.value = ref[0] as unknown as ElemNode
-    this.updateValue = ref[1] as ({ value }: { value: number }) => Promise<any>
-  }
-}
-
-type BuilderGlobals = Pick<
-  SceneBuilder,
-  'postProcessing' | 'audio' | 'constants' | 'uniforms' | 'refs' | 'h'
->
-
-export default class SceneBuilder extends Builder {
+export default class SceneBuilder<T extends SettingsInput> extends Builder {
   groups: GroupBuilder<any>[] = []
   h: number
   postProcessing: {
@@ -1136,10 +1086,7 @@ export default class SceneBuilder extends Builder {
     elNode: AudioWorkletNode
     elCore: WebAudioRenderer
   } | null
-
-  constants: Record<string, Constant>
-  uniforms: Record<string, Uniform>
-  refs: Record<string, Ref>
+  controls: Settings<T>
 
   sceneSettings: {
     postProcessing: (
@@ -1151,13 +1098,7 @@ export default class SceneBuilder extends Builder {
     ) => ShaderNodeObject<Node>
     audio: (() => ElemNode | [ElemNode, ElemNode]) | null
     useReadback: boolean
-    constants: Record<string, [value: any, events: Events<any>]>
-    uniforms: Record<string, [value: number, events: Events<number>]>
-    refs: Record<string, [value: number, events: Events<number>]>
   } = {
-    constants: {},
-    uniforms: {},
-    refs: {},
     postProcessing: input => input,
     useReadback: false,
     audio: null
@@ -1181,18 +1122,17 @@ export default class SceneBuilder extends Builder {
   }
 
   constructor(
-    initialize: (b: SceneBuilder) => SceneBuilder | void,
+    initialize: (b: SceneBuilder<T>) => SceneBuilder<T> | void,
     globals: BuilderGlobals,
-    settings?: Partial<SceneBuilder['sceneSettings']>
+    controls: Settings<T>,
+    settings?: Partial<SceneBuilder<T>['sceneSettings']>
   ) {
     super()
     initialize(this)
     Object.assign(this.sceneSettings, settings)
+    this.controls = controls
     this.h = globals.h
     this.audio = globals.audio
-    this.constants = globals.constants
-    this.uniforms = globals.uniforms
-    this.refs = globals.refs
     this.postProcessing = globals.postProcessing
   }
 }
