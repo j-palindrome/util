@@ -122,8 +122,12 @@ export function useEvents<T extends SettingsInput>(
     }
     window.addEventListener('mouseup', dragOff)
     const listeners: EventProps<any>[] = []
-    const updateEvents = <T extends 'constants' | 'refs' | 'uniforms'>(
-      object: SettingsInput[T]
+    const updateEvents = <
+      K extends SettingsInput,
+      T extends 'constants' | 'refs' | 'uniforms'
+    >(
+      object: K[T],
+      controls: Settings<K>[T]
     ) => {
       for (let [key, [_value, events]] of Object.entries(object)) {
         if (events.onClick) {
@@ -218,9 +222,9 @@ export function useEvents<T extends SettingsInput>(
         }
       }
     }
-    updateEvents(controlsInput.constants)
-    updateEvents(controlsInput.refs)
-    updateEvents(controlsInput.uniforms)
+    updateEvents(controlsInput.constants, controls.constants)
+    updateEvents(controlsInput.refs, controls.refs)
+    updateEvents(controlsInput.uniforms, controls.uniforms)
 
     listeners.forEach(listener =>
       window.addEventListener(listener.type, listener.listener)
