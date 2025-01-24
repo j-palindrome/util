@@ -3,7 +3,6 @@ import SceneBuilder from '../Builder'
 
 export type AsemicContextType = {
   audio: SceneBuilder<any>['audio']
+  recording: boolean
 }
-export const AsemicContext = createContext<AsemicContextType>({
-  audio: null
-} as any)
+export const AsemicContext = createContext<AsemicContextType>(null!)

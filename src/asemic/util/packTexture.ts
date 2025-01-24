@@ -29,6 +29,7 @@ import {
   textureLoad,
   textureStore,
   uniformArray,
+  varying,
   varyingProperty,
   vec2,
   vec4
@@ -141,8 +142,8 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       extra?: {
         rotation?: ReturnType<typeof float>
         thickness?: ReturnType<typeof float>
-        color?: ReturnType<typeof varyingProperty>
-        progress?: ReturnType<typeof varyingProperty>
+        color?: ReturnType<typeof varying>
+        progress?: ReturnType<typeof varying>
       }
     ) => {
       extra?.progress?.assign(progress)

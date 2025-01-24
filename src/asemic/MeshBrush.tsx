@@ -2,14 +2,11 @@ import { extend, Object3DNode, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import {
-  Discard,
   float,
   Fn,
-  If,
   rotateUV,
   select,
   varying,
-  varyingProperty,
   vec2,
   vec4,
   vertexIndex
@@ -80,16 +77,31 @@ export default function MeshBrush({
     const position = vec2().toVar('thisPosition')
     const rotation = float(0).toVar('rotation')
     const thickness = float(0).toVar('thickness')
-    const color = varyingProperty('vec4', 'color')
-    const progress = varyingProperty('float', 'progress')
+    const color = varying(vec4(), 'color')
+    const progress = varying(float(), 'progress')
+    const vUv = varying(vec2(), 'vUv')
 
     const main = Fn(() => {
-      getBezier(vertexIndex.div(2).toFloat().div(instancesPerCurve), position, {
-        rotation,
-        thickness,
-        color,
-        progress
-      })
+      getBezier(
+        vertexIndex
+          .div(2)
+          .toFloat()
+          .div(instancesPerCurve - 0.999),
+        position,
+        {
+          rotation,
+          thickness,
+          color,
+          progress
+        }
+      )
+
+      vUv.assign(
+        vec2(
+          vertexIndex.div(2).toFloat().div(instancesPerCurve),
+          select(vertexIndex.modInt(2).equal(0), 0, 1)
+        )
+      )
 
       position.addAssign(
         rotateUV(
@@ -101,15 +113,19 @@ export default function MeshBrush({
           vec2(0, 0)
         )
       )
-
       return vec4(position, 0, 1)
     })
 
     material.positionNode = main()
-    material.colorNode = builder.settings.pointFrag(varying(vec4(), 'color'), {
-      progress,
-      builder
-    })
+
+    material.colorNode = Fn(() =>
+      builder.settings.pointFrag(varying(vec4(), 'color'), {
+        progress,
+        builder,
+        uv: vUv
+      })
+    )()
+
     material.needsUpdate = true
 
     return {

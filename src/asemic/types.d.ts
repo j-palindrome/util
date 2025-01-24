@@ -1,15 +1,8 @@
-import { Color, Vector2 } from 'three'
+import { Vector2 } from 'three'
+import { float, mrt, varying, vec2, vec4 } from 'three/tsl'
+import { GroupBuilder } from './Builder'
 import { PointBuilder } from './PointBuilder'
-import {
-  float,
-  Fn,
-  mrt,
-  ShaderNodeObject,
-  varyingProperty,
-  vec2,
-  vec4
-} from 'three/tsl'
-import { Builder, GroupBuilder } from './Builder'
+import Backend from 'three/src/renderers/common/Backend.js'
 
 const defaultFn = (input: ReturnType<typeof vec4>) => input
 declare global {
@@ -43,7 +36,7 @@ declare global {
   }
 
   type ParticleInfo = {
-    progress: ReturnType<typeof float | typeof varyingProperty>
+    progress: ReturnType<typeof float | typeof varying>
     builder: GroupBuilder
   }
 
@@ -67,7 +60,10 @@ declare global {
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & { lastColor: ReturnType<typeof vec4> }
     ) => input
-    pointFrag: (input: ReturnType<typeof vec4>, info: ParticleInfo) => input
+    pointFrag: (
+      input: ReturnType<typeof vec4>,
+      info: ParticleInfo & { uv: ReturnType<typeof varying> }
+    ) => input
     curveVert: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & { lastPosition: ReturnType<typeof vec4> }
@@ -114,4 +110,16 @@ declare global {
       : { type: T }
 
   type CoordinateData = PreTransformData & Partial<CoordinateSettings>
+}
+
+declare module 'three/webgpu' {
+  interface WebGPURenderer {
+    getContext: () => GPUCanvasContext
+    backend: Backend & {
+      device: GPUDevice
+      utils: {
+        getPreferredCanvasFormat: () => GPUTextureFormat
+      }
+    }
+  }
 }

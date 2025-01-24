@@ -2,11 +2,12 @@ import WebAudioRenderer from '@elemaudio/web-renderer'
 import {
   Canvas,
   extend,
+  invalidate,
   Object3DNode,
   useFrame,
   useThree
 } from '@react-three/fiber'
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { HalfFloatType, OrthographicCamera, RenderTarget, Vector2 } from 'three'
 import { Fn, pass, texture } from 'three/tsl'
 import { PostProcessing, QuadMesh, WebGPURenderer } from 'three/webgpu'
@@ -14,13 +15,13 @@ import AttractorsBrush from './AttractorsBrush'
 import SceneBuilder from './Builder'
 import MeshBrush from './MeshBrush'
 import PointBrush from './PointBrush'
-import { SettingsInput, useEvents } from './util/useEvents'
-import { remove } from 'lodash'
 import { AsemicContext } from './util/asemicContext'
+import { SettingsInput, useEvents } from './util/useEvents'
 
 extend({
   QuadMesh
 })
+
 declare module '@react-three/fiber' {
   interface ThreeElements {
     quadMesh: Object3DNode<QuadMesh, typeof QuadMesh>
@@ -39,65 +40,96 @@ export function AsemicCanvas({
   style?: React.CSSProperties
   useAudio?: boolean
 } & React.PropsWithChildren) {
-  const [frameloop, setFrameloop] = useState<
-    'never' | 'always' | 'demand' | undefined
-  >('never')
   const [audio, setAudio] = useState<SceneBuilder<any>['audio']>(null)
 
+  const canvasRef = useRef<HTMLCanvasElement>(null!)
   const [started, setStarted] = useState(useAudio ? false : true)
+  const [recording, setRecording] = useState(false)
+  const [frameloop, setFrameloop] = useState<'never' | 'demand' | 'always'>(
+    'never'
+  )
+
+  // useEffect(() => {
+  //   setFrameloop(recording ? 'demand' : 'always')
+  // }, [recording])
+
   return !started ? (
     <button className='text-white' onClick={() => setStarted(true)}>
       start
     </button>
   ) : (
-    <Canvas
-      style={{ height: height ?? '100%', width: width ?? '100%', ...style }}
-      frameloop={frameloop}
-      className={className}
-      orthographic
-      camera={{
-        near: 0,
-        far: 1,
-        left: 0,
-        right: 1,
-        top: 1,
-        bottom: 0,
-        position: [0, 0, 0]
-      }}
-      gl={canvas => {
-        const renderer = new WebGPURenderer({
-          canvas: canvas as HTMLCanvasElement,
-          powerPreference: 'high-performance',
-          antialias: true,
-          depth: false,
-          alpha: true
-        })
-
-        const initAudio = async () => {
-          if (!useAudio) return null
-          const audioContext = new AudioContext()
-          const core = new WebAudioRenderer()
-          const elNode = await core.initialize(audioContext, {
-            numberOfInputs: 0,
-            numberOfOutputs: 1,
-            outputChannelCount: [2]
+    <>
+      <button
+        className='text-white'
+        onClick={() => {
+          if (!recording) {
+            setRecording(true)
+          }
+        }}>
+        {!recording ? 'record' : 'recording...'}
+      </button>
+      <Canvas
+        ref={canvasRef}
+        style={{ height: height ?? '100%', width: width ?? '100%', ...style }}
+        frameloop={frameloop}
+        className={className}
+        orthographic
+        camera={{
+          near: 0,
+          far: 1,
+          left: 0,
+          right: 1,
+          top: 1,
+          bottom: 0,
+          position: [0, 0, 0]
+        }}
+        gl={canvas => {
+          const renderer = new WebGPURenderer({
+            canvas: canvas as HTMLCanvasElement,
+            powerPreference: 'high-performance',
+            antialias: true,
+            depth: false,
+            stencil: false,
+            alpha: true
           })
-          elNode.connect(audioContext.destination)
-          return { ctx: audioContext, elCore: core, elNode }
-        }
-        Promise.all([renderer.init(), initAudio()]).then(result => {
-          setAudio(result[1])
-          setFrameloop('always')
-        })
-        return renderer
-      }}>
-      {frameloop === 'always' && (audio || !useAudio) && (
-        <AsemicContext.Provider value={{ audio }}>
-          {children}
-        </AsemicContext.Provider>
-      )}
-      {frameloop === 'always' && <Adjust />}
-    </Canvas>
+
+          const initAudio = async () => {
+            if (!useAudio) return null
+            const audioContext = new AudioContext()
+            const core = new WebAudioRenderer()
+            const elNode = await core.initialize(audioContext, {
+              numberOfInputs: 0,
+              numberOfOutputs: 1,
+              outputChannelCount: [2]
+            })
+            elNode.connect(audioContext.destination)
+            return { ctx: audioContext, elCore: core, elNode }
+          }
+
+          renderer.backend.utils.getPreferredCanvasFormat = () => {
+            return 'rgba16float'
+          }
+
+          Promise.all([renderer.init(), initAudio()]).then(async result => {
+            const context = renderer.getContext()
+            context.configure({
+              device: renderer.backend.device,
+              format: renderer.backend.utils.getPreferredCanvasFormat()
+            })
+
+            setAudio(result[1])
+            setFrameloop('always')
+          })
+          return renderer
+        }}>
+        {frameloop === 'always' && (audio || !useAudio) && (
+          <AsemicContext.Provider value={{ audio, recording }}>
+            {children}
+          </AsemicContext.Provider>
+        )}
+        {frameloop === 'always' && <Adjust />}
+      </Canvas>
+    </>
   )
 }
 
@@ -106,7 +138,7 @@ function Adjust() {
   useThree(state => {
     state.gl.getDrawingBufferSize(resolution)
     const camera = state.camera as OrthographicCamera
-    // @ts-ignore
+    // @ts-expect-error
     const gl = state.gl as WebGPURenderer
     camera.top = resolution.height / resolution.width
     camera.updateProjectionMatrix()
@@ -135,7 +167,7 @@ export default function Asemic<T extends SettingsInput>({
     state.gl.getDrawingBufferSize(resolution)
   })
 
-  const { audio } = useContext(AsemicContext)
+  const { audio, recording } = useContext(AsemicContext)
   const renderTarget = new RenderTarget(resolution.x, resolution.y, {
     type: HalfFloatType
   })
@@ -171,7 +203,40 @@ export default function Asemic<T extends SettingsInput>({
     return output
   })()
 
+  // useEffect(() => {
+  //   // if (!recording) return
+  //   // if (!recording) {
+  //   //   recorder.stop()
+  //   // }
+  //   // const stream = canvasRef.current.captureStream(60) // 30 is the desired frame rate
+  //   // const chunks: Blob[] = []
+  //   // const recorder = new MediaRecorder(stream)
+  //   // recorder.ondataavailable = event => {
+  //   //   chunks.push(event.data)
+  //   // }
+  //   // recorder.onstop = event => {
+  //   //   const blob = new Blob(chunks, { type: 'video/m4a' })
+  //   //   const videoUrl = URL.createObjectURL(blob)
+  //   //   const video = document.createElement('video')
+  //   //   video.src = videoUrl
+  //   //   video.controls = true
+  //   //   document.body.appendChild(video)
+  //   //   setRecording(false)
+  //   // }
+  //   // recorder.start()
+  //   // window.setTimeout(() => recorder.stop(), 2000)
+  //   // capture image sequence down
+  // }, [recording])
+
+  const link = useMemo(() => {
+    const link = document.createElement('a')
+    return link
+  }, [])
+
+  const blobs: string[] = []
+
   let phase = true
+  let counter = 0
   useFrame(() => {
     if (b.sceneSettings.useReadback) {
       phase = !phase
@@ -186,9 +251,30 @@ export default function Asemic<T extends SettingsInput>({
     } else {
       postProcessing.render()
     }
+    if (recording) {
+      con
+      // const blob = renderer.domElement.toBlob()
+      // fetch(`/api/save-image/${counter++}`, { body: blob, method: 'POST' })
+
+      // const link = document.createElement('a')
+      // link.download = `${counter++}.png`
+      // link.href = blob
+      // link.click()
+      // link.remove()
+
+      // if (blobs.length === 30) {
+      //   for (let blob of blobs) {
+      //     link.download = `${counter++}.png`
+      //     link.href = blob
+      //     link.click()
+      //   }
+      //   blobs.splice(0, blobs.length)
+      // }
+      // invalidate()
+    }
   }, 1)
 
-  // # AUDIO
+  // # AUDIO ----
 
   const renderAudio = () => {
     if (!b.audio || !b.sceneSettings.audio) return
