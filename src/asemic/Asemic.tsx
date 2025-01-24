@@ -15,6 +15,8 @@ import SceneBuilder from './Builder'
 import MeshBrush from './MeshBrush'
 import PointBrush from './PointBrush'
 import { SettingsInput, useEvents } from './util/useEvents'
+import { remove } from 'lodash'
+import { AsemicContext } from './util/asemicContext'
 
 extend({
   QuadMesh
@@ -25,26 +27,24 @@ declare module '@react-three/fiber' {
   }
 }
 
-type AsemicContextType = {
-  audio: SceneBuilder<any>['audio']
-}
-export const AsemicContext = createContext<AsemicContextType>({ audio: null })
-
 export function AsemicCanvas({
   children,
   className,
   dimensions: [width, height] = ['100%', '100%'],
-  style
+  style,
+  useAudio = false
 }: {
   className?: string
   dimensions?: [number | string, number | string]
   style?: React.CSSProperties
+  useAudio?: boolean
 } & React.PropsWithChildren) {
   const [frameloop, setFrameloop] = useState<
     'never' | 'always' | 'demand' | undefined
   >('never')
   const [audio, setAudio] = useState<SceneBuilder<any>['audio']>(null)
-  const [started, setStarted] = useState(false)
+
+  const [started, setStarted] = useState(useAudio ? false : true)
   return !started ? (
     <button className='text-white' onClick={() => setStarted(true)}>
       start
@@ -74,6 +74,7 @@ export function AsemicCanvas({
         })
 
         const initAudio = async () => {
+          if (!useAudio) return null
           const audioContext = new AudioContext()
           const core = new WebAudioRenderer()
           const elNode = await core.initialize(audioContext, {
@@ -90,7 +91,7 @@ export function AsemicCanvas({
         })
         return renderer
       }}>
-      {frameloop === 'always' && audio && (
+      {frameloop === 'always' && (audio || !useAudio) && (
         <AsemicContext.Provider value={{ audio }}>
           {children}
         </AsemicContext.Provider>
@@ -153,6 +154,7 @@ export default function Asemic<T extends SettingsInput>({
     {
       postProcessing: { postProcessing, scenePass, readback },
       h: resolution.y / resolution.x,
+      size: resolution,
       audio
     },
     controlsBuilt,
@@ -189,8 +191,8 @@ export default function Asemic<T extends SettingsInput>({
   // # AUDIO
 
   const renderAudio = () => {
-    if (!b.audio) return
-    const render = b.sceneSettings.audio!()
+    if (!b.audio || !b.sceneSettings.audio) return
+    const render = b.sceneSettings.audio()
     if (render instanceof Array) b.audio.elCore.render(...render)
     else b.audio.elCore.render(render, render)
   }

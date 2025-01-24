@@ -1,11 +1,14 @@
 import { useContext, useEffect, useRef } from 'react'
 import SceneBuilder from '../Builder'
 import { useThree } from '@react-three/fiber'
-import { AsemicContext } from '../Asemic'
+
 import { Vector2 } from 'three'
 import { uniform } from 'three/tsl'
 import { ElemNode } from '@elemaudio/core'
 import WebAudioRenderer from '@elemaudio/web-renderer'
+import { AsemicContext } from './asemicContext'
+import { remove } from 'lodash'
+import { WebGPURenderer } from 'three/webgpu'
 
 abstract class Control<T, K> {
   abstract value: T
@@ -73,7 +76,7 @@ export type Settings<T extends SettingsInput> = {
 
 function createTypes<T extends SettingsInput>(
   input: T,
-  core: WebAudioRenderer
+  core?: WebAudioRenderer
 ): Settings<T> {
   const settings: Settings<T> = {
     constants: {},
@@ -95,16 +98,73 @@ function createTypes<T extends SettingsInput>(
   return settings
 }
 
+export function useBuilderEvents(builder: SceneBuilder<any>) {
+  // @ts-expect-error
+  const renderer = useThree(state => state.gl as WebGPURenderer)
+
+  useEffect(() => {
+    const keysDown = (ev: KeyboardEvent) => {
+      if (!builder.keys.includes(ev.key)) {
+        builder.keys.push(ev.key)
+      }
+    }
+    const keysUp = (ev: KeyboardEvent) => {
+      if (!builder.keys.includes(ev.key)) {
+        remove(builder.keys, ev.key)
+      }
+    }
+    const addText = (ev: KeyboardEvent) => {
+      if (ev.key === 'Backspace') {
+        if (ev.metaKey) {
+          builder.text = ''
+        } else {
+          builder.text = builder.text.slice(0, -1)
+        }
+      } else if (!ev.metaKey) {
+        builder.text += ev.key
+      }
+    }
+    const toCoord = (ev: MouseEvent): [number, number] => {
+      return [
+        (ev.clientX - renderer.domElement.clientLeft) /
+          renderer.domElement.clientWidth,
+        builder.h -
+          ((ev.clientY - renderer.domElement.clientTop) /
+            renderer.domElement.clientHeight) *
+            builder.h
+      ]
+    }
+    const setMouse = (ev: MouseEvent) => {
+      builder.mouse.set(...toCoord(ev))
+    }
+    const setClick = (ev: MouseEvent) => {
+      builder.click.set(...toCoord(ev))
+    }
+    window.addEventListener('click', setClick)
+    window.addEventListener('mousemove', setMouse)
+    window.addEventListener('keydown', addText)
+    window.addEventListener('keydown', keysDown)
+    window.addEventListener('keyup', keysUp)
+    return () => {
+      window.removeEventListener('click', setClick)
+      window.removeEventListener('mousemove', setMouse)
+      window.removeEventListener('keydown', addText)
+      window.removeEventListener('keydown', keysDown)
+      window.removeEventListener('keydown', keysUp)
+    }
+    //test
+  }, [builder])
+}
+
 export function useEvents<T extends SettingsInput>(
-  controlsInput: T,
-  settings?: Partial<SceneBuilder<any>['sceneSettings']>
+  controlsInput: T
 ): Settings<T> {
   const renderer = useThree(state => state.gl)
   const { audio } = useContext(AsemicContext)
   const resolution = new Vector2()
   renderer.getDrawingBufferSize(resolution)
   const height = resolution.y / resolution.x
-  const controls = createTypes(controlsInput, audio!.elCore)
+  const controls = createTypes(controlsInput, audio?.elCore)
 
   type EventProps<T extends keyof WindowEventMap> = {
     type: T
@@ -237,7 +297,7 @@ export function useEvents<T extends SettingsInput>(
         window.removeEventListener(listener.type, listener.listener)
       )
     }
-  }, [settings])
+  }, [controls])
 
   return controls
 }

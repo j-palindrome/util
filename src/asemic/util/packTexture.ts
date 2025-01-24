@@ -111,7 +111,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         progress: curveI.add(
           pointI.toFloat().div(controlPointCounts.element(curveI).sub(1))
         ),
-        settings: builder.settings
+        builder
       }
       const point = builder.settings.curveVert(vec4(curvePositionLoadU), {
         ...info,

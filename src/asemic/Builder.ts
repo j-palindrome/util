@@ -1071,11 +1071,19 @@ ${this.curves
   }
 }
 
-type BuilderGlobals = Pick<SceneBuilder<any>, 'postProcessing' | 'audio' | 'h'>
+type BuilderGlobals = Pick<
+  SceneBuilder<any>,
+  'postProcessing' | 'audio' | 'h' | 'size'
+>
 
 export default class SceneBuilder<T extends SettingsInput> extends Builder {
   groups: GroupBuilder<any>[] = []
   h: number
+  size = new Vector2()
+  mouse = new Vector2()
+  click = new Vector2()
+  text = ''
+  keys: string[] = []
   postProcessing: {
     postProcessing: PostProcessing
     scenePass: ReturnType<typeof pass>
@@ -1086,7 +1094,9 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     elNode: AudioWorkletNode
     elCore: WebAudioRenderer
   } | null
-  controls: Settings<T>
+  constants: Settings<T>['constants']
+  refs: Settings<T>['refs']
+  uniforms: Settings<T>['uniforms']
 
   sceneSettings: {
     postProcessing: (
@@ -1130,8 +1140,11 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     super()
     initialize(this)
     Object.assign(this.sceneSettings, settings)
-    this.controls = controls
+    this.constants = controls.constants
+    this.refs = controls.refs
+    this.uniforms = controls.uniforms
     this.h = globals.h
+    this.size = globals.size
     this.audio = globals.audio
     this.postProcessing = globals.postProcessing
   }
