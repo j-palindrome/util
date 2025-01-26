@@ -17,7 +17,7 @@ import {
   WebGPURenderer
 } from 'three/webgpu'
 import { GroupBuilder } from './Builder'
-import { useControlPoints } from './util/packTexture'
+import { useControlPoints } from './util/useControlPoints'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]

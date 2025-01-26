@@ -66,19 +66,21 @@ declare global {
     curveColor: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & {
-        lastColor: ReturnType<typeof vec4>
-        lastFrameColor: ReturnType<typeof vec4>
+        // lastColor: ReturnType<typeof vec4>
       }
     ) => input
     pointColor: (
       input: ReturnType<typeof vec4>,
-      info: ParticleInfo & { uv: ReturnType<typeof varying> }
+      info: ParticleInfo & { uv: ReturnType<typeof float | typeof varying> }
+    ) => input
+    pointProgress: (
+      input: ReturnType<typeof float>,
+      info: ParticleInfo
     ) => input
     curvePosition: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & {
-        lastPosition: ReturnType<typeof vec4>
-        lastFramePosition: ReturnType<typeof vec4>
+        // lastPosition: ReturnType<typeof vec4>
       }
     ) => input
     onUpdate: (builder: GroupBuilder<T>) => void

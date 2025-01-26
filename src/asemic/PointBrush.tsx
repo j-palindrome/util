@@ -24,7 +24,7 @@ import {
   WebGPURenderer
 } from 'three/webgpu'
 import { GroupBuilder } from './Builder'
-import { useControlPoints } from './util/packTexture'
+import { useControlPoints } from './util/useControlPoints'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -137,7 +137,13 @@ export default function PointBrush(
 
     const position = vec2().toVar()
     material.positionNode = Fn(() => {
-      getBezier(tAttribute.element(instanceIndex), position, {
+      // getBezier(tAttribute.element(instanceIndex), position, {
+      //   rotation,
+      //   thickness,
+      //   color,
+      //   progress
+      // })
+      getBezier(instanceIndex.toFloat().div(instancesPerCurve), position, {
         rotation,
         thickness,
         color,
@@ -154,15 +160,19 @@ export default function PointBrush(
       )
     })()
     material.rotationNode = rotation
+    // material.scaleNode = vec2(
+    //   thickness,
+    //   float(builder.settings.dashSize).div(screenSize.x)
+    // )
     material.scaleNode = vec2(
-      thickness,
+      0.1,
       float(builder.settings.dashSize).div(screenSize.x)
     )
-    material.colorNode = builder.settings.pointColor(varying(vec4(), 'color'), {
-      progress,
-      builder,
-      uv: varying(vec2(progress, 0.5), 'uv')
-    })
+    // material.colorNode = builder.settings.pointColor(color, {
+    //   progress,
+    //   builder,
+    //   uv: varying(vec2(progress, 0.5), 'uv')
+    // })
     material.needsUpdate = true
     hooks.onUpdate = () => {
       gl.compute(updateCurveLengths)

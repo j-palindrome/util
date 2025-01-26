@@ -271,6 +271,7 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     renderTargets: mrt({
       output
     }),
+    pointProgress: input => input,
     pointPosition: input => input,
     pointColor: input => input,
     curvePosition: input => input,

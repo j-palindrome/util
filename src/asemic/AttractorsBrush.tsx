@@ -23,7 +23,7 @@ import {
 } from 'three/tsl'
 import { SpriteNodeMaterial, WebGPURenderer } from 'three/webgpu'
 import { GroupBuilder } from './Builder'
-import { useControlPoints } from './util/packTexture'
+import { useControlPoints } from './util/useControlPoints'
 // import sampleTex from './tex.png'
 
 export default function AttractorsBrush(
