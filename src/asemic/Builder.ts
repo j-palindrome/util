@@ -1068,6 +1068,8 @@ ${this.curves
 
     Object.assign({ ...defaultBrushSettings[type] }, this.settings)
     Object.assign(this.settings, settings)
+
+    this.reInitialize()
   }
 }
 

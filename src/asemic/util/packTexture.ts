@@ -44,7 +44,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
   const resolution = new Vector2()
   gl.getDrawingBufferSize(resolution)
-  builder.reInitialize()
 
   const instancesPerCurve = Math.max(
     2,
@@ -71,10 +70,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       builder.settings.maxCurves
     )
     curveColorTex.type = FloatType
-    const controlPointCounts = uniformArray(
-      builder.curves.map(x => x.length),
-      'int'
-    )
     const curveColorFeedback = new StorageTexture(
       builder.settings.maxPoints,
       builder.settings.maxCurves
@@ -85,6 +80,10 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       builder.settings.maxCurves
     )
     curvePositionFeedback.type = FloatType
+    const controlPointCounts = uniformArray(
+      builder.curves.map(x => x.length),
+      'int'
+    )
 
     const positionTex = new DataTexture(
       new Float32Array(
@@ -317,6 +316,18 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       if (hooks.onUpdate) {
         hooks.onUpdate()
       }
+
+      const tempColor = lastFrameColorLoadU.value
+      const tempPosition = lastFramePositionLoadU.value
+      lastFrameColorLoadU.value = curveColorLoadU.value
+      lastFramePositionLoadU.value = curvePositionLoadU.value
+      curveColorLoadU.value = tempColor
+      curvePositionLoadU.value = tempPosition
+      lastFrameColorLoadU.needsUpdate = true
+      lastFramePositionLoadU.needsUpdate = true
+      curveColorLoadU.needsUpdate = true
+      curvePositionLoadU.needsUpdate = true
+
       if (!builder.settings.renderUpdate) return
       if (builder.settings.renderUpdate.includes('cpu')) {
         gl.compute(data.advanceControlPoints)
@@ -346,6 +357,8 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       curveColorLoadU,
       lastCurvePositionLoadU,
       lastCurveColorLoadU,
+      lastFrameColorLoadU,
+      lastFramePositionLoadU,
       curvePositionTex,
       curveColorTex,
       controlPointCounts,
@@ -380,9 +393,8 @@ export function useControlPoints(builder: GroupBuilder<any>) {
   })
 
   useEffect(() => {
-    if (builder.settings.renderUpdate) {
-      updating = requestAnimationFrame(() => data.update())
-    }
+    updating = requestAnimationFrame(() => data.update())
+
     return () => {
       cancelAnimationFrame(updating)
     }
