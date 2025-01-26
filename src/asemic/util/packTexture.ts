@@ -163,10 +163,10 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       progress: ReturnType<typeof float>,
       position: ReturnType<typeof vec2>,
       extra?: {
-        rotation: ReturnType<typeof float>
-        thickness: ReturnType<typeof float>
-        color: ReturnType<typeof varying>
-        progress: ReturnType<typeof varying>
+        rotation?: ReturnType<typeof float>
+        thickness?: ReturnType<typeof float>
+        color?: ReturnType<typeof varying>
+        progress?: ReturnType<typeof varying>
       }
     ) => {
       extra?.progress?.assign(progress)
@@ -260,7 +260,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         })
       })
       if (extra) {
-        extra.thickness.assign(
+        extra.thickness?.assign(
           builder.settings
             .pointThickness(extra.thickness, { progress, builder })
             .div(screenSize.x)

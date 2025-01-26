@@ -138,11 +138,12 @@ function Adjust() {
 
 export default function Asemic<T extends SettingsInput>({
   controls,
-
+  children,
   ...settings
 }: {
   controls?: T
-} & Partial<SceneBuilder<T>['sceneSettings']>) {
+} & Partial<SceneBuilder<T>['sceneSettings']> &
+  React.PropsWithChildren) {
   const { renderer, scene, camera, invalidate, advance } = useThree(
     ({ gl, scene, camera, invalidate, advance }) => ({
       // @ts-expect-error
@@ -262,17 +263,5 @@ export default function Asemic<T extends SettingsInput>({
 
   useEffect(renderAudio, [b])
 
-  return (
-    <>
-      {b.groups.map((group, i) =>
-        group.brushSettings.type === 'line' ? (
-          <MeshBrush builder={group} key={i} />
-        ) : group.brushSettings.type === 'dash' ? (
-          <PointBrush builder={group} key={i} />
-        ) : (
-          <AttractorsBrush builder={group} key={i} />
-        )
-      )}
-    </>
-  )
+  return <>{children}</>
 }

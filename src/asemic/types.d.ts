@@ -42,6 +42,7 @@ declare global {
   }
 
   type ProcessData<T extends BrushTypes> = {
+    initialize: (g: GroupBuilder<T>) => GroupBuilder<T> | void
     renderInit: boolean | number | ((lastFrame: number) => number)
     renderUpdate: false | 'gpu' | 'gpu+cpu' | 'cpu'
     renderStart: number | (() => number)
@@ -101,8 +102,8 @@ declare global {
           gravityForce: number
           spinningForce: number
           particleCount: number
-          pointColor: [number, number, number]
-          pointAlpha: number
+          particleColor: [number, number, number]
+          particleAlpha: number
           pointVelocity: (
             velocity: ReturnType<typeof vec2>,
             position: ReturnType<typeof vec2>,

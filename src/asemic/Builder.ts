@@ -256,9 +256,8 @@ abstract class Builder {
 export class GroupBuilder<T extends BrushTypes> extends Builder {
   time: number = performance.now() / 1000
   curves: PointBuilder[][] = []
-  protected initialize: (t: GroupBuilder<T>) => GroupBuilder<T> | void
-  brushSettings: BrushData<T>
-  settings: ProcessData<T> = {
+  settings: ProcessData<T> & BrushData<T> = {
+    initialize: g => g.newCurve([0, 0], [1, 1]),
     maxLength: 0,
     maxCurves: 0,
     maxPoints: 0,
@@ -280,7 +279,7 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     pointThickness: input => input,
     onUpdate: () => {},
     onInit: () => {}
-  }
+  } as any
 
   cycle(frequency: number = 1, waveshape: 'sine' | 'saw' = 'sine') {
     switch (waveshape) {
@@ -1025,7 +1024,7 @@ ${this.curves
     this.hashIndex = 0
     this.curves = []
     this.time = performance.now() / 1000
-    this.initialize(this)
+    this.settings.initialize(this)
     if (this.settings.maxPoints === 0) {
       this.settings.maxPoints = max(this.curves.flatMap(x => x.length))!
     }
@@ -1040,13 +1039,10 @@ ${this.curves
 
   constructor(
     type: T,
-    initialize: (builder: GroupBuilder<T>) => GroupBuilder<T> | void,
-    settings?: Partial<ProcessData<T>>,
-    brushSettings?: Partial<BrushData<T>>
+    settings?: Partial<ProcessData<T>> & Partial<BrushData<T>>
   ) {
     super()
-    this.initialize = initialize
-    Object.assign(this.settings, settings)
+
     const defaultBrushSettings: { [T in BrushTypes]: BrushData<T> } = {
       line: { type: 'line' },
       dash: {
@@ -1065,12 +1061,13 @@ ${this.curves
         gravityForce: 0,
         spinningForce: 1,
         particleCount: 1e4,
-        pointColor: [1, 1, 1],
-        pointAlpha: 1
+        particleColor: [1, 1, 1],
+        particleAlpha: 1
       }
     }
-    this.brushSettings = { ...defaultBrushSettings[type] }
-    Object.assign(this.brushSettings, brushSettings)
+
+    Object.assign({ ...defaultBrushSettings[type] }, this.settings)
+    Object.assign(this.settings, settings)
   }
 }
 
@@ -1080,7 +1077,7 @@ type BuilderGlobals = Pick<
 >
 
 export default class SceneBuilder<T extends SettingsInput> extends Builder {
-  groups: GroupBuilder<any>[] = []
+  // groups: GroupBuilder<any>[] = []
   h: number
   size = new Vector2()
   mouse = new Vector2()
@@ -1102,7 +1099,7 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
   uniforms: Settings<T>['uniforms']
 
   sceneSettings: {
-    initialize: (b: SceneBuilder<T>) => SceneBuilder<T> | void
+    // initialize: (b: SceneBuilder<T>) => SceneBuilder<T> | void
     postProcessing: (
       input: ReturnType<PassNode['getTextureNode']>,
       info: {
@@ -1113,21 +1110,21 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     audio: (() => ElemNode | [ElemNode, ElemNode]) | null
     useReadback: boolean
   } = {
-    initialize: () => this.newGroup('line', g => g.newCurve([0, 0], [0, 1])),
+    // initialize: () => this.newGroup('line', g => g.newCurve([0, 0], [0, 1])),
     postProcessing: input => input,
     useReadback: false,
     audio: null
   }
 
-  newGroup<T extends BrushTypes>(
-    type: T,
-    render: (g: GroupBuilder<T>) => GroupBuilder<T> | void,
-    settings?: Partial<GroupBuilder<T>['settings']>,
-    brushSettings?: Partial<BrushData<T>>
-  ) {
-    this.groups.push(new GroupBuilder(type, render, settings, brushSettings))
-    return this
-  }
+  // newGroup<T extends BrushTypes>(
+  //   type: T,
+  //   render: (g: GroupBuilder<T>) => GroupBuilder<T> | void,
+  //   settings?: Partial<GroupBuilder<T>['settings']>,
+  //   brushSettings?: Partial<BrushData<T>>
+  // ) {
+  //   this.groups.push(new GroupBuilder(type, render, settings, brushSettings))
+  //   return this
+  // }
 
   constructor(
     sceneSettings: Partial<SceneBuilder<T>['sceneSettings']>,
@@ -1143,6 +1140,6 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     this.size = globals.size
     this.audio = globals.audio
     this.postProcessing = globals.postProcessing
-    this.sceneSettings.initialize(this)
+    // this.sceneSettings.initialize(this)
   }
 }

@@ -3,7 +3,6 @@ import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import {
   Break,
-  Discard,
   float,
   floor,
   Fn,
@@ -47,11 +46,10 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function PointBrush({
-  builder
-}: {
-  builder: GroupBuilder<'dash'>
-}) {
+export default function PointBrush(
+  settings: Partial<GroupBuilder<'dash'>['settings']>
+) {
+  const builder = new GroupBuilder('dash', settings)
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
 
@@ -158,7 +156,7 @@ export default function PointBrush({
     material.rotationNode = rotation
     material.scaleNode = vec2(
       thickness,
-      float(builder.brushSettings.dashSize).div(screenSize.x)
+      float(builder.settings.dashSize).div(screenSize.x)
     )
     material.colorNode = builder.settings.pointColor(varying(vec4(), 'color'), {
       progress,

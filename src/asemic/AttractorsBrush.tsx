@@ -13,9 +13,11 @@ import {
   Loop,
   PI2,
   screenSize,
+  screenUV,
   sin,
   uniform,
   uv,
+  varying,
   vec2,
   vec4
 } from 'three/tsl'
@@ -24,11 +26,10 @@ import { GroupBuilder } from './Builder'
 import { useControlPoints } from './util/packTexture'
 // import sampleTex from './tex.png'
 
-export default function AttractorsBrush({
-  builder
-}: {
-  builder: GroupBuilder<'attractors'>
-}) {
+export default function AttractorsBrush(
+  settings: Partial<GroupBuilder<'attractors'>['settings']>
+) {
+  const builder = new GroupBuilder('attractors', settings)
   // @ts-ignore
   const renderer = useThree(state => state.gl as WebGPURenderer)
   const scene = useThree(state => state.scene)
@@ -36,7 +37,7 @@ export default function AttractorsBrush({
   const { getBezier, instancesPerCurve, hooks } = useControlPoints(builder)
 
   const { mesh, material, geometry } = useMemo(() => {
-    const count = builder.brushSettings.particleCount
+    const count = builder.settings.particleCount
 
     const material = new SpriteNodeMaterial({
       transparent: true,
@@ -51,7 +52,7 @@ export default function AttractorsBrush({
     const init = Fn(() => {
       const position = positionBuffer.element(instanceIndex)
       const velocity = velocityBuffer.element(instanceIndex)
-      if (!builder.brushSettings.initialSpread) {
+      if (!builder.settings.initialSpread) {
         getBezier(instanceIndex.toFloat().div(instancesPerCurve), position)
       } else {
         position.assign(
@@ -101,7 +102,7 @@ export default function AttractorsBrush({
         const direction = toAttractor.normalize()
         const gravityForce = direction
           .mul(gravityStrength)
-          .mul(builder.brushSettings.gravityForce)
+          .mul(builder.settings.gravityForce)
         If(distance.greaterThan(float(1).div(screenSize.x)), () => {
           force.addAssign(gravityForce)
         }).Else(() => {
@@ -112,7 +113,7 @@ export default function AttractorsBrush({
         const spinningForce = vec2(cos(rotation), sin(rotation))
           .normalize()
           .mul(gravityStrength)
-          .mul(builder.brushSettings.spinningForce)
+          .mul(builder.settings.spinningForce)
         // const spinningVelocity = spinningForce.cross(toAttractor)
         force.addAssign(spinningForce)
       })
@@ -121,27 +122,23 @@ export default function AttractorsBrush({
 
       velocity.addAssign(force.mul(delta))
       const speed = velocity.length()
-      If(speed.greaterThan(builder.brushSettings.maxSpeed), () => {
-        velocity.assign(
-          velocity.normalize().mul(builder.brushSettings.maxSpeed)
-        )
+      If(speed.greaterThan(builder.settings.maxSpeed), () => {
+        velocity.assign(velocity.normalize().mul(builder.settings.maxSpeed))
       })
-      If(speed.lessThan(builder.brushSettings.minSpeed), () => {
-        velocity.assign(
-          velocity.normalize().mul(builder.brushSettings.minSpeed)
-        )
+      If(speed.lessThan(builder.settings.minSpeed), () => {
+        velocity.assign(velocity.normalize().mul(builder.settings.minSpeed))
       })
 
-      velocity.mulAssign(float(builder.brushSettings.damping).oneMinus())
+      velocity.mulAssign(float(builder.settings.damping).oneMinus())
 
       position.assign(
-        builder.brushSettings.pointPosition(position, {
+        builder.settings.pointPosition(position, {
           builder,
           progress: float(0)
         })
       )
       velocity.assign(
-        builder.brushSettings.pointVelocity(velocity, position, {
+        builder.settings.pointVelocity(velocity, position, {
           builder,
           progress: float(0)
         })
@@ -161,7 +158,9 @@ export default function AttractorsBrush({
       }
     )
 
+    const vUv = varying(vec2(), 'vUv')
     material.colorNode = Fn(() => {
+      vUv.assign(screenUV)
       If(uv().sub(0.5).length().greaterThan(0.5), () => {
         Discard()
       })
@@ -169,19 +168,17 @@ export default function AttractorsBrush({
         uv().sub(0.5).length().remap(0, 0.5, 1, 0).pow(2)
       ).toVar()
       return builder.settings.pointColor(
-        vec4(
-          ...builder.brushSettings.pointColor,
-          builder.brushSettings.pointAlpha
-        ),
+        vec4(...builder.settings.particleColor, builder.settings.particleAlpha),
         {
           progress: float(0),
-          builder
+          builder,
+          uv: vUv
         }
       )
     })()
 
     material.scaleNode = vec2(1, 1)
-      .mul(builder.brushSettings.pointSize)
+      .mul(builder.settings.pointSize)
       .div(screenSize.x)
 
     const geometry = new PlaneGeometry(1, 1)
