@@ -47,9 +47,9 @@ import { range } from 'lodash'
 
 export function useControlPoints(builder: GroupBuilder<any>) {
   // @ts-ignore
-  const gl = useThree(({ gl }) => gl as WebGPURenderer)
+  const renderer = useThree(({ gl }) => gl as WebGPURenderer)
   const resolution = new Vector2()
-  gl.getDrawingBufferSize(resolution)
+  renderer.getDrawingBufferSize(resolution)
 
   const instancesPerCurve = Math.max(
     2,
@@ -112,17 +112,18 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         builder
       }
       const index = curveI.mul(builder.settings.maxPoints).add(pointI)
+      const thisPosition = loadPositions.element(index)
       curvePositionArray.element(index).assign(
-        builder.settings.curvePosition(loadPositions.element(index), {
-          ...info
-          // lastPosition: vec4(lastCurvePositionLoadU)
+        builder.settings.curvePosition(thisPosition, {
+          ...info,
+          lastFrame: curvePositionArray.element(index)
         })
       )
-
+      const thisColor = loadColors.element(index)
       curveColorArray.element(index).assign(
-        builder.settings.curveColor(loadColors.element(index), {
-          ...info
-          // lastColor: vec4(lastCurveColor)
+        builder.settings.curveColor(thisColor, {
+          ...info,
+          lastFrame: curveColorArray.element(index)
         })
       )
       // textureStore(curvePositionTex, vec2(pointI, curveI), point)
@@ -138,10 +139,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       //   vec2(pointI, curveI),
       //   color
       // ).toWriteOnly()
-    })().compute(
-      builder.settings.maxPoints * builder.settings.maxCurves,
-      undefined as any
-    )
+    })().compute(builder.settings.maxPoints * builder.settings.maxCurves)
 
     const getBezier = (
       progress: ReturnType<typeof float>,
@@ -239,11 +237,19 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       }
     }
 
+    const loadControlPoints = Fn(() => {
+      curvePositionArray
+        .element(instanceIndex)
+        .assign(loadPositions.element(instanceIndex))
+      curveColorArray
+        .element(instanceIndex)
+        .assign(loadColors.element(instanceIndex))
+    })().compute(builder.settings.maxCurves * builder.settings.maxPoints)
+
     const reload = () => {
       for (let i = 0; i < builder.settings.maxCurves; i++) {
         controlPointCounts.array[i] = builder.curves[i].length
       }
-
       const loadColorsArray = loadColors.array as Vector4[]
       const loadPositionsArray = loadPositions.array as Vector4[]
       for (let i = 0; i < builder.settings.maxCurves; i++) {
@@ -269,11 +275,9 @@ export function useControlPoints(builder: GroupBuilder<any>) {
           }
         }
       }
-      // console.log(loadPositions, loadColors)
-
-      // TODO: array value not updating properly
-      // curvePositionArray.needsUpdate = true
-      // curveColorArray.needsUpdate = true
+      // loadPositions.needsUpdate = true
+      // loadColors.needsUpdate = true
+      renderer.compute(loadControlPoints)
     }
 
     const hooks: { onUpdate?: () => void; onInit?: () => void } = {}
@@ -285,13 +289,13 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       }
 
       if (!builder.settings.renderUpdate) return
-
-      if (builder.settings.renderUpdate.includes('gpu')) {
-        gl.compute(advanceControlPoints)
-      }
       if (builder.settings.renderUpdate.includes('cpu')) {
         reload()
       }
+      if (builder.settings.renderUpdate.includes('gpu')) {
+        renderer.compute(advanceControlPoints)
+      }
+
       if (again) {
         updating = requestAnimationFrame(() => update())
       }
@@ -300,9 +304,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     const reInitialize = () => {
       builder.reInitialize()
       reload()
-
-      // update(false)
-      // gl.compute(advanceControlPoints)
       builder.settings.onInit(builder)
       if (hooks.onInit) {
         hooks.onInit()

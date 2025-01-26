@@ -42,9 +42,8 @@ declare global {
   }
 
   type ProcessData<T extends BrushTypes> = {
-    initialize: (g: GroupBuilder<T>) => GroupBuilder<T> | void
     renderInit: boolean | number | ((lastFrame: number) => number)
-    renderUpdate: false | 'gpu' | 'gpu+cpu' | 'cpu'
+    renderUpdate: false | 'gpu' | 'cpu' | 'gpu+cpu'
     renderStart: number | (() => number)
     spacing: number
     spacingType: 'count' | 'pixel' | 'width'
@@ -66,7 +65,7 @@ declare global {
     curveColor: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & {
-        // lastColor: ReturnType<typeof vec4>
+        lastFrame: ReturnType<typeof vec4>
       }
     ) => input
     pointColor: (
@@ -80,7 +79,7 @@ declare global {
     curvePosition: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & {
-        // lastPosition: ReturnType<typeof vec4>
+        lastFrame: ReturnType<typeof vec4>
       }
     ) => input
     onUpdate: (builder: GroupBuilder<T>) => void

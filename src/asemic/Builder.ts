@@ -1025,7 +1025,7 @@ ${this.curves
     this.hashIndex = 0
     this.curves = []
     this.time = performance.now() / 1000
-    this.settings.initialize(this)
+    this.settings.onInit(this)
     if (this.settings.maxPoints === 0) {
       this.settings.maxPoints = max(this.curves.flatMap(x => x.length))!
     }
