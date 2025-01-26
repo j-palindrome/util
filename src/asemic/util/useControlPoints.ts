@@ -6,7 +6,8 @@ import {
   NearestFilter,
   RenderTarget,
   RGBAFormat,
-  Vector2
+  Vector2,
+  Vector4
 } from 'three'
 import { Fn } from 'three/src/nodes/TSL.js'
 import {
@@ -42,6 +43,7 @@ import {
 import { bezierPosition, bezierRotation } from '../../tsl/curves'
 import { textureLoadFix } from '../../tsl/utility'
 import { GroupBuilder } from '../Builder'
+import { range } from 'lodash'
 
 export function useControlPoints(builder: GroupBuilder<any>) {
   // @ts-ignore
@@ -82,47 +84,25 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       builder.settings.maxPoints * builder.settings.maxCurves,
       'vec4'
     )
+    const loadPositions = uniformArray(
+      range(builder.settings.maxPoints * builder.settings.maxCurves).map(
+        x => new Vector4()
+      ),
+      'vec4'
+    )
+    const loadColors = uniformArray(
+      range(builder.settings.maxPoints * builder.settings.maxCurves).map(
+        x => new Vector4()
+      ),
+      'vec4'
+    )
     const controlPointCounts = uniformArray(
       builder.curves.map(x => x.length),
       'int'
     )
 
-    const positionTex = new DataTexture(
-      new Float32Array(
-        builder.settings.maxPoints * builder.settings.maxCurves * 4
-      ),
-      builder.settings.maxPoints,
-      builder.settings.maxCurves,
-      RGBAFormat,
-      FloatType,
-      undefined,
-      undefined,
-      undefined,
-      NearestFilter,
-      NearestFilter
-    )
-    const colorTex = new DataTexture(
-      new Float32Array(
-        builder.settings.maxPoints * builder.settings.maxCurves * 4
-      ),
-      builder.settings.maxPoints,
-      builder.settings.maxCurves,
-      RGBAFormat,
-      FloatType
-    )
-
     const pointI = instanceIndex.modInt(builder.settings.maxPoints)
     const curveI = instanceIndex.div(builder.settings.maxPoints)
-
-    // const curvePositionTexU = texture(curvePositionTex)
-    // const curveColorTexU = texture(curveColorTex).add()
-    // const curvePositionLoadU = textureLoad(positionTex, vec2(pointI, curveI))
-    // const curveColorLoadU = textureLoad(colorTex, vec2(pointI, curveI))
-    // const lastCurvePositionLoadU = textureLoad(
-    //   positionTex,
-    //   vec2(pointI, curveI)
-    // )
-    // const lastCurveColorLoadU = textureLoad(colorTex, vec2(pointI, curveI))
 
     const advanceControlPoints = Fn(() => {
       const info = {
@@ -132,16 +112,15 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         builder
       }
       const index = curveI.mul(builder.settings.maxPoints).add(pointI)
-      const thisPoint = curvePositionArray.element(index)
-      thisPoint.assign(
-        builder.settings.curvePosition(thisPoint, {
+      curvePositionArray.element(index).assign(
+        builder.settings.curvePosition(loadPositions.element(index), {
           ...info
           // lastPosition: vec4(lastCurvePositionLoadU)
         })
       )
-      const thisColor = curveColorArray.element(index)
-      thisColor.assign(
-        builder.settings.curveColor(thisColor, {
+
+      curveColorArray.element(index).assign(
+        builder.settings.curveColor(loadColors.element(index), {
           ...info
           // lastColor: vec4(lastCurveColor)
         })
@@ -265,37 +244,36 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         controlPointCounts.array[i] = builder.curves[i].length
       }
 
-      // const temp = lastCurvePositionLoadU.value
-      // const temp2 = lastCurveColorLoadU.value
-      // lastCurvePositionLoadU.value = curvePositionLoadU.value
-      // lastCurveColorLoadU.value = curveColorLoadU.value
-      // curvePositionLoadU.value = temp
-      // curveColorLoadU.value = temp2
-
-      const loadPositions = curvePositionArray.value as StorageBufferAttribute
-      const loadColors = curveColorArray.value as StorageBufferAttribute
+      const loadColorsArray = loadColors.array as Vector4[]
+      const loadPositionsArray = loadPositions.array as Vector4[]
       for (let i = 0; i < builder.settings.maxCurves; i++) {
         const curveIndex = i * 4 * builder.settings.maxPoints
         for (let j = 0; j < builder.settings.maxPoints; j++) {
           const point = builder.curves[i]?.[j]
           if (point) {
-            loadPositions.set(
-              [point.x, point.y, point.strength, point.thickness],
-              curveIndex + j * 4
+            loadPositionsArray[curveIndex + j].set(
+              point.x,
+              point.y,
+              point.strength,
+              point.thickness
             )
-            loadColors.set(
-              [point.color[0], point.color[1], point.color[2], point.alpha],
-              curveIndex + j * 4
+            loadColorsArray[curveIndex + j].set(
+              point.color[0],
+              point.color[1],
+              point.color[2],
+              point.alpha
             )
           } else {
-            loadPositions.set([0, 0, 0, 0], curveIndex + j * 4)
-            loadColors.set([0, 0, 0, 0], curveIndex + j * 4)
+            loadPositionsArray[curveIndex + j].set(0, 0, 0, 0)
+            loadColorsArray[curveIndex + j].set(0, 0, 0, 0)
           }
         }
       }
+      // console.log(loadPositions, loadColors)
 
-      curvePositionArray.needsUpdate = true
-      curveColorArray.needsUpdate = true
+      // TODO: array value not updating properly
+      // curvePositionArray.needsUpdate = true
+      // curveColorArray.needsUpdate = true
     }
 
     const hooks: { onUpdate?: () => void; onInit?: () => void } = {}
@@ -324,7 +302,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       reload()
 
       // update(false)
-      gl.compute(advanceControlPoints)
+      // gl.compute(advanceControlPoints)
       builder.settings.onInit(builder)
       if (hooks.onInit) {
         hooks.onInit()
@@ -334,7 +312,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     return {
       curvePositionArray,
       curveColorArray,
-      advanceControlPoints,
       controlPointCounts,
       getBezier,
       reInitialize,
