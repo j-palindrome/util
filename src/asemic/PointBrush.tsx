@@ -160,23 +160,22 @@ export default function PointBrush(
       )
     })()
     material.rotationNode = rotation
-    // material.scaleNode = vec2(
-    //   thickness,
-    //   float(builder.settings.dashSize).div(screenSize.x)
-    // )
     material.scaleNode = vec2(
-      0.1,
+      thickness,
       float(builder.settings.dashSize).div(screenSize.x)
     )
-    // material.colorNode = builder.settings.pointColor(color, {
-    //   progress,
-    //   builder,
-    //   uv: varying(vec2(progress, 0.5), 'uv')
-    // })
+    material.colorNode = builder.settings.pointColor(color, {
+      progress,
+      builder,
+      uv: varying(vec2(progress, 0.5), 'uv')
+    })
     material.needsUpdate = true
     hooks.onUpdate = () => {
       gl.compute(updateCurveLengths)
     }
+    // hooks.onInit = () => {
+    //   gl.compute(updateCurveLengths)
+    // }
 
     return {
       mesh,

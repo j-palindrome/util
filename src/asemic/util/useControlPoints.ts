@@ -52,7 +52,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
   renderer.getDrawingBufferSize(resolution)
 
   const instancesPerCurve = Math.max(
-    2,
+    1,
     Math.floor(
       builder.settings.spacingType === 'pixel'
         ? (builder.settings.maxLength * resolution.x) / builder.settings.spacing
@@ -153,7 +153,12 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     ) => {
       const progressVar = progress.toVar()
       progressVar.assign(
-        builder.settings.pointProgress(progress, { builder, progress })
+        floor(progress).add(
+          builder.settings.pointProgress(progress.fract(), {
+            builder,
+            progress
+          })
+        )
       )
       extra?.progress?.assign(progressVar)
       If(progressVar.equal(-1), () => {
@@ -171,14 +176,15 @@ export function useControlPoints(builder: GroupBuilder<any>) {
           progressVar.fract().mul(0.999).mul(subdivisions),
           floor(progressVar)
         )
+        const index = floor(
+          floor(progressVar)
+            .mul(builder.settings.maxPoints)
+            .add(progressVar.fract().mul(subdivisions))
+        )
 
         If(controlPointsCount.equal(2), () => {
-          const p0 = curvePositionArray.element(
-            t.y.mul(builder.settings.maxPoints)
-          ).xy
-          const p1 = curvePositionArray.element(
-            t.y.mul(builder.settings.maxPoints).add(1)
-          ).xy
+          const p0 = curvePositionArray.element(index).xy
+          const p1 = curvePositionArray.element(index.add(1)).xy
           const progressPoint = mix(p0, p1, t.x)
 
           position.assign(progressPoint)
@@ -191,7 +197,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
             )
           }
         }).Else(() => {
-          const index = t.y.mul(builder.settings.maxPoints)
           const p0 = curvePositionArray.element(index).xy.toVar()
           const p1 = curvePositionArray.element(index.add(1)).xy.toVar()
           const p2 = curvePositionArray.element(index.add(2)).xy.toVar()
@@ -253,7 +258,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       const loadColorsArray = loadColors.array as Vector4[]
       const loadPositionsArray = loadPositions.array as Vector4[]
       for (let i = 0; i < builder.settings.maxCurves; i++) {
-        const curveIndex = i * 4 * builder.settings.maxPoints
+        const curveIndex = i * builder.settings.maxPoints
         for (let j = 0; j < builder.settings.maxPoints; j++) {
           const point = builder.curves[i]?.[j]
           if (point) {
@@ -304,7 +309,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     const reInitialize = () => {
       builder.reInitialize()
       reload()
-      builder.settings.onInit(builder)
       if (hooks.onInit) {
         hooks.onInit()
       }
