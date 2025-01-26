@@ -1,4 +1,4 @@
-import { Vector2 } from 'three'
+import { Texture, TypedArray, Vector2 } from 'three'
 import { float, mrt, varying, vec2, vec4 } from 'three/tsl'
 import { GroupBuilder } from './Builder'
 import { PointBuilder } from './PointBuilder'
@@ -12,6 +12,7 @@ declare global {
     translate: Vector2
     scale: Vector2
     rotate: number
+    isTransformData: true
   }
 
   type PreTransformData = {
@@ -40,48 +41,53 @@ declare global {
     builder: GroupBuilder
   }
 
-  type ProcessData = {
-    recalculate: boolean | number | ((lastFrame: number) => number)
-    start: number
+  type ProcessData<T extends BrushTypes> = {
+    renderInit: boolean | number | ((lastFrame: number) => number)
+    renderUpdate: false | 'gpu' | 'gpu+cpu' | 'cpu'
+    renderStart: number | (() => number)
     spacing: number
     spacingType: 'count' | 'pixel' | 'width'
-    update: boolean
     align: number
     resample: boolean
     maxLength: number
     maxCurves: number
     maxPoints: number
     renderTargets: ReturnTypeq<typeof mrt>
-    pointVert: (input: ReturnType<typeof vec2>, info: ParticleInfo) => input
+    pointPosition: (input: ReturnType<typeof vec2>, info: ParticleInfo) => input
+    pointThickness: (
+      input: ReturnType<typeof float>,
+      info: ParticleInfo
+    ) => input
+    pointRotate: (input: ReturnType<typeof float>, info: ParticleInfo) => input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
      */
-    curveFrag: (
+    curveColor: (
       input: ReturnType<typeof vec4>,
-      info: ParticleInfo & { lastColor: ReturnType<typeof vec4> }
+      info: ParticleInfo & {
+        lastColor: ReturnType<typeof vec4>
+        lastFrameColor: ReturnType<typeof vec4>
+      }
     ) => input
-    pointFrag: (
+    pointColor: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & { uv: ReturnType<typeof varying> }
     ) => input
-    curveVert: (
+    curvePosition: (
       input: ReturnType<typeof vec4>,
-      info: ParticleInfo & { lastPosition: ReturnType<typeof vec4> }
+      info: ParticleInfo & {
+        lastPosition: ReturnType<typeof vec4>
+        lastFramePosition: ReturnType<typeof vec4>
+      }
     ) => input
+    onUpdate: (builder: GroupBuilder<T>) => void
+    onInit: (builder: GroupBuilder<T>) => void
   }
 
   type BrushTypes = 'dash' | 'line' | 'attractors'
   type BrushData<T extends BrushTypes> = T extends 'dash'
     ? {
         type: 'dash'
-        pointScale: (
-          input: ReturnType<typeof vec2>,
-          info: ParticleInfo
-        ) => input
-        pointRotate: (
-          input: ReturnType<typeof float>,
-          info: ParticleInfo
-        ) => input
         dashSize: number
       }
     : T extends 'attractors'
@@ -113,10 +119,24 @@ declare global {
 }
 
 declare module 'three/webgpu' {
+  interface WebGPUTextureUtils {
+    _getBytesPerTexel: (format: any) => number
+    _getTypedArrayType: (format: any) => typeof TypedArray
+  }
   interface WebGPURenderer {
     getContext: () => GPUCanvasContext
     backend: Backend & {
+      get: (item: any) => any
+      textureUtils: WebGPUTextureUtils
       device: GPUDevice
+      colorBuffer: GPUTexture
+      copyTextureToBuffer: (
+        texture: Texture,
+        x: number,
+        y: number,
+        width: number,
+        height: number
+      ) => Promise<TypedArray>
       utils: {
         getPreferredCanvasFormat: () => GPUTextureFormat
       }

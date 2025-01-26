@@ -1,21 +1,15 @@
+import { ElemNode } from '@elemaudio/core'
+import WebAudioRenderer from '@elemaudio/web-renderer'
 import _, { last, max, min, range } from 'lodash'
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import { CurvePath, LineCurve, QuadraticBezierCurve, Vector2 } from 'three'
-import {
-  mrt,
-  output,
-  pass,
-  ShaderNodeObject,
-  texture,
-  uniform
-} from 'three/tsl'
-import { Node, PassNode, PostProcessing, TextureNode } from 'three/webgpu'
+import { mrt, output, pass, ShaderNodeObject, texture } from 'three/tsl'
+import { Node, PassNode, PostProcessing } from 'three/webgpu'
 import invariant from 'tiny-invariant'
 import { lerp } from '../math'
 import { multiBezierJS } from '../shaders/bezier'
 import { PointBuilder } from './PointBuilder'
-import { el, ElemNode } from '@elemaudio/core'
-import WebAudioRenderer from '@elemaudio/web-renderer'
+import { isTransformData } from './typeGuards'
 import { Settings, SettingsInput } from './util/useEvents'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
@@ -29,25 +23,6 @@ abstract class Builder {
   protected noiseFuncs = {}
   protected transforms: TransformData[] = []
   currentTransform: TransformData = this.toTransform()
-  settings: ProcessData = {
-    maxLength: 0,
-    maxCurves: 0,
-    maxPoints: 0,
-    align: 0.5,
-    resample: true,
-    recalculate: false,
-    start: 0,
-    update: false,
-    pointVert: input => input,
-    pointFrag: input => input,
-    curveVert: input => input,
-    curveFrag: input => input,
-    spacing: 3,
-    spacingType: 'pixel',
-    renderTargets: mrt({
-      output
-    })
-  }
   pointSettings: PreTransformData & CoordinateSettings =
     defaultCoordinateSettings
   protected randomTable?: number[]
@@ -154,11 +129,12 @@ abstract class Builder {
     return transformData
   }
 
-  protected applyTransform<T extends Vector2>(
+  applyTransform<T extends Vector2>(
     vector: T,
-    transformData: TransformData,
+    transformData: TransformData | PreTransformData,
     invert: boolean = false
   ): T {
+    transformData = this.toTransform(transformData)
     if (invert) {
       vector
         .sub(transformData.translate)
@@ -178,16 +154,21 @@ abstract class Builder {
     return {
       scale: transform.scale.clone(),
       rotate: transform.rotate,
-      translate: transform.translate.clone()
+      translate: transform.translate.clone(),
+      isTransformData: true
     }
   }
 
-  protected toTransform(transform?: PreTransformData): TransformData {
+  protected toTransform(
+    transform?: PreTransformData | TransformData
+  ): TransformData {
+    if (isTransformData(transform)) return transform
     if (!transform) {
       return {
         scale: new Vector2(1, 1),
         rotate: 0,
-        translate: new Vector2()
+        translate: new Vector2(),
+        isTransformData: true
       }
     }
     return {
@@ -201,7 +182,8 @@ abstract class Builder {
       translate:
         transform.translate instanceof Array
           ? new Vector2(...transform.translate)
-          : transform.translate ?? new Vector2()
+          : transform.translate ?? new Vector2(),
+      isTransformData: true
     }
   }
 
@@ -276,6 +258,29 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
   curves: PointBuilder[][] = []
   protected initialize: (t: GroupBuilder<T>) => GroupBuilder<T> | void
   brushSettings: BrushData<T>
+  settings: ProcessData<T> = {
+    maxLength: 0,
+    maxCurves: 0,
+    maxPoints: 0,
+    align: 0.5,
+    resample: true,
+    renderInit: false,
+    renderStart: 0,
+    renderUpdate: false,
+    spacing: 3,
+    spacingType: 'pixel',
+    renderTargets: mrt({
+      output
+    }),
+    pointPosition: input => input,
+    pointColor: input => input,
+    curvePosition: input => input,
+    curveColor: input => input,
+    pointRotate: input => input,
+    pointThickness: input => input,
+    onUpdate: () => {},
+    onInit: () => {}
+  }
 
   cycle(frequency: number = 1, waveshape: 'sine' | 'saw' = 'sine') {
     switch (waveshape) {
@@ -379,7 +384,7 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
         i => transforms[(start + i) % transforms.length][key]
       )
 
-      return curveInterpolate(groups)
+      return curveInterpolate(groups as any)
     }
 
     const { rotate, translate, scale } = {
@@ -1036,18 +1041,16 @@ ${this.curves
   constructor(
     type: T,
     initialize: (builder: GroupBuilder<T>) => GroupBuilder<T> | void,
-    settings: ProcessData,
+    settings?: Partial<ProcessData<T>>,
     brushSettings?: Partial<BrushData<T>>
   ) {
     super()
     this.initialize = initialize
-    this.settings = settings
+    Object.assign(this.settings, settings)
     const defaultBrushSettings: { [T in BrushTypes]: BrushData<T> } = {
       line: { type: 'line' },
       dash: {
         type: 'dash',
-        pointScale: input => input,
-        pointRotate: input => input,
         dashSize: 10
       },
       attractors: {
@@ -1099,6 +1102,7 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
   uniforms: Settings<T>['uniforms']
 
   sceneSettings: {
+    initialize: (b: SceneBuilder<T>) => SceneBuilder<T> | void
     postProcessing: (
       input: ReturnType<PassNode['getTextureNode']>,
       info: {
@@ -1109,6 +1113,7 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     audio: (() => ElemNode | [ElemNode, ElemNode]) | null
     useReadback: boolean
   } = {
+    initialize: () => this.newGroup('line', g => g.newCurve([0, 0], [0, 1])),
     postProcessing: input => input,
     useReadback: false,
     audio: null
@@ -1117,29 +1122,20 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
   newGroup<T extends BrushTypes>(
     type: T,
     render: (g: GroupBuilder<T>) => GroupBuilder<T> | void,
-    settings?: Partial<Builder['settings']>,
+    settings?: Partial<GroupBuilder<T>['settings']>,
     brushSettings?: Partial<BrushData<T>>
   ) {
-    this.groups.push(
-      new GroupBuilder(
-        type,
-        render,
-        { ...this.settings, ...settings },
-        brushSettings
-      )
-    )
+    this.groups.push(new GroupBuilder(type, render, settings, brushSettings))
     return this
   }
 
   constructor(
-    initialize: (b: SceneBuilder<T>) => SceneBuilder<T> | void,
+    sceneSettings: Partial<SceneBuilder<T>['sceneSettings']>,
     globals: BuilderGlobals,
-    controls: Settings<T>,
-    settings?: Partial<SceneBuilder<T>['sceneSettings']>
+    controls: Settings<T>
   ) {
     super()
-    initialize(this)
-    Object.assign(this.sceneSettings, settings)
+    Object.assign(this.sceneSettings, sceneSettings)
     this.constants = controls.constants
     this.refs = controls.refs
     this.uniforms = controls.uniforms
@@ -1147,5 +1143,6 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     this.size = globals.size
     this.audio = globals.audio
     this.postProcessing = globals.postProcessing
+    this.sceneSettings.initialize(this)
   }
 }

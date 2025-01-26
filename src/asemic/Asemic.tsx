@@ -2,7 +2,6 @@ import WebAudioRenderer from '@elemaudio/web-renderer'
 import {
   Canvas,
   extend,
-  invalidate,
   Object3DNode,
   useFrame,
   useThree
@@ -41,17 +40,10 @@ export function AsemicCanvas({
   useAudio?: boolean
 } & React.PropsWithChildren) {
   const [audio, setAudio] = useState<SceneBuilder<any>['audio']>(null)
-
   const canvasRef = useRef<HTMLCanvasElement>(null!)
   const [started, setStarted] = useState(useAudio ? false : true)
-  const [recording, setRecording] = useState(false)
-  const [frameloop, setFrameloop] = useState<'never' | 'demand' | 'always'>(
-    'never'
-  )
-
-  // useEffect(() => {
-  //   setFrameloop(recording ? 'demand' : 'always')
-  // }, [recording])
+  // const [recording, setRecording] = useState(false)
+  const [frameloop, setFrameloop] = useState<'never' | 'always'>('never')
 
   return !started ? (
     <button className='text-white' onClick={() => setStarted(true)}>
@@ -59,15 +51,13 @@ export function AsemicCanvas({
     </button>
   ) : (
     <>
-      <button
+      {/*<button
         className='text-white'
         onClick={() => {
-          if (!recording) {
-            setRecording(true)
-          }
+          setRecording(!recording)
         }}>
         {!recording ? 'record' : 'recording...'}
-      </button>
+      </button>*/}
       <Canvas
         ref={canvasRef}
         style={{ height: height ?? '100%', width: width ?? '100%', ...style }}
@@ -123,7 +113,7 @@ export function AsemicCanvas({
           return renderer
         }}>
         {frameloop === 'always' && (audio || !useAudio) && (
-          <AsemicContext.Provider value={{ audio, recording }}>
+          <AsemicContext.Provider value={{ audio }}>
             {children}
           </AsemicContext.Provider>
         )}
@@ -147,34 +137,41 @@ function Adjust() {
 }
 
 export default function Asemic<T extends SettingsInput>({
-  builder,
-  settings,
-  controls
+  controls,
+
+  ...settings
 }: {
-  controls: T
-  builder: (b: SceneBuilder<T>) => SceneBuilder<T> | void
-  settings?: Partial<SceneBuilder<T>['sceneSettings']>
-} & React.PropsWithChildren) {
-  const { renderer, scene, camera } = useThree(({ gl, scene, camera }) => ({
-    // @ts-expect-error
-    renderer: gl as WebGPURenderer,
-    scene,
-    camera
-  }))
+  controls?: T
+} & Partial<SceneBuilder<T>['sceneSettings']>) {
+  const { renderer, scene, camera, invalidate, advance } = useThree(
+    ({ gl, scene, camera, invalidate, advance }) => ({
+      // @ts-expect-error
+      renderer: gl as WebGPURenderer,
+      scene,
+      camera,
+      invalidate,
+      advance
+    })
+  )
+  controls = {
+    constants: { ...controls?.constants },
+    uniforms: { ...controls?.uniforms },
+    refs: { ...controls?.refs }
+  } as T
 
   const resolution = new Vector2()
   useThree(state => {
     state.gl.getDrawingBufferSize(resolution)
   })
 
-  const { audio, recording } = useContext(AsemicContext)
+  const { audio } = useContext(AsemicContext)
   const renderTarget = new RenderTarget(resolution.x, resolution.y, {
     type: HalfFloatType
   })
   const renderTarget2 = new RenderTarget(resolution.x, resolution.y, {
     type: HalfFloatType
   })
-  const readback = settings?.useReadback ? texture(renderTarget.texture) : null
+  const readback = texture(renderTarget.texture)
 
   const postProcessing = new PostProcessing(renderer)
   const scenePass = pass(scene, camera)
@@ -182,15 +179,14 @@ export default function Asemic<T extends SettingsInput>({
   const controlsBuilt = useEvents(controls)
 
   const b = new SceneBuilder(
-    builder,
+    settings,
     {
       postProcessing: { postProcessing, scenePass, readback },
       h: resolution.y / resolution.x,
       size: resolution,
       audio
     },
-    controlsBuilt,
-    settings
+    controlsBuilt
   )
 
   postProcessing.outputNode = Fn(() => {
@@ -236,7 +232,9 @@ export default function Asemic<T extends SettingsInput>({
   const blobs: string[] = []
 
   let phase = true
-  let counter = 0
+  let counter = useRef(0)
+  let lastTime = useRef(performance.now())
+
   useFrame(() => {
     if (b.sceneSettings.useReadback) {
       phase = !phase
@@ -246,31 +244,10 @@ export default function Asemic<T extends SettingsInput>({
       postProcessing.render()
       postProcessing.renderer.setRenderTarget(null)
       postProcessing.render()
-      readback!.value = phase ? renderTarget.texture : renderTarget2.texture
-      readback!.needsUpdate = true
+      readback.value = phase ? renderTarget.texture : renderTarget2.texture
+      readback.needsUpdate = true
     } else {
       postProcessing.render()
-    }
-    if (recording) {
-      con
-      // const blob = renderer.domElement.toBlob()
-      // fetch(`/api/save-image/${counter++}`, { body: blob, method: 'POST' })
-
-      // const link = document.createElement('a')
-      // link.download = `${counter++}.png`
-      // link.href = blob
-      // link.click()
-      // link.remove()
-
-      // if (blobs.length === 30) {
-      //   for (let blob of blobs) {
-      //     link.download = `${counter++}.png`
-      //     link.href = blob
-      //     link.click()
-      //   }
-      //   blobs.splice(0, blobs.length)
-      // }
-      // invalidate()
     }
   }, 1)
 

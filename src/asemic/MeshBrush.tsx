@@ -119,7 +119,7 @@ export default function MeshBrush({
     material.positionNode = main()
 
     material.colorNode = Fn(() =>
-      builder.settings.pointFrag(varying(vec4(), 'color'), {
+      builder.settings.pointColor(varying(vec4(), 'color'), {
         progress,
         builder,
         uv: vUv

@@ -46,15 +46,18 @@ export function useControlPoints(builder: GroupBuilder<any>) {
   gl.getDrawingBufferSize(resolution)
   builder.reInitialize()
 
-  const instancesPerCurve = Math.floor(
-    builder.settings.spacingType === 'pixel'
-      ? (builder.settings.maxLength * resolution.x) / builder.settings.spacing
-      : builder.settings.spacingType === 'width'
-        ? (builder.settings.maxLength * resolution.x) /
-          (builder.settings.spacing * resolution.x)
-        : builder.settings.spacingType === 'count'
-          ? builder.settings.spacing
-          : 0
+  const instancesPerCurve = Math.max(
+    2,
+    Math.floor(
+      builder.settings.spacingType === 'pixel'
+        ? (builder.settings.maxLength * resolution.x) / builder.settings.spacing
+        : builder.settings.spacingType === 'width'
+          ? (builder.settings.maxLength * resolution.x) /
+            (builder.settings.spacing * resolution.x)
+          : builder.settings.spacingType === 'count'
+            ? builder.settings.spacing
+            : 0
+    )
   )
 
   const data = useMemo(() => {
@@ -72,6 +75,16 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       builder.curves.map(x => x.length),
       'int'
     )
+    const curveColorFeedback = new StorageTexture(
+      builder.settings.maxPoints,
+      builder.settings.maxCurves
+    )
+    curveColorFeedback.type = FloatType
+    const curvePositionFeedback = new StorageTexture(
+      builder.settings.maxPoints,
+      builder.settings.maxCurves
+    )
+    curvePositionFeedback.type = FloatType
 
     const positionTex = new DataTexture(
       new Float32Array(
@@ -101,6 +114,14 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     const curveI = instanceIndex.div(builder.settings.maxPoints)
     const curvePositionLoadU = textureLoad(positionTex, vec2(pointI, curveI))
     const curveColorLoadU = textureLoad(colorTex, vec2(pointI, curveI))
+    const lastFramePositionLoadU = textureLoad(
+      curvePositionFeedback,
+      vec2(pointI, curveI)
+    )
+    const lastFrameColorLoadU = textureLoad(
+      curveColorFeedback,
+      vec2(pointI, curveI)
+    )
     const lastCurvePositionLoadU = textureLoad(
       positionTex,
       vec2(pointI, curveI)
@@ -114,15 +135,17 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         ),
         builder
       }
-      const point = builder.settings.curveVert(vec4(curvePositionLoadU), {
+      const point = builder.settings.curvePosition(vec4(curvePositionLoadU), {
         ...info,
-        lastPosition: vec4(lastCurvePositionLoadU)
+        lastPosition: vec4(lastCurvePositionLoadU),
+        lastFramePosition: vec4(lastFramePositionLoadU)
       })
       textureStore(curvePositionTex, vec2(pointI, curveI), point).toWriteOnly()
 
-      const color = builder.settings.curveFrag(vec4(curveColorLoadU), {
+      const color = builder.settings.curveColor(vec4(curveColorLoadU), {
         ...info,
-        lastColor: vec4(lastCurveColorLoadU)
+        lastColor: vec4(lastCurveColorLoadU),
+        lastFrameColor: vec4(lastFrameColorLoadU)
       })
       return textureStore(
         curveColorTex,
@@ -140,10 +163,10 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       progress: ReturnType<typeof float>,
       position: ReturnType<typeof vec2>,
       extra?: {
-        rotation?: ReturnType<typeof float>
-        thickness?: ReturnType<typeof float>
-        color?: ReturnType<typeof varying>
-        progress?: ReturnType<typeof varying>
+        rotation: ReturnType<typeof float>
+        thickness: ReturnType<typeof float>
+        color: ReturnType<typeof varying>
+        progress: ReturnType<typeof varying>
       }
     ) => {
       extra?.progress?.assign(progress)
@@ -237,23 +260,21 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         })
       })
       if (extra) {
-        extra.thickness?.divAssign(screenSize.x)
+        extra.thickness.assign(
+          builder.settings
+            .pointThickness(extra.thickness, { progress, builder })
+            .div(screenSize.x)
+        )
+        extra.rotation?.assign(
+          builder.settings.pointRotate(extra.rotation!, {
+            progress: extra.progress!,
+            builder
+          })
+        )
       }
     }
 
-    const hooks: { onUpdate?: () => void; onInit?: () => void } = {}
-    const update = (again = true) => {
-      gl.compute(data.advanceControlPoints)
-      if (hooks.onUpdate) {
-        hooks.onUpdate()
-      }
-      if (again) {
-        updating = requestAnimationFrame(() => update())
-      }
-    }
-
-    const reInitialize = () => {
-      builder.reInitialize()
+    const reload = () => {
       for (let i = 0; i < builder.settings.maxCurves; i++) {
         data.controlPointCounts.array[i] = builder.curves[i].length
       }
@@ -287,8 +308,33 @@ export function useControlPoints(builder: GroupBuilder<any>) {
 
       data.curvePositionLoadU.value.needsUpdate = true
       data.curveColorLoadU.value.needsUpdate = true
+    }
+
+    const hooks: { onUpdate?: () => void; onInit?: () => void } = {}
+    const update = (again = true) => {
+      builder.settings.onUpdate(builder)
+      // internal brush updating
+      if (hooks.onUpdate) {
+        hooks.onUpdate()
+      }
+      if (!builder.settings.renderUpdate) return
+      if (builder.settings.renderUpdate.includes('cpu')) {
+        gl.compute(data.advanceControlPoints)
+      }
+      if (builder.settings.renderUpdate.includes('gpu')) {
+        reload()
+      }
+      if (again) {
+        updating = requestAnimationFrame(() => update())
+      }
+    }
+
+    const reInitialize = () => {
+      builder.reInitialize()
+      reload()
 
       update(false)
+      builder.settings.onInit(builder)
       if (hooks.onInit) {
         hooks.onInit()
       }
@@ -312,12 +358,16 @@ export function useControlPoints(builder: GroupBuilder<any>) {
 
   let updating: number
 
-  const nextTime = useRef<number>(builder.settings.start / 1000)
+  const nextTime = useRef<number>(
+    (typeof builder.settings.renderStart === 'function'
+      ? builder.settings.renderStart()
+      : builder.settings.renderStart) / 1000
+  )
 
   useFrame(state => {
     if (state.clock.elapsedTime > nextTime.current) {
-      if (builder.settings.recalculate) {
-        const r = builder.settings.recalculate
+      if (builder.settings.renderInit) {
+        const r = builder.settings.renderInit
         nextTime.current =
           typeof r === 'boolean'
             ? nextTime.current + 1 / 60
@@ -330,7 +380,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
   })
 
   useEffect(() => {
-    if (builder.settings.update) {
+    if (builder.settings.renderUpdate) {
       updating = requestAnimationFrame(() => data.update())
     }
     return () => {

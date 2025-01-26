@@ -16,7 +16,6 @@ import {
   Return,
   screenSize,
   varying,
-  varyingProperty,
   vec2,
   vec4
 } from 'three/tsl'
@@ -75,8 +74,8 @@ export default function PointBrush({
 
     const rotation = float(0).toVar()
     const thickness = float(0).toVar()
-    const color = varyingProperty('vec4', 'color')
-    const progress = varyingProperty('float', 'progress')
+    const color = varying(vec4(), 'color')
+    const progress = varying(float(), 'progress')
 
     const tAttribute = instancedArray(
       new Float32Array(instancesPerCurve * builder.settings.maxCurves),
@@ -148,7 +147,7 @@ export default function PointBrush({
       })
 
       return vec4(
-        builder.settings.pointVert(position, {
+        builder.settings.pointPosition(position, {
           progress,
           builder
         }),
@@ -156,17 +155,15 @@ export default function PointBrush({
         1
       )
     })()
-    material.rotationNode = builder.brushSettings.pointRotate(rotation, {
-      progress,
-      builder
-    })
-    material.scaleNode = builder.brushSettings.pointScale(
-      vec2(thickness, float(builder.brushSettings.dashSize).div(screenSize.x)),
-      { progress, builder }
+    material.rotationNode = rotation
+    material.scaleNode = vec2(
+      thickness,
+      float(builder.brushSettings.dashSize).div(screenSize.x)
     )
-    material.colorNode = builder.settings.pointFrag(varying(vec4(), 'color'), {
+    material.colorNode = builder.settings.pointColor(varying(vec4(), 'color'), {
       progress,
-      builder
+      builder,
+      uv: varying(vec2(progress, 0.5), 'uv')
     })
     material.needsUpdate = true
     hooks.onUpdate = () => {

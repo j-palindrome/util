@@ -152,7 +152,7 @@ export default function AttractorsBrush({
     })().compute(count)
 
     // nodes
-    material.positionNode = builder.settings.pointVert(
+    material.positionNode = builder.settings.pointPosition(
       // @ts-ignore
       positionBuffer.toAttribute(),
       {
@@ -168,7 +168,7 @@ export default function AttractorsBrush({
       const alpha = float(
         uv().sub(0.5).length().remap(0, 0.5, 1, 0).pow(2)
       ).toVar()
-      return builder.settings.pointFrag(
+      return builder.settings.pointColor(
         vec4(
           ...builder.brushSettings.pointColor,
           builder.brushSettings.pointAlpha
