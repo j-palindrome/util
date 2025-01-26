@@ -233,7 +233,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
 
           position.assign(pos)
           if (extra) {
-            const tt = vec2(
+            const textureVector = vec2(
               // 2 points: 0.5-1.5
               t.x
                 .div(controlPointsCount.sub(2))
@@ -242,8 +242,8 @@ export function useControlPoints(builder: GroupBuilder<any>) {
                 .div(builder.settings.maxPoints),
               t.y.add(0.5).div(builder.settings.maxCurves)
             )
-            extra.color?.assign(vec4(texture(curveColorTex, tt)))
-            extra.thickness?.assign(texture(curvePositionTex, tt).w)
+            extra.color?.assign(vec4(curveColorTexU.sample(textureVector)))
+            extra.thickness?.assign(curvePositionTexU.sample(textureVector).w)
             extra.rotation?.assign(
               bezierRotation({ t: t.x.fract(), p0, p1, p2, strength })
             )
@@ -270,16 +270,12 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         controlPointCounts.array[i] = builder.curves[i].length
       }
 
-      // const temp = lastCurvePositionLoadU.value
-      // const temp2 = lastCurveColorLoadU.value
-      // lastCurvePositionLoadU.value = curvePositionLoadU.value
-      // lastCurveColorLoadU.value = curveColorLoadU.value
-      // curvePositionLoadU.value = temp
-      // curveColorLoadU.value = temp2
-      // lastCurvePositionLoadU.value.needsUpdate = true
-      // lastCurveColorLoadU.value.needsUpdate = true
-      // curvePositionLoadU.value.needsUpdate = true
-      // curveColorLoadU.value.needsUpdate = true
+      const temp = lastCurvePositionLoadU.value
+      const temp2 = lastCurveColorLoadU.value
+      lastCurvePositionLoadU.value = curvePositionLoadU.value
+      lastCurveColorLoadU.value = curveColorLoadU.value
+      curvePositionLoadU.value = temp
+      curveColorLoadU.value = temp2
 
       const loadPositions = curvePositionLoadU.value.source.data
         .data as Float32Array
@@ -316,16 +312,12 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         hooks.onUpdate()
       }
 
-      // const temp = lastCurvePositionTexU.value
-      // const temp2 = lastCurveColorTexU.value
-      // lastCurvePositionTexU.value = curvePositionTexU.value
-      // lastCurveColorTexU.value = curveColorTexU.value
-      // curvePositionTexU.value = temp
-      // curveColorTexU.value = temp2
-      // lastCurveColorTexU.needsUpdate = true
-      // lastCurvePositionTexU.needsUpdate = true
-      // curveColorTexU.needsUpdate = true
-      // curvePositionTexU.needsUpdate = true
+      const temp = lastCurvePositionTexU.value
+      const temp2 = lastCurveColorTexU.value
+      lastCurvePositionTexU.value = curvePositionTexU.value
+      lastCurveColorTexU.value = curveColorTexU.value
+      curvePositionTexU.value = temp
+      curveColorTexU.value = temp2
 
       if (!builder.settings.renderUpdate) return
       if (builder.settings.renderUpdate.includes('cpu')) {
