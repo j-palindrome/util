@@ -137,13 +137,7 @@ export default function PointBrush(
 
     const position = vec2().toVar()
     material.positionNode = Fn(() => {
-      // getBezier(tAttribute.element(instanceIndex), position, {
-      //   rotation,
-      //   thickness,
-      //   color,
-      //   progress
-      // })
-      getBezier(instanceIndex.toFloat().div(instancesPerCurve), position, {
+      getBezier(tAttribute.element(instanceIndex), position, {
         rotation,
         thickness,
         color,
@@ -160,9 +154,11 @@ export default function PointBrush(
       )
     })()
     material.rotationNode = rotation
+
     material.scaleNode = vec2(
       thickness,
       float(builder.settings.dashSize).div(screenSize.x)
+      // float(1).div(screenSize.x)
     )
     material.colorNode = builder.settings.pointColor(color, {
       progress,

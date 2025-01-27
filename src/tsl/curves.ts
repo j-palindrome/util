@@ -65,9 +65,9 @@ export const polyLine = ({
   p2
 }: {
   t: ReturnType<typeof float>
-  p0: ReturnType<typeof vec2>
-  p1: ReturnType<typeof vec2>
-  p2: ReturnType<typeof vec2>
+  p0: ReturnType<typeof vec2 | typeof float>
+  p1: ReturnType<typeof vec2 | typeof float>
+  p2: ReturnType<typeof vec2 | typeof float>
 }) => {
   const l0 = p1.sub(p0).length()
   const l1 = p2.sub(p1).length()
@@ -81,7 +81,7 @@ export const polyLine = ({
 }
 
 export const bezierPosition = ({ t, p0, p1, p2, strength }) => {
-  const position = vec2().toVar()
+  const position = p0.toVar()
   If(strength.equal(1), () => {
     position.assign(polyLine({ t, p0, p1, p2 }))
   }).Else(() => {

@@ -36,14 +36,14 @@ declare global {
     i: number
   }
 
-  type ParticleInfo = {
+  type ParticleInfo<T extends BrushTypes> = {
     progress: ReturnType<typeof float | typeof varying>
-    builder: GroupBuilder
+    builder: GroupBuilder<T>
   }
 
   type ProcessData<T extends BrushTypes> = {
     renderInit: boolean | number | ((lastFrame: number) => number)
-    renderUpdate: false | 'gpu' | 'cpu' | 'gpu+cpu'
+    renderUpdate: boolean | number | ((lastFrame: number) => number)
     renderStart: number | (() => number)
     spacing: number
     spacingType: 'count' | 'pixel' | 'width'
@@ -52,11 +52,12 @@ declare global {
     maxLength: number
     maxCurves: number
     maxPoints: number
+    adjustEnds: boolean
     renderTargets: ReturnTypeq<typeof mrt>
     pointPosition: (input: ReturnType<typeof vec2>, info: ParticleInfo) => input
     pointThickness: (
       input: ReturnType<typeof float>,
-      info: ParticleInfo
+      info: ParticleInfo<T>
     ) => input
     pointRotate: (input: ReturnType<typeof float>, info: ParticleInfo) => input
     /**
@@ -64,21 +65,21 @@ declare global {
      */
     curveColor: (
       input: ReturnType<typeof vec4>,
-      info: ParticleInfo & {
+      info: ParticleInfo<T> & {
         lastFrame: ReturnType<typeof vec4>
       }
     ) => input
     pointColor: (
       input: ReturnType<typeof vec4>,
-      info: ParticleInfo & { uv: ReturnType<typeof float | typeof varying> }
+      info: ParticleInfo<T> & { uv: ReturnType<typeof float | typeof varying> }
     ) => input
     pointProgress: (
       input: ReturnType<typeof float>,
-      info: ParticleInfo
+      info: ParticleInfo<T>
     ) => input
     curvePosition: (
       input: ReturnType<typeof vec4>,
-      info: ParticleInfo & {
+      info: ParticleInfo<T> & {
         lastFrame: ReturnType<typeof vec4>
       }
     ) => input

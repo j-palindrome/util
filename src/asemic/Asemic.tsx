@@ -8,7 +8,7 @@ import {
 } from '@react-three/fiber'
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { HalfFloatType, OrthographicCamera, RenderTarget, Vector2 } from 'three'
-import { Fn, pass, texture } from 'three/tsl'
+import { Fn, mrt, output, pass, texture, velocity } from 'three/tsl'
 import { PostProcessing, QuadMesh, WebGPURenderer } from 'three/webgpu'
 import AttractorsBrush from './AttractorsBrush'
 import SceneBuilder from './Builder'
@@ -16,6 +16,7 @@ import MeshBrush from './MeshBrush'
 import PointBrush from './PointBrush'
 import { AsemicContext } from './util/asemicContext'
 import { SettingsInput, useEvents } from './util/useEvents'
+import { traaPass } from 'three/addons/tsl/display/TRAAPassNode.js'
 
 extend({
   QuadMesh
@@ -142,8 +143,11 @@ export default function Asemic<T extends SettingsInput>({
   ...settings
 }: {
   controls?: T
-} & Partial<SceneBuilder<T>['sceneSettings']> &
-  React.PropsWithChildren) {
+  children:
+    | JSX.Element[]
+    | JSX.Element
+    | ((b: SceneBuilder<T>) => JSX.Element[] | JSX.Element)
+} & Partial<SceneBuilder<T>['sceneSettings']>) {
   const { renderer, scene, camera, invalidate, advance } = useThree(
     ({ gl, scene, camera, invalidate, advance }) => ({
       // @ts-expect-error
@@ -263,5 +267,5 @@ export default function Asemic<T extends SettingsInput>({
 
   useEffect(renderAudio, [b])
 
-  return <>{children}</>
+  return <>{typeof children === 'function' ? children(b) : children}</>
 }

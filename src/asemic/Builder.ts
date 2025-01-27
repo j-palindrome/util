@@ -257,7 +257,6 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
   time: number = performance.now() / 1000
   curves: PointBuilder[][] = []
   settings: ProcessData<T> & BrushData<T> = {
-    initialize: g => g.newCurve([0, 0], [1, 1]),
     maxLength: 0,
     maxCurves: 0,
     maxPoints: 0,
@@ -268,6 +267,7 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     renderUpdate: false,
     spacing: 3,
     spacingType: 'pixel',
+    adjustEnds: true,
     renderTargets: mrt({
       output
     }),
@@ -657,6 +657,42 @@ ${this.curves
     return this
   }
 
+  newShape(divisions: 3 | 4 | 5 | 6 | 7 | 8, transform?: CoordinateData) {
+    let shape
+    switch (divisions) {
+      case 6:
+        shape = [
+          [0, 0],
+          [0.5, 0],
+          [0.5, 1],
+          [-0.5, 1],
+          [-0.5, 0],
+          [0, 0]
+        ]
+        break
+      case 7:
+        shape = [
+          [0, 0],
+          [0.33 / 2, 0],
+          [0.5, 0.33],
+          [0.5, 0.66],
+          [0.33 / 2, 1],
+          [-0.33 / 2, 1],
+          [-0.5, 0.66],
+          [-0.5, 0.33],
+          [-0.33 / 2, 0],
+          [0, 0]
+        ]
+        break
+    }
+    if (shape) {
+      if (transform) {
+        this.transform(transform)
+      }
+      this.newCurve(...shape)
+    }
+  }
+
   newCurves(
     count: number,
     ...points: (Coordinate | PointBuilder | CoordinateData)[]
@@ -1040,7 +1076,7 @@ ${this.curves
 
   constructor(
     type: T,
-    settings?: Partial<ProcessData<T>> & Partial<BrushData<T>>
+    settings: Partial<ProcessData<T>> & Partial<BrushData<T>>
   ) {
     super()
 
@@ -1067,8 +1103,11 @@ ${this.curves
       }
     }
 
-    Object.assign({ ...defaultBrushSettings[type] }, this.settings)
-    Object.assign(this.settings, settings)
+    this.settings = {
+      ...this.settings,
+      ...defaultBrushSettings[type],
+      ...settings
+    }
 
     this.reInitialize()
   }
@@ -1102,7 +1141,6 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
   uniforms: Settings<T>['uniforms']
 
   sceneSettings: {
-    // initialize: (b: SceneBuilder<T>) => SceneBuilder<T> | void
     postProcessing: (
       input: ReturnType<PassNode['getTextureNode']>,
       info: {
@@ -1113,7 +1151,6 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     audio: (() => ElemNode | [ElemNode, ElemNode]) | null
     useReadback: boolean
   } = {
-    // initialize: () => this.newGroup('line', g => g.newCurve([0, 0], [0, 1])),
     postProcessing: input => input,
     useReadback: false,
     audio: null

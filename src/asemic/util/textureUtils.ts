@@ -46,8 +46,6 @@ export async function copyGPUTextureToBuffer(
     gpuTexture.format
   )
 
-  console.log(bytesPerTexel, width, height, bytesPerRow, gpuTexture)
-
   device.queue.submit([encoder.finish()])
 
   await readBuffer.mapAsync(GPUMapMode.READ)

@@ -152,18 +152,18 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       }
     ) => {
       const progressVar = progress.toVar()
-      progressVar.assign(
-        floor(progress).add(
-          builder.settings.pointProgress(progress.fract(), {
-            builder,
-            progress
-          })
-        )
-      )
-      extra?.progress?.assign(progressVar)
       If(progressVar.equal(-1), () => {
         extra?.color?.assign(vec4(0, 0, 0, 0))
       }).Else(() => {
+        extra?.progress?.assign(progressVar)
+        progressVar.assign(
+          floor(progress).add(
+            builder.settings.pointProgress(progress.fract(), {
+              builder,
+              progress
+            })
+          )
+        )
         const controlPointsCount = controlPointCounts.element(int(progressVar))
         const subdivisions = select(
           controlPointsCount.equal(2),
@@ -176,53 +176,71 @@ export function useControlPoints(builder: GroupBuilder<any>) {
           progressVar.fract().mul(0.999).mul(subdivisions),
           floor(progressVar)
         )
-        const index = floor(
-          floor(progressVar)
-            .mul(builder.settings.maxPoints)
-            .add(progressVar.fract().mul(subdivisions))
-        )
+        const index = floor(progressVar)
+          .mul(builder.settings.maxPoints)
+          .add(progressVar.fract().mul(0.999).mul(subdivisions))
 
         If(controlPointsCount.equal(2), () => {
-          const p0 = curvePositionArray.element(index).xy
-          const p1 = curvePositionArray.element(index.add(1)).xy
+          const p0 = curvePositionArray.element(index)
+          const p1 = curvePositionArray.element(index.add(1))
           const progressPoint = mix(p0, p1, t.x)
 
-          position.assign(progressPoint)
+          position.assign(progressPoint.xy)
           if (extra) {
             const index = t.y.mul(builder.settings.maxPoints).add(t.x)
             extra.color?.assign(curveColorArray.element(index))
-            extra.thickness?.assign(curvePositionArray.element(index).w)
+            extra.thickness?.assign(progressPoint.w)
             extra.rotation?.assign(
-              atan(p1.sub(p0).y, p1.sub(p0).x).add(PI2.mul(0.25))
+              atan(p1.xy.sub(p0.xy).y, p1.xy.sub(p0.xy).x).add(PI2.mul(0.25))
             )
           }
         }).Else(() => {
-          const p0 = curvePositionArray.element(index).xy.toVar()
-          const p1 = curvePositionArray.element(index.add(1)).xy.toVar()
-          const p2 = curvePositionArray.element(index.add(2)).xy.toVar()
+          const p0 = curvePositionArray.element(index).toVar()
+          const p1 = curvePositionArray.element(index.add(1)).toVar()
+          const p2 = curvePositionArray.element(index.add(2)).toVar()
 
-          If(t.x.greaterThan(float(1)), () => {
-            p0.assign(mix(p0, p1, float(0.5)))
-          })
           const controlPointsCount = controlPointCounts.element(int(t.y))
-          If(t.x.lessThan(float(controlPointsCount).sub(3)), () => {
+          if (builder.settings.adjustEnds) {
+            If(t.x.greaterThan(float(1)), () => {
+              p0.assign(mix(p0, p1, float(0.5)))
+            })
+            If(t.x.lessThan(float(controlPointsCount).sub(3)), () => {
+              p2.assign(mix(p1, p2, 0.5))
+            })
+          } else {
+            p0.assign(mix(p0, p1, float(0.5)))
             p2.assign(mix(p1, p2, 0.5))
-          })
-          const strength = curvePositionArray.element(index.add(1)).xy.toVar().z
+          }
+
+          const strength = p1.z
           const pos = bezierPosition({
             t: t.x.fract(),
-            p0,
-            p1,
-            p2,
+            p0: p0.xy,
+            p1: p1.xy,
+            p2: p2.xy,
             strength
           })
 
           position.assign(pos)
           if (extra) {
             extra.color?.assign(curveColorArray.element(index))
-            extra.thickness?.assign(curvePositionArray.element(index.add(1)).w)
+            extra.thickness?.assign(
+              bezierPosition({
+                t: t.x.fract(),
+                p0: p0.w,
+                p1: p1.w,
+                p2: p2.w,
+                strength
+              })
+            )
             extra.rotation?.assign(
-              bezierRotation({ t: t.x.fract(), p0, p1, p2, strength })
+              bezierRotation({
+                t: t.x.fract(),
+                p0: p0.xy,
+                p1: p1.xy,
+                p2: p2.xy,
+                strength
+              })
             )
           }
         })
@@ -286,24 +304,14 @@ export function useControlPoints(builder: GroupBuilder<any>) {
     }
 
     const hooks: { onUpdate?: () => void; onInit?: () => void } = {}
-    const update = (again = true) => {
+    const update = () => {
       builder.settings.onUpdate(builder)
       // internal brush updating
+      reload()
       if (hooks.onUpdate) {
         hooks.onUpdate()
       }
-
-      if (!builder.settings.renderUpdate) return
-      if (builder.settings.renderUpdate.includes('cpu')) {
-        reload()
-      }
-      if (builder.settings.renderUpdate.includes('gpu')) {
-        renderer.compute(advanceControlPoints)
-      }
-
-      if (again) {
-        updating = requestAnimationFrame(() => update())
-      }
+      renderer.compute(advanceControlPoints)
     }
 
     const reInitialize = () => {
@@ -333,6 +341,12 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       : builder.settings.renderStart) / 1000
   )
 
+  const nextUpdate = useRef<number>(
+    (typeof builder.settings.renderStart === 'function'
+      ? builder.settings.renderStart()
+      : builder.settings.renderStart) / 1000
+  )
+
   useFrame(state => {
     if (state.clock.elapsedTime > nextTime.current) {
       if (builder.settings.renderInit) {
@@ -346,15 +360,19 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         data.reInitialize()
       }
     }
-  })
-
-  useEffect(() => {
-    updating = requestAnimationFrame(() => data.update())
-
-    return () => {
-      cancelAnimationFrame(updating)
+    if (state.clock.elapsedTime > nextUpdate.current) {
+      if (builder.settings.renderUpdate) {
+        const r = builder.settings.renderUpdate
+        nextUpdate.current =
+          typeof r === 'boolean'
+            ? nextUpdate.current + 1 / 60
+            : typeof r === 'number'
+              ? nextUpdate.current + r / 1000
+              : nextUpdate.current + r(nextUpdate.current * 1000) / 1000
+        data.update()
+      }
     }
-  }, [builder])
+  })
 
   useEffect(() => {
     data.reInitialize()
