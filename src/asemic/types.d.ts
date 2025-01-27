@@ -43,7 +43,6 @@ declare global {
 
   type ProcessData<T extends BrushTypes> = {
     renderInit: boolean | number | ((lastFrame: number) => number)
-    renderUpdate: boolean | number | ((lastFrame: number) => number)
     renderStart: number | (() => number)
     spacing: number
     spacingType: 'count' | 'pixel' | 'width'

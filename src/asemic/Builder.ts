@@ -1056,11 +1056,10 @@ ${this.curves
       ).transform({ translate: [0.5, 0], reset: 'pop' })
   }
 
-  reInitialize() {
+  reInitialize(seconds: number) {
+    this.time = seconds
     this.reset(true)
     this.hashIndex = 0
-    this.curves = []
-    this.time = performance.now() / 1000
     this.settings.onInit(this)
     if (this.settings.maxPoints === 0) {
       this.settings.maxPoints = max(this.curves.flatMap(x => x.length))!
@@ -1109,7 +1108,7 @@ ${this.curves
       ...settings
     }
 
-    this.reInitialize()
+    this.reInitialize(0)
   }
 }
 

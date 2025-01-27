@@ -305,17 +305,14 @@ export function useControlPoints(builder: GroupBuilder<any>) {
 
     const hooks: { onUpdate?: () => void; onInit?: () => void } = {}
     const update = () => {
-      builder.settings.onUpdate(builder)
-      // internal brush updating
-      reload()
       if (hooks.onUpdate) {
         hooks.onUpdate()
       }
       renderer.compute(advanceControlPoints)
     }
 
-    const reInitialize = () => {
-      builder.reInitialize()
+    const reInitialize = (seconds: number) => {
+      builder.reInitialize(seconds)
       reload()
       if (hooks.onInit) {
         hooks.onInit()
@@ -329,19 +326,12 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       getBezier,
       reInitialize,
       hooks,
-      update
+      update,
+      reload
     }
   }, [builder])
 
-  let updating: number
-
   const nextTime = useRef<number>(
-    (typeof builder.settings.renderStart === 'function'
-      ? builder.settings.renderStart()
-      : builder.settings.renderStart) / 1000
-  )
-
-  const nextUpdate = useRef<number>(
     (typeof builder.settings.renderStart === 'function'
       ? builder.settings.renderStart()
       : builder.settings.renderStart) / 1000
@@ -357,25 +347,14 @@ export function useControlPoints(builder: GroupBuilder<any>) {
             : typeof r === 'number'
               ? nextTime.current + r / 1000
               : nextTime.current + r(nextTime.current * 1000) / 1000
-        data.reInitialize()
-      }
-    }
-    if (state.clock.elapsedTime > nextUpdate.current) {
-      if (builder.settings.renderUpdate) {
-        const r = builder.settings.renderUpdate
-        nextUpdate.current =
-          typeof r === 'boolean'
-            ? nextUpdate.current + 1 / 60
-            : typeof r === 'number'
-              ? nextUpdate.current + r / 1000
-              : nextUpdate.current + r(nextUpdate.current * 1000) / 1000
-        data.update()
+        data.reInitialize(state.clock.elapsedTime)
       }
     }
   })
 
   useEffect(() => {
-    data.reInitialize()
+    data.reload()
+    data.hooks.onInit?.()
     return () => {
       data.curvePositionArray.dispose()
       data.curveColorArray.dispose()

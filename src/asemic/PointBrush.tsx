@@ -55,7 +55,7 @@ export default function PointBrush(
 
   const { getBezier, instancesPerCurve, hooks } = useControlPoints(builder)
 
-  const { mesh, material, geometry } = useMemo(() => {
+  const { mesh } = useMemo(() => {
     const MAX_INSTANCE_COUNT = instancesPerCurve * builder.settings.maxCurves
 
     const geometry = new THREE.PlaneGeometry(1, 1, 1, 1)
@@ -144,6 +144,13 @@ export default function PointBrush(
         progress
       })
 
+      // getBezier(instanceIndex.toFloat().div(instancesPerCurve), position, {
+      //   rotation,
+      //   thickness,
+      //   color,
+      //   progress
+      // })
+
       return vec4(
         builder.settings.pointPosition(position, {
           progress,
@@ -169,9 +176,9 @@ export default function PointBrush(
     hooks.onUpdate = () => {
       gl.compute(updateCurveLengths)
     }
-    // hooks.onInit = () => {
-    //   gl.compute(updateCurveLengths)
-    // }
+    hooks.onInit = () => {
+      gl.compute(updateCurveLengths)
+    }
 
     return {
       mesh,
