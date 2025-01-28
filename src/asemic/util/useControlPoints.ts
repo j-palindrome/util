@@ -142,7 +142,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       If(progressVar.equal(-1), () => {
         extra?.color?.assign(vec4(0, 0, 0, 0))
       }).Else(() => {
-        extra?.progress?.assign(progressVar)
         progressVar.assign(
           floor(progress).add(
             builder.settings.pointProgress(progress.fract(), {
@@ -151,6 +150,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
             })
           )
         )
+        extra?.progress?.assign(progressVar)
         const controlPointsCount = controlPointCounts.element(int(progressVar))
         const subdivisions = select(
           controlPointsCount.equal(2),

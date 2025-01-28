@@ -100,19 +100,8 @@ export default function StripeBrush(
 
       vUv.assign(
         vec2(
-          vertexIndex.div(2).toFloat().div(instancesPerCurve),
+          vertexIndex.toFloat().div(instancesPerCurve),
           select(vertexIndex.modInt(2).equal(0), 0, 1)
-        )
-      )
-
-      position.addAssign(
-        rotateUV(
-          vec2(
-            thickness.mul(select(vertexIndex.modInt(2).equal(0), -0.5, 0.5)),
-            0
-          ),
-          rotation,
-          vec2(0, 0)
         )
       )
       return vec4(position, 0, 1)

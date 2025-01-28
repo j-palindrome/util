@@ -39,7 +39,7 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function MeshBrush(
+export default function BlobBrush(
   settings: Partial<GroupBuilder<'line'>['settings']>
 ) {
   const builder = new GroupBuilder('line', settings)
@@ -50,18 +50,16 @@ export default function MeshBrush(
   const { material, geometry } = useMemo(() => {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
-    const indexGuide = [0, 1, 2, 1, 2, 3]
-
-    let currentIndex = 0
     const indexes: number[] = []
 
-    const width = resolution.x
-    for (let i = 0; i < builder.settings.maxCurves; i++) {
-      for (let i = 0; i < instancesPerCurve - 1; i++) {
-        indexes.push(...indexGuide.map(x => x + currentIndex))
-        currentIndex += 2
+    for (let curveI = 0; curveI < builder.settings.maxCurves; curveI++) {
+      for (let i = 1; i < instancesPerCurve; i++) {
+        indexes.push(
+          curveI,
+          i + builder.settings.maxCurves,
+          i + 1 + builder.settings.maxCurves
+        )
       }
-      currentIndex += 2
     }
     geometry.setIndex(indexes)
     const material = new MeshBasicNodeMaterial({
@@ -81,23 +79,24 @@ export default function MeshBrush(
     const vUv = varying(vec2(), 'vUv')
 
     const main = Fn(() => {
-      getBezier(
+      const thisProgress = select(
+        vertexIndex.lessThan(builder.settings.maxCurves),
+        vertexIndex.toFloat(),
         vertexIndex
-          .div(2)
+          .sub(builder.settings.maxCurves)
           .toFloat()
-          .div(instancesPerCurve - 0.999),
-        position,
-        {
-          rotation,
-          thickness,
-          color,
-          progress
-        }
+          .div(instancesPerCurve - 0.999)
       )
+      getBezier(thisProgress, position, {
+        rotation,
+        thickness,
+        color,
+        progress
+      })
 
       vUv.assign(
         vec2(
-          vertexIndex.div(2).toFloat().div(instancesPerCurve),
+          vertexIndex.toFloat().div(instancesPerCurve),
           select(vertexIndex.modInt(2).equal(0), 0, 1)
         )
       )

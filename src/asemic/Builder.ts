@@ -1208,16 +1208,6 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     audio: null
   }
 
-  // newGroup<T extends BrushTypes>(
-  //   type: T,
-  //   render: (g: GroupBuilder<T>) => GroupBuilder<T> | void,
-  //   settings?: Partial<GroupBuilder<T>['settings']>,
-  //   brushSettings?: Partial<BrushData<T>>
-  // ) {
-  //   this.groups.push(new GroupBuilder(type, render, settings, brushSettings))
-  //   return this
-  // }
-
   constructor(
     sceneSettings: Partial<SceneBuilder<T>['sceneSettings']>,
     globals: BuilderGlobals,
