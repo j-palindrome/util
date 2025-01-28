@@ -14,11 +14,23 @@ import {
 } from 'three/tsl'
 
 // Define the Bezier functions
-export const bezier2 = ({ t, p0, p1, p2 }) => {
+export const bezier2 = ({ t, p0, p1, p2, strength = 0 }) => {
   return p0
     .mul(t.oneMinus().pow(2))
     .add(p1.mul(t.oneMinus().mul(t).mul(2)))
     .add(p2.mul(t.pow(2)))
+  // .div(
+  //   t
+  //     .oneMinus()
+  //     .pow(2)
+  //     .add(
+  //       t
+  //         .mul(2)
+  //         .mul(t.oneMinus())
+  //         .mul(float(1).add(float(strength).mul(2)))
+  //         .add(t.pow(2))
+  //     )
+  // )
 }
 
 export const rotate2d = (
@@ -69,24 +81,23 @@ export const polyLine = ({
   p1: ReturnType<typeof vec2 | typeof float>
   p2: ReturnType<typeof vec2 | typeof float>
 }) => {
-  const l0 = p1.sub(p0).length()
-  const l1 = p2.sub(p1).length()
-  const totalLength = l0.add(l1)
-  const progress = t.mul(totalLength)
+  const l0 = p1.sub(p0).length().toVar()
+  const l1 = p2.sub(p1).length().toVar()
+  const splitPoint = float(0.5).add(l0.sub(l1).div(2))
   return select(
-    progress.greaterThan(l0),
-    mix(p1, p2, progress.sub(l0).div(l1)),
-    mix(p0, p1, progress.div(l0))
+    t.greaterThan(splitPoint),
+    mix(p1, p2, t.sub(splitPoint).div(splitPoint.oneMinus())),
+    mix(p0, p1, t.div(splitPoint))
   )
 }
 
 export const bezierPosition = ({ t, p0, p1, p2, strength }) => {
   const position = p0.toVar()
-  If(strength.equal(1), () => {
-    position.assign(polyLine({ t, p0, p1, p2 }))
-  }).Else(() => {
-    position.assign(bezier2({ t, p0, p1, p2 }))
-  })
+  // If(strength.equal(1), () => {
+  //   position.assign(polyLine({ t, p0, p1, p2 }))
+  // }).Else(() => {
+  // })
+  position.assign(bezier2({ t, p0, p1, p2, strength }))
   return position
 }
 

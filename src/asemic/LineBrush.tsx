@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import {
   float,
   Fn,
+  PI2,
   rotateUV,
   select,
   varying,
@@ -81,12 +82,19 @@ export default function MeshBrush(
     const vUv = varying(vec2(), 'vUv')
 
     const main = Fn(() => {
-      getBezier(vertexIndex.div(2).toFloat().div(instancesPerCurve), position, {
-        rotation,
-        thickness,
-        color,
-        progress
-      })
+      getBezier(
+        vertexIndex
+          .div(2)
+          .toFloat()
+          .div(instancesPerCurve - 0.001),
+        position,
+        {
+          rotation,
+          thickness,
+          color,
+          progress
+        }
+      )
 
       vUv.assign(
         vec2(
@@ -101,7 +109,7 @@ export default function MeshBrush(
             thickness.mul(select(vertexIndex.modInt(2).equal(0), -0.5, 0.5)),
             0
           ),
-          rotation,
+          rotation.sub(PI2.mul(0.25)),
           vec2(0, 0)
         )
       )

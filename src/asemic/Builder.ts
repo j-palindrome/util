@@ -1091,11 +1091,15 @@ ${this.curves
         .transform({ translate: [0.55, 0], reset: 'pop' }),
     z: () =>
       this.newCurve(
-        [0, 1, { scale: 0.5 }],
+        [0, 1, { scale: 0.5, strength: 1 }],
         [1, 1, { strength: 1 }],
         [0, 0, { strength: 1 }],
         [1, 0]
       ).transform({ translate: [0.5, 0], reset: 'pop' })
+    // this.newCurve([0, 1], [0, 0.2], [0, 0], [0.1, 0]).transform({
+    //   translate: [0.2, 0],
+    //   reset: 'pop'
+    // })
   }
 
   reInitialize(seconds: number) {

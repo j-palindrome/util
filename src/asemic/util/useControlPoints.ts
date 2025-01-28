@@ -1,51 +1,28 @@
 import { useFrame, useThree } from '@react-three/fiber'
+import { range } from 'lodash'
 import { useEffect, useMemo, useRef } from 'react'
-import {
-  DataTexture,
-  FloatType,
-  NearestFilter,
-  RenderTarget,
-  RGBAFormat,
-  Vector2,
-  Vector4
-} from 'three'
+import { Vector2, Vector4 } from 'three'
 import { Fn } from 'three/src/nodes/TSL.js'
 import {
   atan,
-  Break,
   float,
   floor,
   If,
   instancedArray,
   instanceIndex,
   int,
-  ivec2,
-  Loop,
   mix,
   PI2,
-  remap,
   screenSize,
   select,
-  ShaderNodeObject,
-  texture,
-  textureLoad,
-  textureStore,
   uniformArray,
   varying,
-  varyingProperty,
   vec2,
   vec4
 } from 'three/tsl'
-import {
-  StorageBufferAttribute,
-  StorageTexture,
-  VarNode,
-  WebGPURenderer
-} from 'three/webgpu'
-import { bezierPosition, bezierRotation, polyLine } from '../../tsl/curves'
-import { textureLoadFix } from '../../tsl/utility'
+import { WebGPURenderer } from 'three/webgpu'
+import { bezierPosition, bezierRotation } from '../../tsl/curves'
 import { GroupBuilder } from '../Builder'
-import { range } from 'lodash'
 
 export function useControlPoints(builder: GroupBuilder<any>) {
   // @ts-ignore
@@ -68,16 +45,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
   )
 
   const data = useMemo(() => {
-    // const curvePositionTex = new StorageTexture(
-    //   builder.settings.maxPoints,
-    //   builder.settings.maxCurves
-    // )
-    // curvePositionTex.type = FloatType
-    // const curveColorTex = new StorageTexture(
-    //   builder.settings.maxPoints,
-    //   builder.settings.maxCurves
-    // )
-    // curveColorTex.type = FloatType
     const curvePositionArray = instancedArray(
       builder.settings.maxPoints * builder.settings.maxCurves,
       'vec4'
@@ -181,9 +148,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
             const index = t.y.mul(builder.settings.maxPoints).add(t.x)
             extra.color?.assign(curveColorArray.element(index))
             extra.thickness?.assign(progressPoint.w)
-            extra.rotation?.assign(
-              atan(p1.xy.sub(p0.xy).y, p1.xy.sub(p0.xy).x).add(PI2.mul(0.25))
-            )
+            extra.rotation?.assign(atan(p1.xy.sub(p0.xy).y, p1.xy.sub(p0.xy).x))
           }
         }).Else(() => {
           const p0 = curvePositionArray.element(index).toVar()
@@ -233,7 +198,7 @@ export function useControlPoints(builder: GroupBuilder<any>) {
                 p1: p1.xy,
                 p2: p2.xy,
                 strength
-              })
+              }).add(PI2.mul(0.25))
             )
           }
         })
