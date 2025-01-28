@@ -14,7 +14,7 @@ import {
 } from 'three/tsl'
 
 // Define the Bezier functions
-export const bezier2 = ({ t, p0, p1, p2, strength = 0 }) => {
+export const bezier2 = ({ t, p0, p1, p2 }) => {
   return p0
     .mul(t.oneMinus().pow(2))
     .add(p1.mul(t.oneMinus().mul(t).mul(2)))
@@ -31,6 +31,25 @@ export const bezier2 = ({ t, p0, p1, p2, strength = 0 }) => {
   //         .add(t.pow(2))
   //     )
   // )
+}
+
+export const bezierRational = ({ t, p0, p1, p2, strength }) => {
+  return p0
+    .mul(t.oneMinus().pow(2))
+    .add(p1.mul(t.oneMinus().mul(t).mul(2)).mul(float(strength).add(1)))
+    .add(p2.mul(t.pow(2)))
+    .div(
+      t
+        .oneMinus()
+        .pow(2)
+        .add(
+          t
+            .mul(2)
+            .mul(t.oneMinus())
+            .mul(float(1).add(float(strength).mul(2)))
+            .add(t.pow(2))
+        )
+    )
 }
 
 export const rotate2d = (
@@ -92,12 +111,16 @@ export const polyLine = ({
 }
 
 export const bezierPosition = ({ t, p0, p1, p2, strength }) => {
-  const position = p0.toVar()
-  // If(strength.equal(1), () => {
-  //   position.assign(polyLine({ t, p0, p1, p2 }))
-  // }).Else(() => {
-  // })
-  position.assign(bezier2({ t, p0, p1, p2, strength }))
+  const position = vec2().toVar()
+  If(strength.equal(1), () => {
+    position.assign(polyLine({ t, p0, p1, p2 }))
+  })
+    .ElseIf(strength.equal(0), () => {
+      position.assign(bezier2({ t, p0, p1, p2 }))
+    })
+    .Else(() => {
+      position.assign(bezierRational({ t, p0, p1, p2, strength }))
+    })
   return position
 }
 
