@@ -39,7 +39,7 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function MeshBrush(
+export default function StripeBrush(
   settings: Partial<GroupBuilder<'line'>['settings']>
 ) {
   const builder = new GroupBuilder('line', settings)
@@ -54,8 +54,6 @@ export default function MeshBrush(
 
     let currentIndex = 0
     const indexes: number[] = []
-
-    const width = resolution.x
     for (let i = 0; i < builder.settings.maxCurves; i++) {
       for (let i = 0; i < instancesPerCurve - 1; i++) {
         indexes.push(...indexGuide.map(x => x + currentIndex))
@@ -81,19 +79,24 @@ export default function MeshBrush(
     const vUv = varying(vec2(), 'vUv')
 
     const main = Fn(() => {
-      getBezier(
-        vertexIndex
-          .div(2)
-          .toFloat()
-          .div(instancesPerCurve - 0.999),
-        position,
-        {
-          rotation,
-          thickness,
-          color,
-          progress
-        }
-      )
+      // every 2 vertices draws from one curve
+      // [0, 1, 2, 1, 2, 3] = [0, 2 -> bottom, 1, 3 -> top]
+      // 0 -> 1 = 0 -> 1, 1 - 2 = 2 -> 3, 2 - 3 = 4 - 5
+      const thisProgress = vertexIndex
+        .toFloat()
+        .div(instancesPerCurve - 0.999)
+        .fract()
+      const curveIndexStart = vertexIndex
+        .div(instancesPerCurve)
+        .mul(2)
+        .add(select(vertexIndex.modInt(2).equal(0), 0, 1))
+
+      getBezier(thisProgress.add(curveIndexStart), position, {
+        rotation,
+        thickness,
+        color,
+        progress
+      })
 
       vUv.assign(
         vec2(

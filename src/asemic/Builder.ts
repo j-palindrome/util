@@ -20,13 +20,14 @@ export const defaultCoordinateSettings: CoordinateSettings = {
 }
 
 abstract class Builder {
-  protected noiseFuncs = {}
   protected transforms: TransformData[] = []
   currentTransform: TransformData = this.toTransform()
   pointSettings: PreTransformData & CoordinateSettings =
     defaultCoordinateSettings
+  protected noiseFuncs: ((...args: any[]) => number)[] = []
   protected randomTable?: number[]
   protected hashIndex: number = 0
+  protected noiseIndex: number = 0
 
   repeatGrid(
     dimensions: [number, number],
@@ -236,23 +237,24 @@ abstract class Builder {
       | [number, number]
       | [number, number, number]
       | [number, number, number, number],
-    index: number | string = '0'
+    { signed = false }: { index?: number | string; signed?: boolean } = {}
   ) {
-    if (!this.noiseFuncs[index]) {
+    if (!this.noiseFuncs[this.noiseIndex]) {
       switch (coords.length) {
         case 2:
-          this.noiseFuncs[index] = createNoise2D()
+          this.noiseFuncs.push(createNoise2D())
           break
         case 3:
-          this.noiseFuncs[index] = createNoise3D()
+          this.noiseFuncs.push(createNoise3D())
           break
         case 4:
-          this.noiseFuncs[index] = createNoise4D()
+          this.noiseFuncs.push(createNoise4D())
           break
       }
     }
-
-    return (this.noiseFuncs[index](...coords) + 1) / 2
+    const noise = this.noiseFuncs[this.noiseIndex](...coords)
+    this.noiseIndex++
+    return signed ? noise : (noise + 1) / 2
   }
 
   constructor() {}
@@ -287,28 +289,51 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     onInit: () => {}
   } as any
 
-  getWave(frequency: number = 1, waveshape: 'sine' | 'saw' = 'sine') {
+  getWave(
+    frequency: number = 1,
+    {
+      waveshape = 'sine',
+      signed = false
+    }: { waveshape?: 'sine' | 'saw'; signed?: boolean } = {}
+  ) {
+    let noise: number
     switch (waveshape) {
       case 'sine':
-        return (Math.sin(this.time * frequency) + 1) / 2
+        noise = Math.sin(this.time * frequency)
+        break
       case 'saw':
-        return Math.abs(0.5 - ((this.time * frequency) % 1)) * 2
+        noise = Math.abs(0.5 - ((this.time * frequency) % 1)) * 2 * 2 - 1
+        break
     }
+    return signed ? noise : (noise + 1) / 2
   }
 
-  getWaveNoise(frequency = 1, index = '0') {
-    if (!this.noiseFuncs[index]) {
-      const waves = range(5).map(() => Math.random())
-      this.noiseFuncs[index] = () => {
+  getWaveNoise(
+    frequency = 1,
+    {
+      signed = false,
+      harmonics = 1
+    }: { index?: number | string; signed?: boolean; harmonics?: number } = {}
+  ) {
+    if (!this.noiseFuncs[this.noiseIndex]) {
+      const waves = range(harmonics).map(() => Math.random())
+      this.noiseFuncs.push(() => {
         let total = 0
-
+        let harmonic = 0
         for (let i = 0; i < waves.length; i++) {
-          total += this.getWave(waves[i] * frequency * (i + 1)) / (i + 1)
+          harmonic += 1 / (i + 1)
+          total +=
+            this.getWave(waves[i] * frequency * (i + 1), { signed: true }) /
+            (i + 1)
         }
-        return total
-      }
+        return total / harmonic
+      })
     }
-    return this.noiseFuncs[index]()
+    const noise = signed
+      ? this.noiseFuncs[this.noiseIndex]()
+      : (this.noiseFuncs[this.noiseIndex]() + 1) / 2
+    this.noiseIndex++
+    return noise
   }
 
   getPoint(index: number = -1, curve: number = -1) {
@@ -1080,6 +1105,7 @@ ${this.curves
     this.time = seconds
     this.reset(true)
     this.hashIndex = 0
+    this.noiseIndex = 0
     this.settings.onInit(this)
     if (this.settings.maxPoints === 0) {
       this.settings.maxPoints = max(this.curves.flatMap(x => x.length))!
@@ -1110,21 +1136,23 @@ ${this.curves
         type: 'dash',
         dashSize: 10
       },
-      attractors: {
-        type: 'attractors',
-        damping: 1e-2,
+      particles: {
+        type: 'particles',
+        speedDamping: 1e-2,
         initialSpread: true,
-        maxSpeed: 1,
-        minSpeed: 0,
-        pointSize: 1,
-        pointVelocity: input => input,
-        pointPosition: input => input,
-        gravityForce: 0,
-        spinningForce: 1,
+        speedMax: 1,
+        speedMin: 0,
+        particleSize: 1,
+        particleVelocity: input => input,
+        particlePosition: input => input,
+        attractorPull: 0,
+        attractorPush: 1,
         particleCount: 1e4,
         particleColor: [1, 1, 1],
         particleAlpha: 1
-      }
+      },
+      stripe: { type: 'stripe' },
+      blob: { type: 'blob' }
     }
 
     this.settings = {

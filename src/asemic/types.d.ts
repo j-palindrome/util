@@ -86,31 +86,31 @@ declare global {
     onInit: (builder: GroupBuilder<T>) => void
   }
 
-  type BrushTypes = 'dash' | 'line' | 'attractors'
+  type BrushTypes = 'dash' | 'line' | 'particles' | 'stripe' | 'blob'
   type BrushData<T extends BrushTypes> = T extends 'dash'
     ? {
         type: 'dash'
         dashSize: number
       }
-    : T extends 'attractors'
+    : T extends 'particles'
       ? {
-          type: 'attractors'
-          maxSpeed: number
-          minSpeed: number
-          damping: number
+          type: 'particles'
           initialSpread: boolean
-          pointSize: number
-          gravityForce: number
-          spinningForce: number
+          speedMax: number
+          speedMin: number
+          speedDamping: number
+          particleSize: number
+          attractorPull: number
+          attractorPush: number
           particleCount: number
           particleColor: [number, number, number]
           particleAlpha: number
-          pointVelocity: (
+          particleVelocity: (
             velocity: ReturnType<typeof vec2>,
             position: ReturnType<typeof vec2>,
             info: ParticleInfo
           ) => ReturnType<typeof vec2>
-          pointPosition: (
+          particlePosition: (
             position: ReturnType<typeof vec2>,
             info: ParticleInfo
           ) => ReturnType<typeof vec2>

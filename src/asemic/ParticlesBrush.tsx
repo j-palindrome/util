@@ -131,7 +131,7 @@ export default function AttractorsBrush(
       velocity.mulAssign(float(builder.settings.damping).oneMinus())
 
       position.assign(
-        builder.settings.pointPosition(position, {
+        builder.settings.particlePosition(position, {
           builder,
           progress: float(0)
         })
@@ -148,7 +148,7 @@ export default function AttractorsBrush(
     })().compute(count)
 
     // nodes
-    material.positionNode = builder.settings.pointPosition(
+    material.positionNode = builder.settings.particlePosition(
       // @ts-ignore
       positionBuffer.toAttribute(),
       {
