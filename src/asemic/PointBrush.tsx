@@ -144,13 +144,6 @@ export default function PointBrush(
         progress
       })
 
-      // getBezier(instanceIndex.toFloat().div(instancesPerCurve), position, {
-      //   rotation,
-      //   thickness,
-      //   color,
-      //   progress
-      // })
-
       return vec4(
         builder.settings.pointPosition(position, {
           progress,

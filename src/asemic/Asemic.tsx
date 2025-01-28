@@ -45,6 +45,7 @@ export function AsemicCanvas({
   const [started, setStarted] = useState(useAudio ? false : true)
   // const [recording, setRecording] = useState(false)
   const [frameloop, setFrameloop] = useState<'never' | 'always'>('never')
+  const coords: [number, number][] = []
 
   return !started ? (
     <button className='text-white' onClick={() => setStarted(true)}>
@@ -60,6 +61,26 @@ export function AsemicCanvas({
         {!recording ? 'record' : 'recording...'}
       </button>*/}
       <Canvas
+        onClick={ev => {
+          if (ev.shiftKey) {
+            coords.splice(0, coords.length - 1)
+          } else if (ev.metaKey) {
+            coords.splice(0, coords.length)
+          }
+          coords.push([
+            ev.clientX / canvasRef.current.clientWidth,
+            (canvasRef.current.clientHeight - ev.clientY) /
+              canvasRef.current.clientHeight
+          ])
+          navigator.clipboard.writeText(
+            coords
+              .map(x => `[${x[0].toFixed(2)}, ${x[1].toFixed(2)}]`)
+              .join(', ')
+          )
+          console.log(
+            coords.map(x => `${x[0].toFixed(2)}, ${x[1].toFixed(2)}`).join(', ')
+          )
+        }}
         ref={canvasRef}
         style={{ height: height ?? '100%', width: width ?? '100%', ...style }}
         frameloop={frameloop}
@@ -229,16 +250,16 @@ export default function Asemic<T extends SettingsInput>({
   //   // capture image sequence down
   // }, [recording])
 
-  const link = useMemo(() => {
-    const link = document.createElement('a')
-    return link
-  }, [])
+  // const link = useMemo(() => {
+  //   const link = document.createElement('a')
+  //   return link
+  // }, [])
 
-  const blobs: string[] = []
+  // const blobs: string[] = []
 
   let phase = true
-  let counter = useRef(0)
-  let lastTime = useRef(performance.now())
+  // let counter = useRef(0)
+  // let lastTime = useRef(performance.now())
 
   useFrame(() => {
     if (b.sceneSettings.useReadback) {

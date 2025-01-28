@@ -40,7 +40,7 @@ import {
   StorageTexture,
   WebGPURenderer
 } from 'three/webgpu'
-import { bezierPosition, bezierRotation } from '../../tsl/curves'
+import { bezierPosition, bezierRotation, polyLine } from '../../tsl/curves'
 import { textureLoadFix } from '../../tsl/utility'
 import { GroupBuilder } from '../Builder'
 import { range } from 'lodash'
@@ -106,9 +106,9 @@ export function useControlPoints(builder: GroupBuilder<any>) {
 
     const advanceControlPoints = Fn(() => {
       const info = {
-        progress: curveI.add(
-          pointI.toFloat().div(controlPointCounts.element(curveI).sub(1))
-        ),
+        progress: curveI
+          .toFloat()
+          .add(pointI.toFloat().div(controlPointCounts.element(curveI).sub(1))),
         builder
       }
       const index = curveI.mul(builder.settings.maxPoints).add(pointI)
@@ -126,19 +126,6 @@ export function useControlPoints(builder: GroupBuilder<any>) {
           lastFrame: curveColorArray.element(index)
         })
       )
-      // textureStore(curvePositionTex, vec2(pointI, curveI), point)
-
-      // .toWriteOnly()
-
-      // const color = builder.settings.curveColor(, {
-      //   ...info,
-      //   lastColor: vec4(lastCurveColorLoadU)
-      // })
-      // textureStore(
-      //   curveColorTex,
-      //   vec2(pointI, curveI),
-      //   color
-      // ).toWriteOnly()
     })().compute(builder.settings.maxPoints * builder.settings.maxCurves)
 
     const getBezier = (
@@ -222,8 +209,10 @@ export function useControlPoints(builder: GroupBuilder<any>) {
           })
 
           position.assign(pos)
+          const c0 = curveColorArray.element(index)
+          const c1 = curveColorArray.element(index.add(1))
           if (extra) {
-            extra.color?.assign(curveColorArray.element(index))
+            extra.color?.assign(mix(c0, c1, t.x.fract()))
             extra.thickness?.assign(
               bezierPosition({
                 t: t.x.fract(),
@@ -343,18 +332,18 @@ export function useControlPoints(builder: GroupBuilder<any>) {
         const r = builder.settings.renderInit
         nextTime.current =
           typeof r === 'boolean'
-            ? nextTime.current + 1 / 60
+            ? state.clock.elapsedTime + 1 / 60
             : typeof r === 'number'
-              ? nextTime.current + r / 1000
-              : nextTime.current + r(nextTime.current * 1000) / 1000
+              ? state.clock.elapsedTime + r / 1000
+              : state.clock.elapsedTime + r(nextTime.current * 1000) / 1000
         data.reInitialize(state.clock.elapsedTime)
       }
     }
+    data.update()
   })
 
   useEffect(() => {
-    data.reload()
-    data.hooks.onInit?.()
+    data.reInitialize(nextTime.current)
     return () => {
       data.curvePositionArray.dispose()
       data.curveColorArray.dispose()

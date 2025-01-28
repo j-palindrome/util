@@ -1,10 +1,10 @@
 import { ElemNode } from '@elemaudio/core'
 import WebAudioRenderer from '@elemaudio/web-renderer'
-import _, { last, max, min, range } from 'lodash'
+import _, { last, max, min, range, sum } from 'lodash'
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import { CurvePath, LineCurve, QuadraticBezierCurve, Vector2 } from 'three'
 import { mrt, output, pass, ShaderNodeObject, texture } from 'three/tsl'
-import { Node, PassNode, PostProcessing } from 'three/webgpu'
+import { Node, PassNode, PostProcessing, TextureNode } from 'three/webgpu'
 import invariant from 'tiny-invariant'
 import { lerp } from '../math'
 import { multiBezierJS } from '../shaders/bezier'
@@ -55,10 +55,15 @@ abstract class Builder {
 
   repeat(
     runCount: number,
-    func: ({ p, i, count }: { p: number; i: number; count: number }) => void
+    func: ({ p, i, count }: { p: number; i: number; count: number }) => void,
+    complete = true
   ) {
     for (let i = 0; i < runCount; i++) {
-      func({ p: i / runCount, i, count: runCount })
+      func({
+        p: complete ? i / (runCount - 1 || 1) : i / runCount,
+        i,
+        count: runCount
+      })
     }
 
     return this
@@ -282,13 +287,28 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     onInit: () => {}
   } as any
 
-  cycle(frequency: number = 1, waveshape: 'sine' | 'saw' = 'sine') {
+  getWave(frequency: number = 1, waveshape: 'sine' | 'saw' = 'sine') {
     switch (waveshape) {
       case 'sine':
         return (Math.sin(this.time * frequency) + 1) / 2
       case 'saw':
         return Math.abs(0.5 - ((this.time * frequency) % 1)) * 2
     }
+  }
+
+  getWaveNoise(frequency = 1, index = '0') {
+    if (!this.noiseFuncs[index]) {
+      const waves = range(5).map(() => Math.random())
+      this.noiseFuncs[index] = () => {
+        let total = 0
+
+        for (let i = 0; i < waves.length; i++) {
+          total += this.getWave(waves[i] * frequency * (i + 1)) / (i + 1)
+        }
+        return total
+      }
+    }
+    return this.noiseFuncs[index]()
   }
 
   getPoint(index: number = -1, curve: number = -1) {
@@ -1073,6 +1093,11 @@ ${this.curves
     return this
   }
 
+  clear() {
+    this.curves.splice(0, this.curves.length)
+    return this
+  }
+
   constructor(
     type: T,
     settings: Partial<ProcessData<T>> & Partial<BrushData<T>>
@@ -1141,12 +1166,12 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
 
   sceneSettings: {
     postProcessing: (
-      input: ReturnType<PassNode['getTextureNode']>,
+      input: ShaderNodeObject<TextureNode>,
       info: {
         scenePass: BuilderGlobals['postProcessing']['scenePass']
         readback: BuilderGlobals['postProcessing']['readback']
       }
-    ) => ShaderNodeObject<Node>
+    ) => ShaderNodeObject<any>
     audio: (() => ElemNode | [ElemNode, ElemNode]) | null
     useReadback: boolean
   } = {

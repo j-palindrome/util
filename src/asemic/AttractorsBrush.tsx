@@ -18,6 +18,7 @@ import {
   uniform,
   uv,
   varying,
+  varyingProperty,
   vec2,
   vec4
 } from 'three/tsl'
@@ -97,7 +98,7 @@ export default function AttractorsBrush(
         // const attractorPosition = attractorsPositions.element(i)
         // const rotation = attractorsRotationAxes.element(i)
         const toAttractor = attractorPosition.sub(position)
-        const distance = toAttractor.length().pow(2)
+        const distance = toAttractor.length()
         const gravityStrength = float(thickness).div(distance).toVar()
         const direction = toAttractor.normalize()
         const gravityForce = direction
@@ -105,9 +106,7 @@ export default function AttractorsBrush(
           .mul(builder.settings.gravityForce)
         If(distance.greaterThan(float(1).div(screenSize.x)), () => {
           force.addAssign(gravityForce)
-        }).Else(() => {
-          // force.addAssign(gravityForce.negate())
-        })
+        }).Else(() => {})
 
         // spinning
         const spinningForce = vec2(cos(rotation), sin(rotation))
@@ -158,15 +157,15 @@ export default function AttractorsBrush(
       }
     )
 
-    const vUv = varying(vec2(), 'vUv')
+    const vUv = vec2().toVar()
     material.colorNode = Fn(() => {
-      vUv.assign(screenUV)
+      vUv.assign(screenUV.toVar())
       If(uv().sub(0.5).length().greaterThan(0.5), () => {
         Discard()
       })
-      const alpha = float(
-        uv().sub(0.5).length().remap(0, 0.5, 1, 0).pow(2)
-      ).toVar()
+      // const alpha = float(
+      //   uv().sub(0.5).length().remap(0, 0.5, 1, 0).pow(2)
+      // ).toVar()
       return builder.settings.pointColor(
         vec4(...builder.settings.particleColor, builder.settings.particleAlpha),
         {
