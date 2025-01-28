@@ -25,7 +25,7 @@ abstract class Builder {
   pointSettings: PreTransformData & CoordinateSettings =
     defaultCoordinateSettings
   protected noiseFuncs: ((...args: any[]) => number)[] = []
-  protected randomTable?: number[]
+  protected randomTable: number[] = []
   protected hashIndex: number = 0
   protected noiseIndex: number = 0
 
@@ -215,21 +215,15 @@ abstract class Builder {
   /**
    * i: int 1-100
    */
-  hash(i?: number, reseed: boolean = false) {
-    if (!this.randomTable || reseed) {
-      this.randomTable = range(100).map(() => Math.random())
-    }
-
+  hash(i?: number) {
     if (i === undefined) {
       this.hashIndex++
       i = this.hashIndex
     }
 
-    i = i % this.randomTable.length
+    if (!this.randomTable[i]) this.randomTable.push(Math.random())
 
-    const first = this.randomTable[Math.floor(i)]
-    const second = this.randomTable[Math.ceil(i)]
-    return first + (second - first) * (i % 1)
+    return this.randomTable[i]
   }
 
   noise(
@@ -311,11 +305,14 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
   getWaveNoise(
     frequency = 1,
     {
+      index,
       signed = false,
       harmonics = 1
-    }: { index?: number | string; signed?: boolean; harmonics?: number } = {}
+    }: { index?: number; signed?: boolean; harmonics?: number } = {}
   ) {
-    if (!this.noiseFuncs[this.noiseIndex]) {
+    if (index === undefined) index = this.noiseIndex
+
+    if (!this.noiseFuncs[index]) {
       const waves = range(harmonics).map(() => Math.random())
       this.noiseFuncs.push(() => {
         let total = 0
@@ -330,8 +327,8 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
       })
     }
     const noise = signed
-      ? this.noiseFuncs[this.noiseIndex]()
-      : (this.noiseFuncs[this.noiseIndex]() + 1) / 2
+      ? this.noiseFuncs[index]()
+      : (this.noiseFuncs[index]() + 1) / 2
     this.noiseIndex++
     return noise
   }
@@ -481,7 +478,7 @@ export class GroupBuilder<T extends BrushTypes> extends Builder {
     return path
   }
 
-  protected getBounds(points: PointBuilder[], transform?: TransformData) {
+  getBounds(points: PointBuilder[], transform?: TransformData) {
     const flatX = points.map(x => x.x)
     const flatY = points.map(y => y.y)
     const minCoord = new Vector2(min(flatX)!, min(flatY)!)
@@ -1138,7 +1135,7 @@ ${this.curves
       },
       particles: {
         type: 'particles',
-        speedDamping: 1e-2,
+        speedDamping: 1e-3,
         initialSpread: true,
         speedMax: 1,
         speedMin: 0,
@@ -1147,12 +1144,10 @@ ${this.curves
         particlePosition: input => input,
         attractorPull: 0,
         attractorPush: 1,
-        particleCount: 1e4,
-        particleColor: [1, 1, 1],
-        particleAlpha: 1
+        particleCount: 1e4
       },
       stripe: { type: 'stripe' },
-      blob: { type: 'blob' }
+      blob: { type: 'blob', centerMode: 'center' }
     }
 
     this.settings = {

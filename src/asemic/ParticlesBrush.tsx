@@ -11,26 +11,33 @@ import {
   instancedArray,
   instanceIndex,
   Loop,
+  max,
   PI2,
   screenSize,
   screenUV,
   sin,
+  storage,
   uniform,
+  uniformArray,
   uv,
   varying,
   varyingProperty,
   vec2,
   vec4
 } from 'three/tsl'
-import { SpriteNodeMaterial, WebGPURenderer } from 'three/webgpu'
+import {
+  SpriteNodeMaterial,
+  StorageBufferAttribute,
+  WebGPURenderer
+} from 'three/webgpu'
 import { GroupBuilder } from './Builder'
 import { useControlPoints } from './util/useControlPoints'
 // import sampleTex from './tex.png'
 
-export default function AttractorsBrush(
-  settings: Partial<GroupBuilder<'attractors'>['settings']>
+export default function ParticlesBrush(
+  settings: Partial<GroupBuilder<'particles'>['settings']>
 ) {
-  const builder = new GroupBuilder('attractors', settings)
+  const builder = new GroupBuilder('particles', settings)
   // @ts-ignore
   const renderer = useThree(state => state.gl as WebGPURenderer)
   const scene = useThree(state => state.scene)
@@ -49,6 +56,7 @@ export default function AttractorsBrush(
     const timeScale = uniform(1)
     const positionBuffer = instancedArray(count, 'vec2')
     const velocityBuffer = instancedArray(count, 'vec2')
+    const colorBuffer = instancedArray(count, 'vec4')
 
     const init = Fn(() => {
       const position = positionBuffer.element(instanceIndex)
@@ -83,27 +91,31 @@ export default function AttractorsBrush(
         .toVar() // uses fixed delta to consistent result
       const position = positionBuffer.element(instanceIndex)
       const velocity = velocityBuffer.element(instanceIndex)
+      const color = vec4().toVar()
       const force = vec2(0).toVar()
 
       Loop(builder.settings.maxCurves * instancesPerCurve, ({ i }) => {
         const attractorPosition = vec2().toVar()
         const rotation = float().toVar()
         const thickness = float().toVar()
+        const thisColor = vec4().toVar()
         getBezier(float(i).div(instancesPerCurve), attractorPosition, {
           rotation,
-          thickness
+          thickness,
+          color: thisColor
         })
+
         rotation.addAssign(PI2.mul(-0.25))
 
         // const attractorPosition = attractorsPositions.element(i)
         // const rotation = attractorsRotationAxes.element(i)
         const toAttractor = attractorPosition.sub(position)
         const distance = toAttractor.length()
-        const gravityStrength = float(thickness).div(distance).toVar()
+        const gravityStrength = thickness.div(distance).pow(2).toVar()
         const direction = toAttractor.normalize()
         const gravityForce = direction
           .mul(gravityStrength)
-          .mul(builder.settings.gravityForce)
+          .mul(builder.settings.attractorPull)
         If(distance.greaterThan(float(1).div(screenSize.x)), () => {
           force.addAssign(gravityForce)
         }).Else(() => {})
@@ -112,23 +124,29 @@ export default function AttractorsBrush(
         const spinningForce = vec2(cos(rotation), sin(rotation))
           .normalize()
           .mul(gravityStrength)
-          .mul(builder.settings.spinningForce)
+          .mul(builder.settings.attractorPush)
         // const spinningVelocity = spinningForce.cross(toAttractor)
         force.addAssign(spinningForce)
+        color.addAssign(
+          thisColor.mul(max(0, thickness.sub(distance).div(thickness)))
+        )
+        // color.addAssign(thisColor)
       })
+
+      colorBuffer.element(instanceIndex).assign(color)
 
       // velocity
 
       velocity.addAssign(force.mul(delta))
       const speed = velocity.length()
-      If(speed.greaterThan(builder.settings.maxSpeed), () => {
-        velocity.assign(velocity.normalize().mul(builder.settings.maxSpeed))
+      If(speed.greaterThan(builder.settings.speedMax), () => {
+        velocity.assign(velocity.normalize().mul(builder.settings.speedMax))
       })
-      If(speed.lessThan(builder.settings.minSpeed), () => {
-        velocity.assign(velocity.normalize().mul(builder.settings.minSpeed))
+      If(speed.lessThan(builder.settings.speedMin), () => {
+        velocity.assign(velocity.normalize().mul(builder.settings.speedMin))
       })
 
-      velocity.mulAssign(float(builder.settings.damping).oneMinus())
+      velocity.mulAssign(float(builder.settings.speedDamping).oneMinus())
 
       position.assign(
         builder.settings.particlePosition(position, {
@@ -137,7 +155,7 @@ export default function AttractorsBrush(
         })
       )
       velocity.assign(
-        builder.settings.pointVelocity(velocity, position, {
+        builder.settings.particleVelocity(velocity, position, {
           builder,
           progress: float(0)
         })
@@ -148,14 +166,13 @@ export default function AttractorsBrush(
     })().compute(count)
 
     // nodes
-    material.positionNode = builder.settings.particlePosition(
+    material.positionNode = Fn(() =>
       // @ts-ignore
-      positionBuffer.toAttribute(),
-      {
+      builder.settings.particlePosition(positionBuffer.toAttribute(), {
         progress: instanceIndex.toFloat().div(count),
         builder
-      }
-    )
+      })
+    )()
 
     const vUv = vec2().toVar()
     material.colorNode = Fn(() => {
@@ -163,11 +180,10 @@ export default function AttractorsBrush(
       If(uv().sub(0.5).length().greaterThan(0.5), () => {
         Discard()
       })
-      // const alpha = float(
-      //   uv().sub(0.5).length().remap(0, 0.5, 1, 0).pow(2)
-      // ).toVar()
       return builder.settings.pointColor(
-        vec4(...builder.settings.particleColor, builder.settings.particleAlpha),
+        // vec4(1, 1, 1, 1),
+        // @ts-ignore
+        colorBuffer.toAttribute(),
         {
           progress: float(0),
           builder,
@@ -177,7 +193,7 @@ export default function AttractorsBrush(
     })()
 
     material.scaleNode = vec2(1, 1)
-      .mul(builder.settings.pointSize)
+      .mul(builder.settings.particleSize)
       .div(screenSize.x)
 
     const geometry = new PlaneGeometry(1, 1)

@@ -26,6 +26,7 @@ import {
   remap,
   screenSize,
   select,
+  ShaderNodeObject,
   texture,
   textureLoad,
   textureStore,
@@ -38,6 +39,7 @@ import {
 import {
   StorageBufferAttribute,
   StorageTexture,
+  VarNode,
   WebGPURenderer
 } from 'three/webgpu'
 import { bezierPosition, bezierRotation, polyLine } from '../../tsl/curves'
@@ -134,7 +136,9 @@ export function useControlPoints(builder: GroupBuilder<any>) {
       extra?: {
         rotation?: ReturnType<typeof float>
         thickness?: ReturnType<typeof float>
-        color?: ReturnType<typeof varying>
+        color?:
+          | ReturnType<typeof varying>
+          | ReturnType<ReturnType<typeof float>['toVar']>
         progress?: ReturnType<typeof varying>
       }
     ) => {

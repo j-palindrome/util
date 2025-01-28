@@ -10,7 +10,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { HalfFloatType, OrthographicCamera, RenderTarget, Vector2 } from 'three'
 import { Fn, mrt, output, pass, texture, velocity } from 'three/tsl'
 import { PostProcessing, QuadMesh, WebGPURenderer } from 'three/webgpu'
-import AttractorsBrush from './ParticlesBrush'
+import ParticlesBrush from './ParticlesBrush'
 import SceneBuilder from './Builder'
 import MeshBrush from './LineBrush'
 import PointBrush from './DashBrush'
@@ -217,7 +217,7 @@ export default function Asemic<T extends SettingsInput>({
 
   postProcessing.outputNode = Fn(() => {
     const output = b.sceneSettings
-      .postProcessing(scenePass.getTextureNode('output'), {
+      .postProcessing(scenePass.getTextureNode('output') as any, {
         scenePass,
         readback
       })

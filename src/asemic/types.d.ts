@@ -3,6 +3,8 @@ import { float, mrt, varying, vec2, vec4 } from 'three/tsl'
 import { GroupBuilder } from './Builder'
 import { PointBuilder } from './PointBuilder'
 import Backend from 'three/src/renderers/common/Backend.js'
+import { StorageBufferNode } from 'three/webgpu'
+import type { ShaderNodeObject } from 'three/tsl'
 
 const defaultFn = (input: ReturnType<typeof vec4>) => input
 declare global {
@@ -103,8 +105,6 @@ declare global {
           attractorPull: number
           attractorPush: number
           particleCount: number
-          particleColor: [number, number, number]
-          particleAlpha: number
           particleVelocity: (
             velocity: ReturnType<typeof vec2>,
             position: ReturnType<typeof vec2>,
@@ -115,9 +115,19 @@ declare global {
             info: ParticleInfo
           ) => ReturnType<typeof vec2>
         }
-      : { type: T }
+      : T extends 'blob'
+        ? { type: T; centerMode: 'center' | 'first' | 'betweenEnds' }
+        : { type: T }
 
   type CoordinateData = PreTransformData & Partial<CoordinateSettings>
+}
+
+declare module 'three/tsl' {
+  // interface ShaderNodeObject<T> {
+  //   toAttribute: T extends StorageBufferNode
+  //     ? () => ShaderNodeObject<Node>
+  //     : undefined
+  // }
 }
 
 declare module 'three/webgpu' {
@@ -125,6 +135,7 @@ declare module 'three/webgpu' {
     _getBytesPerTexel: (format: any) => number
     _getTypedArrayType: (format: any) => typeof TypedArray
   }
+
   interface WebGPURenderer {
     getContext: () => GPUCanvasContext
     backend: Backend & {
