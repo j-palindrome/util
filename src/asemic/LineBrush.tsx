@@ -81,19 +81,12 @@ export default function MeshBrush(
     const vUv = varying(vec2(), 'vUv')
 
     const main = Fn(() => {
-      getBezier(
-        vertexIndex
-          .div(2)
-          .toFloat()
-          .div(instancesPerCurve - 0.999),
-        position,
-        {
-          rotation,
-          thickness,
-          color,
-          progress
-        }
-      )
+      getBezier(vertexIndex.div(2).toFloat().div(instancesPerCurve), position, {
+        rotation,
+        thickness,
+        color,
+        progress
+      })
 
       vUv.assign(
         vec2(
