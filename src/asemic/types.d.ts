@@ -123,7 +123,7 @@ declare global {
     Partial<{
       [T in keyof CoordinateSettings]:
         | CoordinateSettings[T]
-        | (() => CoordinateSettings[T])
+        | ((progress: number) => CoordinateSettings[T])
     }>
 }
 

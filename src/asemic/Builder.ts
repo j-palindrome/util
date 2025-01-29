@@ -30,22 +30,17 @@ abstract class Builder {
 
   repeatGrid(
     dimensions: [number, number],
-    func: ({
-      p,
-      i,
-      count
-    }: {
-      p: [number, number]
-      i: [number, number]
-      count: [number, number]
-    }) => void
+    func: ({ p, i, count }: { p: Vector2; i: Vector2; count: Vector2 }) => void
   ) {
+    let p = new Vector2()
+    let i = new Vector2()
+    let count = new Vector2(...dimensions)
     for (let y = 0; y < dimensions[1]; y++) {
       for (let x = 0; x < dimensions[0]; x++) {
         func({
-          p: [x / dimensions[0], y / dimensions[1]],
-          i: [x, y],
-          count: [dimensions[0], dimensions[1]]
+          p: p.set(x / dimensions[0], y / dimensions[1]),
+          i: i.set(x, y),
+          count
         })
       }
     }
@@ -372,7 +367,7 @@ export class GroupBuilder<
     const newPointSettings: CoordinateSettings = {} as any
     for (let [key, value] of entries(this.pointSettings)) {
       if (typeof value === 'function') {
-        newPointSettings[key] = value()
+        newPointSettings[key] = value(sum(this.curves.map(x => x.length)))
       } else {
         newPointSettings[key] = value
       }
