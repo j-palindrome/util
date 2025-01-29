@@ -1,6 +1,6 @@
 import { ElemNode } from '@elemaudio/core'
 import WebAudioRenderer from '@elemaudio/web-renderer'
-import _, { last, max, min, range, sum } from 'lodash'
+import _, { entries, keys, last, max, min, range, sum } from 'lodash'
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import { CurvePath, LineCurve, QuadraticBezierCurve, Vector2 } from 'three'
 import { mrt, output, pass, ShaderNodeObject, texture } from 'three/tsl'
@@ -22,8 +22,7 @@ export const defaultCoordinateSettings: CoordinateSettings = {
 abstract class Builder {
   protected transforms: TransformData[] = []
   currentTransform: TransformData = this.toTransform()
-  pointSettings: PreTransformData & CoordinateSettings =
-    defaultCoordinateSettings
+  pointSettings: PreTransformData & CoordinateData = defaultCoordinateSettings
   protected noiseFuncs: ((...args: any[]) => number)[] = []
   protected randomTable: number[] = []
   protected hashIndex: number = 0
@@ -78,7 +77,7 @@ abstract class Builder {
     return this
   }
 
-  transform(transform: Partial<Builder['pointSettings']>) {
+  transform(transform: Partial<CoordinateData>) {
     if (transform.reset) {
       switch (transform.reset) {
         case 'pop':
@@ -363,22 +362,40 @@ export class GroupBuilder<
       } else if (coordinates[i] instanceof PointBuilder) {
         points.push(coordinates[i] as PointBuilder)
       } else {
-        this.transform(coordinates[i] as CoordinateData)
+        this.transform(coordinates[i] as CoordinateSettings)
       }
     }
     return points
   }
 
+  protected convertPointSettings(): CoordinateSettings {
+    const newPointSettings: CoordinateSettings = {} as any
+    for (let [key, value] of entries(this.pointSettings)) {
+      if (typeof value === 'function') {
+        newPointSettings[key] = value()
+      } else {
+        newPointSettings[key] = value
+      }
+    }
+    return newPointSettings
+  }
+
   toPoint(coordinate: Coordinate | PointBuilder | Vector2) {
     if (coordinate instanceof PointBuilder) return coordinate
     else if (coordinate instanceof Vector2)
-      return new PointBuilder([coordinate.x, coordinate.y], this.pointSettings)
+      return new PointBuilder(
+        [coordinate.x, coordinate.y],
+        this.convertPointSettings()
+      )
     else {
       if (coordinate[2]) {
         this.transform(coordinate[2])
       }
       return this.applyTransform(
-        new PointBuilder([coordinate[0], coordinate[1]], this.pointSettings),
+        new PointBuilder(
+          [coordinate[0], coordinate[1]],
+          this.convertPointSettings()
+        ),
         this.currentTransform
       )
     }
@@ -1170,7 +1187,7 @@ ${this.curves
   }
 }
 
-type BuilderGlobals = Pick<SceneBuilder<any>, 'postProcessing' | 'audio'>
+type BuilderGlobals = Pick<SceneBuilder<any>, 'postProcessing' | 'audio' | 'h'>
 
 export default class SceneBuilder<T extends SettingsInput> extends Builder {
   // groups: GroupBuilder<any>[] = []
@@ -1188,6 +1205,7 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     elNode: AudioWorkletNode
     elCore: WebAudioRenderer
   } | null
+  h: number
   constants: Settings<T>['constants']
   refs: Settings<T>['refs']
   uniforms: Settings<T>['uniforms']
@@ -1220,5 +1238,6 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     this.uniforms = controls.uniforms
     this.audio = globals.audio
     this.postProcessing = globals.postProcessing
+    this.h = globals.h
   }
 }

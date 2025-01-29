@@ -119,7 +119,12 @@ declare global {
         ? { type: T; centerMode: 'center' | 'first' | 'betweenEnds' }
         : { type: T }
 
-  type CoordinateData = PreTransformData & Partial<CoordinateSettings>
+  type CoordinateData = PreTransformData &
+    Partial<{
+      [T in keyof CoordinateSettings]:
+        | CoordinateSettings[T]
+        | (() => CoordinateSettings[T])
+    }>
 }
 
 declare module 'three/tsl' {

@@ -15,7 +15,7 @@ import SceneBuilder from './Builder'
 import MeshBrush from './LineBrush'
 import PointBrush from './DashBrush'
 import { AsemicContext } from './util/asemicContext'
-import { SettingsInput, useEvents } from './util/useEvents'
+import { SettingsInput, useBuilderEvents, useEvents } from './util/useEvents'
 import { traaPass } from 'three/addons/tsl/display/TRAAPassNode.js'
 
 extend({
@@ -191,10 +191,15 @@ export function useAsemic<T extends SettingsInput>({
     settings,
     {
       postProcessing: { postProcessing, scenePass, readback },
-      audio
+      audio,
+      h
     },
     controlsBuilt
   )
+  useEffect(() => {
+    b.h = h
+  }, [h])
+  useBuilderEvents(b)
 
   postProcessing.outputNode = Fn(() => {
     const output = b.sceneSettings
@@ -235,5 +240,5 @@ export function useAsemic<T extends SettingsInput>({
 
   useEffect(renderAudio, [b])
 
-  return { h, controls }
+  return b
 }
