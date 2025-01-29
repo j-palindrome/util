@@ -48,7 +48,7 @@ export default function MeshBrush<K extends Record<string, any>>({
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
 
-  const { getBezier, resolution, instancesPerCurve } = useControlPoints(builder)
+  const { getBezier, instancesPerCurve } = useControlPoints(builder)
   const { material, geometry } = useMemo(() => {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
@@ -57,7 +57,6 @@ export default function MeshBrush<K extends Record<string, any>>({
     let currentIndex = 0
     const indexes: number[] = []
 
-    const width = resolution.x
     for (let i = 0; i < builder.settings.maxCurves; i++) {
       for (let i = 0; i < instancesPerCurve - 1; i++) {
         indexes.push(...indexGuide.map(x => x + currentIndex))

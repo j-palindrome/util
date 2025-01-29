@@ -53,13 +53,6 @@ export function AsemicCanvas({
     </button>
   ) : (
     <>
-      {/*<button
-        className='text-white'
-        onClick={() => {
-          setRecording(!recording)
-        }}>
-        {!recording ? 'record' : 'recording...'}
-      </button>*/}
       <Canvas
         onClick={ev => {
           if (ev.shiftKey) {
@@ -146,15 +139,12 @@ export function AsemicCanvas({
 }
 
 function Adjust() {
-  const resolution = new Vector2()
-  useThree(state => {
-    state.gl.getDrawingBufferSize(resolution)
-    const camera = state.camera as OrthographicCamera
-    // @ts-expect-error
-    const gl = state.gl as WebGPURenderer
-    camera.top = resolution.height / resolution.width
+  const size = useThree(state => state.size)
+  const camera = useThree(state => state.camera as OrthographicCamera)
+  useEffect(() => {
+    camera.top = size.height / size.width
     camera.updateProjectionMatrix()
-  })
+  }, [size])
   return <></>
 }
 
@@ -180,16 +170,14 @@ export function useAsemic<T extends SettingsInput>({
     refs: { ...controls?.refs }
   } as T
 
-  const resolution = new Vector2()
-  useThree(state => {
-    state.gl.getDrawingBufferSize(resolution)
-  })
+  const size = useThree(state => state.size)
+  const h = size.height / size.width
 
   const { audio } = useContext(AsemicContext)
-  const renderTarget = new RenderTarget(resolution.x, resolution.y, {
+  const renderTarget = new RenderTarget(size.width, size.height, {
     type: HalfFloatType
   })
-  const renderTarget2 = new RenderTarget(resolution.x, resolution.y, {
+  const renderTarget2 = new RenderTarget(size.width, size.height, {
     type: HalfFloatType
   })
   const readback = texture(renderTarget.texture)
@@ -246,8 +234,6 @@ export function useAsemic<T extends SettingsInput>({
   }
 
   useEffect(renderAudio, [b])
-
-  const h = useThree(state => state.size.height / state.size.width)
 
   return { h, controls }
 }

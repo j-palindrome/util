@@ -27,17 +27,16 @@ import { GroupBuilder } from '../Builder'
 export function useControlPoints(builder: GroupBuilder<any, any>) {
   // @ts-ignore
   const renderer = useThree(({ gl }) => gl as WebGPURenderer)
-  const resolution = new Vector2()
-  renderer.getDrawingBufferSize(resolution)
+  const size = useThree(state => state.size)
 
   const instancesPerCurve = Math.max(
     1,
     Math.floor(
       builder.settings.spacingType === 'pixel'
-        ? (builder.settings.maxLength * resolution.x) / builder.settings.spacing
+        ? (builder.settings.maxLength * size.width) / builder.settings.spacing
         : builder.settings.spacingType === 'width'
-          ? (builder.settings.maxLength * resolution.x) /
-            (builder.settings.spacing * resolution.x)
+          ? (builder.settings.maxLength * size.width) /
+            (builder.settings.spacing * size.width)
           : builder.settings.spacingType === 'count'
             ? builder.settings.spacing
             : 0
@@ -321,7 +320,6 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
 
   return {
     getBezier: data.getBezier,
-    resolution,
     instancesPerCurve,
     hooks: data.hooks
   }
