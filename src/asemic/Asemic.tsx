@@ -158,14 +158,13 @@ function Adjust() {
   return <></>
 }
 
-export default function Asemic<T extends SettingsInput>({
+export function useAsemic<T extends SettingsInput>({
   controls,
   ...settings
 }: {
   controls?: T
-} & Partial<SceneBuilder<T>['sceneSettings']> &
-  React.PropsWithChildren) {
-  const { renderer, scene, camera, invalidate, advance } = useThree(
+} & Partial<SceneBuilder<T>['sceneSettings']> = {}) {
+  const { renderer, scene, camera } = useThree(
     ({ gl, scene, camera, invalidate, advance }) => ({
       // @ts-expect-error
       renderer: gl as WebGPURenderer,
@@ -248,5 +247,7 @@ export default function Asemic<T extends SettingsInput>({
 
   useEffect(renderAudio, [b])
 
-  return <></>
+  const h = useThree(state => state.size.height / state.size.width)
+
+  return { h, controls }
 }
