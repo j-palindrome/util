@@ -24,7 +24,7 @@ import { WebGPURenderer } from 'three/webgpu'
 import { bezierPosition, bezierRotation } from '../../tsl/curves'
 import { GroupBuilder } from '../Builder'
 
-export function useControlPoints(builder: GroupBuilder<any>) {
+export function useControlPoints(builder: GroupBuilder<any, any>) {
   // @ts-ignore
   const renderer = useThree(({ gl }) => gl as WebGPURenderer)
   const resolution = new Vector2()

@@ -40,10 +40,11 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function MeshBrush(
-  settings: Partial<GroupBuilder<'line'>['settings']>
-) {
-  const builder = new GroupBuilder('line', settings)
+export default function MeshBrush<K extends Record<string, any>>({
+  params = {} as any,
+  ...settings
+}: { params?: K } & Partial<GroupBuilder<'line', K>['settings']>) {
+  const builder = new GroupBuilder('line', settings, params)
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
 

@@ -254,10 +254,14 @@ abstract class Builder {
   constructor() {}
 }
 
-export class GroupBuilder<T extends BrushTypes> extends Builder {
+export class GroupBuilder<
+  T extends BrushTypes,
+  K extends Record<string, any>
+> extends Builder {
   time: number = performance.now() / 1000
   curves: PointBuilder[][] = []
-  settings: ProcessData<T> & BrushData<T> = {
+  params: K
+  settings: ProcessData<T, K> & BrushData<T> = {
     maxLength: 0,
     maxCurves: 0,
     maxPoints: 0,
@@ -863,7 +867,7 @@ ${this.curves
     return this
   }
 
-  protected letters: Record<string, () => GroupBuilder<T>> = {
+  protected letters: Record<string, () => GroupBuilder<T, K>> = {
     ' ': () => this.transform({ translate: [0.5, 0], reset: 'pop' }),
     '\t': () => this.transform({ translate: [2, 0], reset: 'pop' }),
     a: () =>
@@ -1127,7 +1131,8 @@ ${this.curves
 
   constructor(
     type: T,
-    settings: Partial<ProcessData<T>> & Partial<BrushData<T>>
+    settings: Partial<ProcessData<T, K>> & Partial<BrushData<T>>,
+    params: K
   ) {
     super()
 
@@ -1159,20 +1164,16 @@ ${this.curves
       ...defaultBrushSettings[type],
       ...settings
     }
+    this.params = params
 
     this.reInitialize(0)
   }
 }
 
-type BuilderGlobals = Pick<
-  SceneBuilder<any>,
-  'postProcessing' | 'audio' | 'h' | 'size'
->
+type BuilderGlobals = Pick<SceneBuilder<any>, 'postProcessing' | 'audio'>
 
 export default class SceneBuilder<T extends SettingsInput> extends Builder {
   // groups: GroupBuilder<any>[] = []
-  h: number
-  size = new Vector2()
   mouse = new Vector2()
   click = new Vector2()
   text = ''
@@ -1217,10 +1218,7 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     this.constants = controls.constants
     this.refs = controls.refs
     this.uniforms = controls.uniforms
-    this.h = globals.h
-    this.size = globals.size
     this.audio = globals.audio
     this.postProcessing = globals.postProcessing
-    // this.sceneSettings.initialize(this)
   }
 }

@@ -14,7 +14,7 @@ import {
 } from 'three/tsl'
 
 // Define the Bezier functions
-export const bezier2 = ({ t, p0, p1, p2 }) => {
+export const bezier2 = (t, p0, p1, p2) => {
   return p0
     .mul(t.oneMinus().pow(2))
     .add(p1.mul(t.oneMinus().mul(t).mul(2)))
@@ -116,7 +116,7 @@ export const bezierPosition = ({ t, p0, p1, p2, strength }) => {
     position.assign(polyLine({ t, p0, p1, p2 }))
   })
     .ElseIf(strength.equal(0), () => {
-      position.assign(bezier2({ t, p0, p1, p2 }))
+      position.assign(bezier2(t, p0, p1, p2))
     })
     .Else(() => {
       position.assign(bezierRational({ t, p0, p1, p2, strength }))
@@ -132,7 +132,7 @@ export const bezierRotation = ({ t, p0, p1, p2, strength }) => {
 }
 
 export const bezierPointSimple = ({ t, p0, p1, p2, strength }) => {
-  const positionCurve = bezier2({ t, p0, p1, p2 })
+  const positionCurve = bezier2(t, p0, p1, p2)
   const positionStraight = polyLine({ t, p0, p1, p2 })
   const position = mix(positionCurve, positionStraight, strength)
   return position

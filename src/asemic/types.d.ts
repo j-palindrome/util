@@ -43,7 +43,7 @@ declare global {
     builder: GroupBuilder<T>
   }
 
-  type ProcessData<T extends BrushTypes> = {
+  type ProcessData<T extends BrushTypes, K extends Record<string, any>> = {
     renderInit: boolean | number | ((lastFrame: number) => number)
     renderStart: number | (() => number)
     spacing: number
@@ -84,8 +84,8 @@ declare global {
         lastFrame: ReturnType<typeof vec4>
       }
     ) => input
-    onUpdate: (builder: GroupBuilder<T>) => void
-    onInit: (builder: GroupBuilder<T>) => void
+    onUpdate: (builder: GroupBuilder<T, K>) => void
+    onInit: (builder: GroupBuilder<T, K>) => void
   }
 
   type BrushTypes = 'dash' | 'line' | 'particles' | 'stripe' | 'blob'

@@ -160,15 +160,11 @@ function Adjust() {
 
 export default function Asemic<T extends SettingsInput>({
   controls,
-  children,
   ...settings
 }: {
   controls?: T
-  children:
-    | JSX.Element[]
-    | JSX.Element
-    | ((b: SceneBuilder<T>) => JSX.Element[] | JSX.Element)
-} & Partial<SceneBuilder<T>['sceneSettings']>) {
+} & Partial<SceneBuilder<T>['sceneSettings']> &
+  React.PropsWithChildren) {
   const { renderer, scene, camera, invalidate, advance } = useThree(
     ({ gl, scene, camera, invalidate, advance }) => ({
       // @ts-expect-error
@@ -208,8 +204,6 @@ export default function Asemic<T extends SettingsInput>({
     settings,
     {
       postProcessing: { postProcessing, scenePass, readback },
-      h: resolution.y / resolution.x,
-      size: resolution,
       audio
     },
     controlsBuilt
@@ -225,41 +219,7 @@ export default function Asemic<T extends SettingsInput>({
     return output
   })()
 
-  // useEffect(() => {
-  //   // if (!recording) return
-  //   // if (!recording) {
-  //   //   recorder.stop()
-  //   // }
-  //   // const stream = canvasRef.current.captureStream(60) // 30 is the desired frame rate
-  //   // const chunks: Blob[] = []
-  //   // const recorder = new MediaRecorder(stream)
-  //   // recorder.ondataavailable = event => {
-  //   //   chunks.push(event.data)
-  //   // }
-  //   // recorder.onstop = event => {
-  //   //   const blob = new Blob(chunks, { type: 'video/m4a' })
-  //   //   const videoUrl = URL.createObjectURL(blob)
-  //   //   const video = document.createElement('video')
-  //   //   video.src = videoUrl
-  //   //   video.controls = true
-  //   //   document.body.appendChild(video)
-  //   //   setRecording(false)
-  //   // }
-  //   // recorder.start()
-  //   // window.setTimeout(() => recorder.stop(), 2000)
-  //   // capture image sequence down
-  // }, [recording])
-
-  // const link = useMemo(() => {
-  //   const link = document.createElement('a')
-  //   return link
-  // }, [])
-
-  // const blobs: string[] = []
-
   let phase = true
-  // let counter = useRef(0)
-  // let lastTime = useRef(performance.now())
 
   useFrame(() => {
     if (b.sceneSettings.useReadback) {
@@ -288,5 +248,5 @@ export default function Asemic<T extends SettingsInput>({
 
   useEffect(renderAudio, [b])
 
-  return <>{typeof children === 'function' ? children(b) : children}</>
+  return <></>
 }

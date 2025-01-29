@@ -1,10 +1,13 @@
 import {
   float,
   hash,
+  int,
+  Loop,
   NodeRepresentation,
   PI,
   PI2,
   range,
+  select,
   sin,
   time,
   vec2,
@@ -91,24 +94,29 @@ export const noiseWave = (...values: ReturnType<typeof vec2>[]) => {
   return output.div(values.length)
 }
 
-export const noiseWaveRandom = (seed: number, freq: NodeRepresentation = 1) => {
+export const noiseWaveRandom = (
+  seed: number,
+  freq: NodeRepresentation = 1,
+  { signed = false, harmonics = 1 } = {}
+) => {
   const output = float().toVar()
-  const count = 10
-  for (let i = 0; i < count; i++) {
+  const count = harmonics
+  const total = float(0).toVar()
+  Loop(count, ({ i }) => {
     output.addAssign(
       sin(
         hash(
           float(seed)
             .mul(1000)
-            .add(i * 10)
+            .add(0 * 10)
         )
-          .mul(2)
           .mul(freq)
           .mul(time.mul(PI2))
-          .mul(i + 1)
-      ).div(i + 1)
+          .mul(int(i).add(1))
+      ).div(int(i).add(1))
     )
-  }
+    total.addAssign(float(1).div(int(i).add(1)))
+  })
 
-  return output.div(2.92).add(1).div(2)
+  return select(signed, output.div(total), output.div(total).add(1).div(2))
 }
