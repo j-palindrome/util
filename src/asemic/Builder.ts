@@ -27,6 +27,7 @@ abstract class Builder {
   protected randomTable: number[] = []
   protected hashIndex: number = 0
   protected noiseIndex: number = 0
+  vec2 = new Vector2()
 
   repeatGrid(
     dimensions: [number, number],
@@ -40,6 +41,7 @@ abstract class Builder {
       count: Vector2
       pCenter: Vector2
       pComplete: Vector2
+      iNumber: number
     }) => void
   ) {
     let p = new Vector2()
@@ -60,7 +62,8 @@ abstract class Builder {
             x / (dimensions[0] - 1),
             y / (dimensions[1] - 1)
           ),
-          count
+          count,
+          iNumber: x + y * x
         })
       }
     }
@@ -256,8 +259,14 @@ abstract class Builder {
       | [number, number]
       | [number, number, number]
       | [number, number, number, number],
-    { signed = false }: { index?: number | string; signed?: boolean } = {}
+    {
+      signed = false,
+      advance = true
+    }: { signed?: boolean; advance?: boolean } = {}
   ) {
+    if (!advance) {
+      this.noiseIndex = Math.max(0, this.noiseIndex - 1)!
+    }
     if (!this.noiseFuncs[this.noiseIndex]) {
       switch (coords.length) {
         case 2:
