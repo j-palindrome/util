@@ -46,10 +46,11 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function PointBrush(
-  settings: Partial<GroupBuilder<'dash'>['settings']>
-) {
-  const builder = new GroupBuilder('dash', settings)
+export default function DashBrush<K extends Record<string, any>>({
+  params,
+  ...settings
+}: { params: K } & Partial<GroupBuilder<'dash', K>['settings']>) {
+  const builder = new GroupBuilder('dash', settings, params)
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
 
