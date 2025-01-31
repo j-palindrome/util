@@ -31,7 +31,7 @@ import {
   WebGPURenderer
 } from 'three/webgpu'
 import { GroupBuilder } from './Builder'
-import { useControlPoints } from './util/useControlPoints'
+import { useCurve } from './util/useControlPoints'
 // import sampleTex from './tex.png'
 
 export default function ParticlesBrush(
@@ -42,7 +42,7 @@ export default function ParticlesBrush(
   const renderer = useThree(state => state.gl as WebGPURenderer)
   const scene = useThree(state => state.scene)
 
-  const { getBezier, instancesPerCurve, hooks } = useControlPoints(builder)
+  const { getBezier, instancesPerCurve, hooks } = useCurve(builder)
 
   const { mesh, material, geometry } = useMemo(() => {
     const count = builder.settings.particleCount

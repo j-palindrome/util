@@ -11,7 +11,17 @@ import {
   sin,
   time,
   vec2,
-  wgslFn
+  wgslFn,
+  vec4,
+  floor,
+  Fn,
+  mul,
+  sub,
+  fract,
+  abs,
+  dot,
+  mix,
+  mod
 } from 'three/tsl'
 
 export const simplex2D = wgslFn(/*wgsl*/ `

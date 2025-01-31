@@ -18,7 +18,7 @@ import {
   WebGPURenderer
 } from 'three/webgpu'
 import { GroupBuilder } from './Builder'
-import { useControlPoints } from './util/useControlPoints'
+import { useCurve } from './util/useControlPoints'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -48,7 +48,7 @@ export default function LineBrush<K extends Record<string, any>>({
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
 
-  const { getBezier, instancesPerCurve } = useControlPoints(builder)
+  const { getBezier, instancesPerCurve } = useCurve(builder)
   const { material, geometry } = useMemo(() => {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))

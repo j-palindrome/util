@@ -17,7 +17,7 @@ import {
   WebGPURenderer
 } from 'three/webgpu'
 import { GroupBuilder } from './Builder'
-import { useControlPoints } from './util/useControlPoints'
+import { useCurve } from './util/useControlPoints'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
@@ -46,7 +46,7 @@ export default function StripeBrush(
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
 
-  const { getBezier, resolution, instancesPerCurve } = useControlPoints(builder)
+  const { getBezier, resolution, instancesPerCurve } = useCurve(builder)
   const { material, geometry } = useMemo(() => {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))

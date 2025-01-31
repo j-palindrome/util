@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { range } from 'lodash'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Vector2, Vector4 } from 'three'
 import { Fn } from 'three/src/nodes/TSL.js'
 import {
@@ -24,10 +24,171 @@ import { WebGPURenderer } from 'three/webgpu'
 import { bezierPosition, bezierRotation } from '../../tsl/curves'
 import { GroupBuilder } from '../Builder'
 
-export function useControlPoints(builder: GroupBuilder<any, any>) {
+function useControlPointArray(builder: GroupBuilder<any, any>) {
   // @ts-ignore
   const renderer = useThree(({ gl }) => gl as WebGPURenderer)
-  const size = useThree(state => state.size)
+
+  const curvePositionArray = instancedArray(
+    builder.settings.maxPoints * builder.settings.maxCurves,
+    'vec4'
+  )
+  const curveColorArray = instancedArray(
+    builder.settings.maxPoints * builder.settings.maxCurves,
+    'vec4'
+  )
+  const loadPositions = uniformArray(
+    range(builder.settings.maxPoints * builder.settings.maxCurves).map(
+      x => new Vector4()
+    ),
+    'vec4'
+  )
+  const loadColors = uniformArray(
+    range(builder.settings.maxPoints * builder.settings.maxCurves).map(
+      x => new Vector4()
+    ),
+    'vec4'
+  )
+  const controlPointCounts = uniformArray(
+    builder.curves.map(x => x.length),
+    'int'
+  )
+
+  const pointI = instanceIndex.modInt(builder.settings.maxPoints)
+  const curveI = instanceIndex.div(builder.settings.maxPoints)
+
+  const advanceControlPoints = Fn(() => {
+    const info = {
+      progress: curveI
+        .toFloat()
+        .add(pointI.toFloat().div(controlPointCounts.element(curveI).sub(1))),
+      builder
+    }
+    const index = curveI.mul(builder.settings.maxPoints).add(pointI)
+    const thisPosition = loadPositions.element(index)
+    curvePositionArray.element(index).assign(
+      builder.settings.curvePosition(thisPosition, {
+        ...info,
+        lastFrame: curvePositionArray.element(index)
+      })
+    )
+    const thisColor = loadColors.element(index)
+    curveColorArray.element(index).assign(
+      builder.settings.curveColor(thisColor, {
+        ...info,
+        lastFrame: curveColorArray.element(index)
+      })
+    )
+  })().compute(builder.settings.maxPoints * builder.settings.maxCurves)
+
+  const nextTime = useRef<number>(
+    (typeof builder.settings.renderStart === 'function'
+      ? builder.settings.renderStart()
+      : builder.settings.renderStart) / 1000
+  )
+
+  useFrame(state => {
+    if (state.clock.elapsedTime > nextTime.current) {
+      if (builder.settings.renderInit) {
+        const r = builder.settings.renderInit
+        nextTime.current =
+          typeof r === 'boolean'
+            ? state.clock.elapsedTime + 1 / 60
+            : typeof r === 'number'
+              ? state.clock.elapsedTime + r / 1000
+              : state.clock.elapsedTime + r(nextTime.current * 1000) / 1000
+        reInitialize(state.clock.elapsedTime)
+      }
+    }
+    update()
+  })
+
+  useEffect(() => {
+    reInitialize(nextTime.current)
+    return () => {
+      curvePositionArray.dispose()
+      curveColorArray.dispose()
+    }
+  }, [builder])
+
+  const hooks: { onUpdate?: () => void; onInit?: () => void } = {}
+  const update = () => {
+    if (hooks.onUpdate) {
+      hooks.onUpdate()
+    }
+    renderer.compute(advanceControlPoints)
+  }
+
+  const reInitialize = (seconds: number) => {
+    if (builder.settings.renderClear) builder.clear()
+    builder.reInitialize(seconds)
+    reload()
+    if (hooks.onInit) {
+      hooks.onInit()
+    }
+  }
+
+  const loadControlPoints = Fn(() => {
+    curvePositionArray
+      .element(instanceIndex)
+      .assign(loadPositions.element(instanceIndex))
+    curveColorArray
+      .element(instanceIndex)
+      .assign(loadColors.element(instanceIndex))
+  })().compute(builder.settings.maxCurves * builder.settings.maxPoints)
+
+  const reload = () => {
+    for (let i = 0; i < builder.settings.maxCurves; i++) {
+      controlPointCounts.array[i] = builder.curves[i].length
+    }
+    const loadColorsArray = loadColors.array as Vector4[]
+    const loadPositionsArray = loadPositions.array as Vector4[]
+    for (let i = 0; i < builder.settings.maxCurves; i++) {
+      const curveIndex = i * builder.settings.maxPoints
+      for (let j = 0; j < builder.settings.maxPoints; j++) {
+        const point = builder.curves[i]?.[j]
+        if (point) {
+          loadPositionsArray[curveIndex + j].set(
+            point.x,
+            point.y,
+            point.strength,
+            point.thickness
+          )
+          loadColorsArray[curveIndex + j].set(
+            point.color[0],
+            point.color[1],
+            point.color[2],
+            point.alpha
+          )
+        } else {
+          loadPositionsArray[curveIndex + j].set(0, 0, 0, 0)
+          loadColorsArray[curveIndex + j].set(0, 0, 0, 0)
+        }
+      }
+    }
+    // loadPositions.needsUpdate = true
+    // loadColors.needsUpdate = true
+    renderer.compute(loadControlPoints)
+  }
+
+  return {
+    curvePositionArray,
+    curveColorArray,
+    controlPointCounts,
+    hooks
+  }
+}
+
+export function usePoints(builder: GroupBuilder<any, any>) {
+  const { curvePositionArray, curveColorArray, hooks } =
+    useControlPointArray(builder)
+  return { curvePositionArray, curveColorArray, hooks }
+}
+
+export function useCurve(builder: GroupBuilder<any, any>) {
+  const size = useThree(state => state.gl.getDrawingBufferSize(new Vector2()))
+
+  const { curvePositionArray, curveColorArray, controlPointCounts, hooks } =
+    useControlPointArray(builder)
 
   const instancesPerCurve = Math.max(
     1,
@@ -43,60 +204,8 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
     )
   )
 
-  const data = useMemo(() => {
-    const curvePositionArray = instancedArray(
-      builder.settings.maxPoints * builder.settings.maxCurves,
-      'vec4'
-    )
-    const curveColorArray = instancedArray(
-      builder.settings.maxPoints * builder.settings.maxCurves,
-      'vec4'
-    )
-    const loadPositions = uniformArray(
-      range(builder.settings.maxPoints * builder.settings.maxCurves).map(
-        x => new Vector4()
-      ),
-      'vec4'
-    )
-    const loadColors = uniformArray(
-      range(builder.settings.maxPoints * builder.settings.maxCurves).map(
-        x => new Vector4()
-      ),
-      'vec4'
-    )
-    const controlPointCounts = uniformArray(
-      builder.curves.map(x => x.length),
-      'int'
-    )
-
-    const pointI = instanceIndex.modInt(builder.settings.maxPoints)
-    const curveI = instanceIndex.div(builder.settings.maxPoints)
-
-    const advanceControlPoints = Fn(() => {
-      const info = {
-        progress: curveI
-          .toFloat()
-          .add(pointI.toFloat().div(controlPointCounts.element(curveI).sub(1))),
-        builder
-      }
-      const index = curveI.mul(builder.settings.maxPoints).add(pointI)
-      const thisPosition = loadPositions.element(index)
-      curvePositionArray.element(index).assign(
-        builder.settings.curvePosition(thisPosition, {
-          ...info,
-          lastFrame: curvePositionArray.element(index)
-        })
-      )
-      const thisColor = loadColors.element(index)
-      curveColorArray.element(index).assign(
-        builder.settings.curveColor(thisColor, {
-          ...info,
-          lastFrame: curveColorArray.element(index)
-        })
-      )
-    })().compute(builder.settings.maxPoints * builder.settings.maxCurves)
-
-    const getBezier = (
+  const getBezier = useCallback(
+    (
       progress: ReturnType<typeof float>,
       position: ReturnType<typeof vec2>,
       extra?: {
@@ -202,7 +311,7 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
                 p1: p1.xy,
                 p2: p2.xy,
                 strength
-              }).add(PI2.mul(0.25))
+              })
             )
           }
         })
@@ -220,113 +329,13 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
           })
         )
       }
-    }
-
-    const loadControlPoints = Fn(() => {
-      curvePositionArray
-        .element(instanceIndex)
-        .assign(loadPositions.element(instanceIndex))
-      curveColorArray
-        .element(instanceIndex)
-        .assign(loadColors.element(instanceIndex))
-    })().compute(builder.settings.maxCurves * builder.settings.maxPoints)
-
-    const reload = () => {
-      for (let i = 0; i < builder.settings.maxCurves; i++) {
-        controlPointCounts.array[i] = builder.curves[i].length
-      }
-      const loadColorsArray = loadColors.array as Vector4[]
-      const loadPositionsArray = loadPositions.array as Vector4[]
-      for (let i = 0; i < builder.settings.maxCurves; i++) {
-        const curveIndex = i * builder.settings.maxPoints
-        for (let j = 0; j < builder.settings.maxPoints; j++) {
-          const point = builder.curves[i]?.[j]
-          if (point) {
-            loadPositionsArray[curveIndex + j].set(
-              point.x,
-              point.y,
-              point.strength,
-              point.thickness
-            )
-            loadColorsArray[curveIndex + j].set(
-              point.color[0],
-              point.color[1],
-              point.color[2],
-              point.alpha
-            )
-          } else {
-            loadPositionsArray[curveIndex + j].set(0, 0, 0, 0)
-            loadColorsArray[curveIndex + j].set(0, 0, 0, 0)
-          }
-        }
-      }
-      // loadPositions.needsUpdate = true
-      // loadColors.needsUpdate = true
-      renderer.compute(loadControlPoints)
-    }
-
-    const hooks: { onUpdate?: () => void; onInit?: () => void } = {}
-    const update = () => {
-      if (hooks.onUpdate) {
-        hooks.onUpdate()
-      }
-      renderer.compute(advanceControlPoints)
-    }
-
-    const reInitialize = (seconds: number) => {
-      if (builder.settings.renderClear) builder.clear()
-      builder.reInitialize(seconds)
-      reload()
-      if (hooks.onInit) {
-        hooks.onInit()
-      }
-    }
-
-    return {
-      curvePositionArray,
-      curveColorArray,
-      controlPointCounts,
-      getBezier,
-      reInitialize,
-      hooks,
-      update,
-      reload
-    }
-  }, [builder])
-
-  const nextTime = useRef<number>(
-    (typeof builder.settings.renderStart === 'function'
-      ? builder.settings.renderStart()
-      : builder.settings.renderStart) / 1000
+    },
+    [builder]
   )
 
-  useFrame(state => {
-    if (state.clock.elapsedTime > nextTime.current) {
-      if (builder.settings.renderInit) {
-        const r = builder.settings.renderInit
-        nextTime.current =
-          typeof r === 'boolean'
-            ? state.clock.elapsedTime + 1 / 60
-            : typeof r === 'number'
-              ? state.clock.elapsedTime + r / 1000
-              : state.clock.elapsedTime + r(nextTime.current * 1000) / 1000
-        data.reInitialize(state.clock.elapsedTime)
-      }
-    }
-    data.update()
-  })
-
-  useEffect(() => {
-    data.reInitialize(nextTime.current)
-    return () => {
-      data.curvePositionArray.dispose()
-      data.curveColorArray.dispose()
-    }
-  }, [builder])
-
   return {
-    getBezier: data.getBezier,
+    getBezier,
     instancesPerCurve,
-    hooks: data.hooks
+    hooks
   }
 }

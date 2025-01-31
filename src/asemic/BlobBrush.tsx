@@ -19,7 +19,7 @@ import {
   WebGPURenderer
 } from 'three/webgpu'
 import { GroupBuilder } from './Builder'
-import { useControlPoints } from './util/useControlPoints'
+import { useCurve } from './util/useControlPoints'
 import { range } from 'lodash'
 
 type VectorList = [number, number]
@@ -50,7 +50,7 @@ export default function BlobBrush<T extends Record<string, any>>({
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
 
-  const { getBezier, instancesPerCurve, hooks } = useControlPoints(builder)
+  const { getBezier, instancesPerCurve, hooks } = useCurve(builder)
   const { material, geometry } = useMemo(() => {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
