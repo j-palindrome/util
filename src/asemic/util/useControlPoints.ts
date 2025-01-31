@@ -137,7 +137,7 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
         )
         const curveIndex = floor(progressVar).mul(builder.settings.maxPoints)
         const pointIndex = progressVar.fract().mul(0.999).mul(subdivisions)
-        const index = curveIndex.add(pointIndex)
+        const index = curveIndex.add(pointIndex).toVar()
 
         If(controlPointsCount.equal(2), () => {
           const p0 = curvePositionArray.element(index)

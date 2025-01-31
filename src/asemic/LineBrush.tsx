@@ -40,7 +40,7 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function MeshBrush<K extends Record<string, any>>({
+export default function LineBrush<K extends Record<string, any>>({
   params = {} as any,
   ...settings
 }: { params?: K } & Partial<GroupBuilder<'line', K>['settings']>) {
