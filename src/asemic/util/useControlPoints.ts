@@ -127,8 +127,8 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
           1,
           builder.settings.adjustEnds === 'loop'
             ? controlPointsCount
-            : controlPointCounts.sub(2)
-        )
+            : controlPointsCount.sub(2)
+        ).toVar()
 
         //4 points: 4-2 = 2 0->1 1->2 (if it goes to the last value then it starts interpolating another curve)
         const t = vec2(

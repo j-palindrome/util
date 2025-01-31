@@ -60,16 +60,18 @@ export default function BlobBrush<T extends Record<string, any>>({
       for (let i = 1; i < instancesPerCurve - 1; i++) {
         indexes.push(
           curveI,
-          i + builder.settings.maxCurves,
-          i + 1 + builder.settings.maxCurves
+          curveI + i + builder.settings.maxCurves,
+          curveI + i + 1 + builder.settings.maxCurves
         )
       }
       indexes.push(
         curveI,
-        1 + builder.settings.maxCurves,
-        instancesPerCurve - 1 + builder.settings.maxCurves
+        curveI + 1 + builder.settings.maxCurves,
+        curveI + instancesPerCurve - 1 + builder.settings.maxCurves
       )
     }
+    console.log(indexes)
+
     geometry.setIndex(indexes)
     const material = new MeshBasicNodeMaterial({
       transparent: true,
