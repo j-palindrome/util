@@ -42,10 +42,11 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function BlobBrush(
-  settings: Partial<GroupBuilder<'blob'>['settings']>
-) {
-  const builder = new GroupBuilder('blob', settings)
+export default function BlobBrush<T extends Record<string, any>>({
+  params = {} as T,
+  ...settings
+}: { params?: T } & Partial<GroupBuilder<'blob', T>['settings']>) {
+  const builder = new GroupBuilder('blob', settings, params)
   // @ts-ignore
   const gl = useThree(({ gl }) => gl as WebGPURenderer)
 
@@ -56,13 +57,18 @@ export default function BlobBrush(
     const indexes: number[] = []
 
     for (let curveI = 0; curveI < builder.settings.maxCurves; curveI++) {
-      for (let i = 1; i < instancesPerCurve; i++) {
+      for (let i = 1; i < instancesPerCurve - 1; i++) {
         indexes.push(
           curveI,
           i + builder.settings.maxCurves,
           i + 1 + builder.settings.maxCurves
         )
       }
+      indexes.push(
+        curveI,
+        1 + builder.settings.maxCurves,
+        instancesPerCurve - 1 + builder.settings.maxCurves
+      )
     }
     geometry.setIndex(indexes)
     const material = new MeshBasicNodeMaterial({

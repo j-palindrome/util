@@ -96,13 +96,14 @@ export const polyLine = ({
   p2
 }: {
   t: ReturnType<typeof float>
-  p0: ReturnType<typeof vec2 | typeof float>
-  p1: ReturnType<typeof vec2 | typeof float>
-  p2: ReturnType<typeof vec2 | typeof float>
+  p0: ReturnType<typeof vec2>
+  p1: ReturnType<typeof vec2>
+  p2: ReturnType<typeof vec2>
 }) => {
   const l0 = p1.sub(p0).length().toVar()
   const l1 = p2.sub(p1).length().toVar()
-  const splitPoint = float(0.5).add(l0.sub(l1).div(2))
+  const splitPoint = float(0.5)
+  // .add(l0.sub(l1).div(2))
   return select(
     t.greaterThan(splitPoint),
     mix(p1, p2, t.sub(splitPoint).div(splitPoint.oneMinus())),

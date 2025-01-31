@@ -17,6 +17,7 @@ import PointBrush from './DashBrush'
 import { AsemicContext } from './util/asemicContext'
 import { SettingsInput, useBuilderEvents, useEvents } from './util/useEvents'
 import { traaPass } from 'three/addons/tsl/display/TRAAPassNode.js'
+import { useHeight } from './util'
 
 extend({
   QuadMesh
@@ -33,12 +34,14 @@ export function AsemicCanvas({
   className,
   dimensions: [width, height] = ['100%', '100%'],
   style,
-  useAudio = false
+  useAudio = false,
+  highBitDepth = true
 }: {
   className?: string
   dimensions?: [number | string, number | string]
   style?: React.CSSProperties
   useAudio?: boolean
+  highBitDepth?: boolean
 } & React.PropsWithChildren) {
   const [audio, setAudio] = useState<SceneBuilder<any>['audio']>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null!)
@@ -111,16 +114,20 @@ export function AsemicCanvas({
             return { ctx: audioContext, elCore: core, elNode }
           }
 
-          renderer.backend.utils.getPreferredCanvasFormat = () => {
-            return 'rgba16float'
+          if (highBitDepth) {
+            renderer.backend.utils.getPreferredCanvasFormat = () => {
+              return 'rgba16float'
+            }
           }
 
           Promise.all([renderer.init(), initAudio()]).then(async result => {
-            const context = renderer.getContext()
-            context.configure({
-              device: renderer.backend.device,
-              format: renderer.backend.utils.getPreferredCanvasFormat()
-            })
+            if (highBitDepth) {
+              const context = renderer.getContext()
+              context.configure({
+                device: renderer.backend.device,
+                format: renderer.backend.utils.getPreferredCanvasFormat()
+              })
+            }
 
             setAudio(result[1])
             setFrameloop('always')
@@ -171,7 +178,6 @@ export function useAsemic<T extends SettingsInput>({
   } as T
 
   const size = useThree(state => state.size)
-  const h = size.height / size.width
 
   const { audio } = useContext(AsemicContext)
   const renderTarget = new RenderTarget(size.width, size.height, {
@@ -187,6 +193,7 @@ export function useAsemic<T extends SettingsInput>({
 
   const controlsBuilt = useEvents(controls)
 
+  const h = size.height / size.width
   const b = new SceneBuilder(
     settings,
     {

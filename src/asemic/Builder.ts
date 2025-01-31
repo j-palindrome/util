@@ -30,16 +30,36 @@ abstract class Builder {
 
   repeatGrid(
     dimensions: [number, number],
-    func: ({ p, i, count }: { p: Vector2; i: Vector2; count: Vector2 }) => void
+    func: ({
+      p,
+      i,
+      count
+    }: {
+      p: Vector2
+      i: Vector2
+      count: Vector2
+      pCenter: Vector2
+      pComplete: Vector2
+    }) => void
   ) {
     let p = new Vector2()
+    let pCenter = new Vector2()
+    let pComplete = new Vector2()
     let i = new Vector2()
     let count = new Vector2(...dimensions)
     for (let y = 0; y < dimensions[1]; y++) {
       for (let x = 0; x < dimensions[0]; x++) {
         func({
           p: p.set(x / dimensions[0], y / dimensions[1]),
+          pCenter: pCenter.set(
+            x / dimensions[0] + 1 / dimensions[0] / 2,
+            y / dimensions[1] + 1 / dimensions[1] / 2
+          ),
           i: i.set(x, y),
+          pComplete: pComplete.set(
+            x / (dimensions[0] - 1),
+            y / (dimensions[1] - 1)
+          ),
           count
         })
       }
@@ -49,13 +69,24 @@ abstract class Builder {
   }
 
   repeat(
-    runCount: number,
-    func: ({ p, i, count }: { p: number; i: number; count: number }) => void,
-    complete = true
+    count: number | { count: number },
+    func: ({
+      p,
+      i,
+      count,
+      pComplete
+    }: {
+      p: number
+      i: number
+      count: number
+      pComplete: number
+    }) => void
   ) {
+    const runCount = typeof count === 'number' ? count : count.count
     for (let i = 0; i < runCount; i++) {
       func({
-        p: complete ? i / (runCount - 1 || 1) : i / runCount,
+        p: i / runCount,
+        pComplete: i / (runCount - 1 || 1),
         i,
         count: runCount
       })
@@ -134,17 +165,17 @@ abstract class Builder {
     transformData: TransformData | PreTransformData,
     invert: boolean = false
   ): T {
-    transformData = this.toTransform(transformData)
+    const convertedData = this.toTransform(transformData)
     if (invert) {
       vector
-        .sub(transformData.translate)
-        .rotateAround({ x: 0, y: 0 }, -transformData.rotate)
-        .divide(transformData.scale)
+        .sub(convertedData.translate)
+        .rotateAround({ x: 0, y: 0 }, -convertedData.rotate)
+        .divide(convertedData.scale)
     } else {
       vector
-        .multiply(transformData.scale)
-        .rotateAround({ x: 0, y: 0 }, transformData.rotate)
-        .add(transformData.translate)
+        .multiply(convertedData.scale)
+        .rotateAround({ x: 0, y: 0 }, convertedData.rotate)
+        .add(convertedData.translate)
     }
 
     return vector
@@ -255,31 +286,7 @@ export class GroupBuilder<
   time: number = performance.now() / 1000
   curves: PointBuilder[][] = []
   params: K
-  settings: ProcessData<T, K> & BrushData<T> = {
-    maxLength: 0,
-    maxCurves: 0,
-    maxPoints: 0,
-    align: 0.5,
-    resample: true,
-    renderInit: false,
-    renderStart: 0,
-    renderUpdate: false,
-    spacing: 3,
-    spacingType: 'pixel',
-    adjustEnds: true,
-    renderTargets: mrt({
-      output
-    }),
-    pointProgress: input => input,
-    pointPosition: input => input,
-    pointColor: input => input,
-    curvePosition: input => input,
-    curveColor: input => input,
-    pointRotate: input => input,
-    pointThickness: input => input,
-    onUpdate: () => {},
-    onInit: () => {}
-  } as any
+  settings: ProcessData<T, K> & BrushData<T>
 
   getWave(
     frequency: number = 1,
@@ -334,7 +341,7 @@ export class GroupBuilder<
   getPoint(index: number = -1, curve: number = -1) {
     if (curve < 0) curve += this.curves.length
     if (index < 0) index += this.curves[curve].length
-    return this.fromPoint(this.curves[curve][index])
+    return this.curves[curve][index]
   }
 
   getIntersect(progress: number, curve: number = -1) {
@@ -363,11 +370,14 @@ export class GroupBuilder<
     return points
   }
 
-  protected convertPointSettings(): CoordinateSettings {
+  protected getPointSettings(): CoordinateSettings {
     const newPointSettings: CoordinateSettings = {} as any
     for (let [key, value] of entries(this.pointSettings)) {
       if (typeof value === 'function') {
-        newPointSettings[key] = value(sum(this.curves.map(x => x.length)))
+        newPointSettings[key] = value([
+          last(this.curves)?.length ?? 0,
+          this.curves.length
+        ])
       } else {
         newPointSettings[key] = value
       }
@@ -380,7 +390,7 @@ export class GroupBuilder<
     else if (coordinate instanceof Vector2)
       return new PointBuilder(
         [coordinate.x, coordinate.y],
-        this.convertPointSettings()
+        this.getPointSettings()
       )
     else {
       if (coordinate[2]) {
@@ -389,7 +399,7 @@ export class GroupBuilder<
       return this.applyTransform(
         new PointBuilder(
           [coordinate[0], coordinate[1]],
-          this.convertPointSettings()
+          this.getPointSettings()
         ),
         this.currentTransform
       )
@@ -494,15 +504,11 @@ export class GroupBuilder<
     return path
   }
 
-  getBounds(points: PointBuilder[], transform?: TransformData) {
+  getBounds(points: PointBuilder[]) {
     const flatX = points.map(x => x.x)
     const flatY = points.map(y => y.y)
     const minCoord = new Vector2(min(flatX)!, min(flatY)!)
     const maxCoord = new Vector2(max(flatX)!, max(flatY)!)
-    if (transform) {
-      this.applyTransform(minCoord, transform)
-      this.applyTransform(maxCoord, transform)
-    }
     return {
       min: minCoord,
       max: maxCoord,
@@ -715,12 +721,11 @@ ${this.curves
     return this
   }
 
-  newShape(divisions: 3 | 4 | 5 | 6 | 7 | 8, transform?: CoordinateData) {
+  getShape(divisions: 3 | 4 | 5 | 6 | 7 | 8) {
     let shape
     switch (divisions) {
       case 6:
         shape = [
-          [0, 0],
           [0.5, 0],
           [0.5, 1],
           [-0.5, 1],
@@ -730,7 +735,6 @@ ${this.curves
         break
       case 7:
         shape = [
-          [0, 0],
           [0.33 / 2, 0],
           [0.5, 0.33],
           [0.5, 0.66],
@@ -743,12 +747,7 @@ ${this.curves
         ]
         break
     }
-    if (shape) {
-      if (transform) {
-        this.transform(transform)
-      }
-      this.newCurve(...shape)
-    }
+    return shape
   }
 
   newCurves(
@@ -762,19 +761,86 @@ ${this.curves
     return this.lastCurve(c => c.push(...this.toPoints(...points)))
   }
 
-  text(
-    str: string,
-    settings?: Partial<{
+  setProcess(
+    curves: number | 'all',
+    settings: Partial<{
       center: number
       left: number
       width: number
       top: number
       middle: number
-      varyThickness: number
-      varyPosition: number | [number, number]
-    }>,
-    transform?: CoordinateData
+      varyPosition?: [number, number]
+    }>
   ) {
+    const textCurves = this.curves.slice(
+      this.curves.length - (curves === 'all' ? this.curves.length : curves)
+    )
+    const flatCurves = textCurves.flat()
+    const bounds = this.getBounds(textCurves.flat())
+
+    if (settings.varyPosition) {
+      const varyPosition: [number, number] =
+        settings.varyPosition instanceof Array
+          ? settings.varyPosition
+          : [settings.varyPosition, settings.varyPosition]
+      flatCurves.forEach(point => {
+        this.applyTransform(
+          point,
+          this.toTransform({
+            translate: this.getRandomAround([0, 0], varyPosition)
+          })
+        )
+      })
+    }
+
+    if (settings.width) {
+      this.within(
+        bounds.min,
+        bounds.min
+          .clone()
+          .add(bounds.size.divideScalar(bounds.size.x / settings.width)),
+        textCurves.length
+      )
+      bounds.max = bounds.min.clone().add(bounds.size)
+      bounds.center = bounds.min
+        .clone()
+        .add(bounds.size.clone().divideScalar(2))
+    }
+
+    if (settings.center !== undefined) {
+      const lineBounds = this.getBounds(flatCurves)
+      console.log(settings.center - lineBounds.center.x)
+
+      flatCurves.forEach(point =>
+        point.add({ x: settings.center! - lineBounds.center.x, y: 0 })
+      )
+    }
+
+    if (settings.left !== undefined) {
+      textCurves.flat().forEach(point =>
+        point.add({
+          x: settings.left! - bounds.min.x,
+          y: 0
+        })
+      )
+    }
+
+    if (settings.top !== undefined) {
+      textCurves
+        .flat()
+        .forEach(point => point.add({ x: 0, y: settings.top! - bounds.max.y }))
+    }
+
+    if (settings.middle !== undefined) {
+      textCurves
+        .flat()
+        .forEach(point =>
+          point.add({ x: 0, y: settings.middle! - bounds.center.y })
+        )
+    }
+  }
+
+  newText(str: string, transform?: CoordinateData) {
     if (transform) {
       this.transform({ ...transform, push: true })
     }
@@ -791,88 +857,6 @@ ${this.curves
           translate: [0, -1.5],
           push: true
         })
-      }
-    }
-
-    if (settings) {
-      const textCurves = this.curves.slice(lines[0])
-      const flatCurves = textCurves.flat()
-      const bounds = this.getBounds(textCurves.flat())
-
-      if (settings.varyThickness) {
-        flatCurves.forEach(point => {
-          point.thickness = this.getRandomAround(
-            point.thickness,
-            settings.varyThickness!
-          )
-        })
-      }
-
-      if (settings.varyPosition) {
-        const varyPosition: [number, number] =
-          settings.varyPosition instanceof Array
-            ? settings.varyPosition
-            : [settings.varyPosition, settings.varyPosition]
-        flatCurves.forEach(point => {
-          this.applyTransform(
-            point,
-            this.toTransform({
-              translate: this.getRandomAround([0, 0], varyPosition)
-            })
-          )
-        })
-      }
-
-      if (settings.width) {
-        this.within(
-          bounds.min,
-          bounds.min
-            .clone()
-            .add(bounds.size.divideScalar(bounds.size.x / settings.width)),
-          textCurves.length
-        )
-        bounds.max = bounds.min.clone().add(bounds.size)
-        bounds.center = bounds.min
-          .clone()
-          .add(bounds.size.clone().divideScalar(2))
-      }
-
-      if (settings.center !== undefined) {
-        let i = 0
-        for (let line of lines) {
-          const linePoints = this.curves.slice(line, lines[i + 1]).flat()
-          const lineBounds = this.getBounds(linePoints)
-
-          linePoints.forEach(point =>
-            point.add({ x: settings.center! - lineBounds.center.x, y: 0 })
-          )
-          i++
-        }
-      }
-
-      if (settings.left !== undefined) {
-        textCurves.flat().forEach(point =>
-          point.add({
-            x: settings.left! - bounds.min.x,
-            y: 0
-          })
-        )
-      }
-
-      if (settings.top !== undefined) {
-        textCurves
-          .flat()
-          .forEach(point =>
-            point.add({ x: 0, y: settings.top! - bounds.max.y })
-          )
-      }
-
-      if (settings.middle !== undefined) {
-        textCurves
-          .flat()
-          .forEach(point =>
-            point.add({ x: 0, y: settings.middle! - bounds.center.y })
-          )
       }
     }
 
@@ -1170,9 +1154,34 @@ ${this.curves
       stripe: { type: 'stripe' },
       blob: { type: 'blob', centerMode: 'center' }
     }
-
+    const defaultSettings: ProcessData<T, K> = {
+      maxLength: 0,
+      maxCurves: 0,
+      maxPoints: 0,
+      align: 0.5,
+      loop: false,
+      renderInit: false,
+      renderClear: true,
+      resample: true,
+      renderStart: 0,
+      spacing: 3,
+      spacingType: 'pixel',
+      adjustEnds: true,
+      renderTargets: mrt({
+        output
+      }),
+      pointProgress: input => input,
+      pointPosition: input => input,
+      pointColor: input => input,
+      curvePosition: input => input,
+      curveColor: input => input,
+      pointRotate: input => input,
+      pointThickness: input => input,
+      onUpdate: () => {},
+      onInit: () => {}
+    }
     this.settings = {
-      ...this.settings,
+      ...defaultSettings,
       ...defaultBrushSettings[type],
       ...settings
     }

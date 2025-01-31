@@ -20,10 +20,10 @@ declare global {
   type PreTransformData = {
     push?: true
     reset?: true | 'last' | 'pop' | 'group'
-    translate?: [number, number] | PointBuilder
-    scale?: [number, number] | number | PointBuilder
+    translate?: [number, number] | Vector2
+    scale?: [number, number] | number | Vector2
     rotate?: number
-    remap?: [[number, number] | PointBuilder, [number, number] | PointBuilder]
+    remap?: [[number, number] | Vector2, [number, number] | Vector2]
     new?: 'group' | 'curve'
   }
 
@@ -46,6 +46,7 @@ declare global {
   type ProcessData<T extends BrushTypes, K extends Record<string, any>> = {
     renderInit: boolean | number | ((lastFrame: number) => number)
     renderStart: number | (() => number)
+    renderClear: boolean
     spacing: number
     spacingType: 'count' | 'pixel' | 'width'
     align: number
@@ -55,6 +56,7 @@ declare global {
     maxPoints: number
     adjustEnds: boolean
     renderTargets: ReturnTypeq<typeof mrt>
+    loop: boolean
     pointPosition: (input: ReturnType<typeof vec2>, info: ParticleInfo) => input
     pointThickness: (
       input: ReturnType<typeof float>,
@@ -123,16 +125,8 @@ declare global {
     Partial<{
       [T in keyof CoordinateSettings]:
         | CoordinateSettings[T]
-        | ((progress: number) => CoordinateSettings[T])
+        | ((progress: [number, number]) => CoordinateSettings[T])
     }>
-}
-
-declare module 'three/tsl' {
-  // interface ShaderNodeObject<T> {
-  //   toAttribute: T extends StorageBufferNode
-  //     ? () => ShaderNodeObject<Node>
-  //     : undefined
-  // }
 }
 
 declare module 'three/webgpu' {

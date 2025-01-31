@@ -95,9 +95,9 @@ export const noiseWave = (...values: ReturnType<typeof vec2>[]) => {
 }
 
 export const noiseWaveRandom = (
-  seed: number,
+  seed: NodeRepresentation,
   freq: NodeRepresentation = 1,
-  { signed = false, harmonics = 1 } = {}
+  { signed = false, harmonics = 1, phase = 0 } = {}
 ) => {
   const output = float().toVar()
   const count = harmonics
@@ -111,7 +111,7 @@ export const noiseWaveRandom = (
             .add(0 * 10)
         )
           .mul(freq)
-          .mul(time.mul(PI2))
+          .mul(time.mul(PI2).add(phase))
           .mul(int(i).add(1))
       ).div(int(i).add(1))
     )

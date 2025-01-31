@@ -184,11 +184,11 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
             extra.thickness?.assign(
               bezierPosition({
                 t: t.x.fract(),
-                p0: p0.w,
-                p1: p1.w,
-                p2: p2.w,
+                p0: vec2(0, p0.w),
+                p1: vec2(0.5, p1.w),
+                p2: vec2(1, p2.w),
                 strength
-              })
+              }).y
             )
             extra.rotation?.assign(
               bezierRotation({
@@ -269,6 +269,7 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
     }
 
     const reInitialize = (seconds: number) => {
+      if (builder.settings.renderClear) builder.clear()
       builder.reInitialize(seconds)
       reload()
       if (hooks.onInit) {
