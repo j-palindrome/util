@@ -125,7 +125,9 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
         const subdivisions = select(
           controlPointsCount.equal(2),
           1,
-          controlPointsCount.sub(2)
+          builder.settings.adjustEnds === 'loop'
+            ? controlPointsCount
+            : controlPointCounts.sub(2)
         )
 
         //4 points: 4-2 = 2 0->1 1->2 (if it goes to the last value then it starts interpolating another curve)
@@ -133,9 +135,9 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
           progressVar.fract().mul(0.999).mul(subdivisions),
           floor(progressVar)
         )
-        const index = floor(progressVar)
-          .mul(builder.settings.maxPoints)
-          .add(progressVar.fract().mul(0.999).mul(subdivisions))
+        const curveIndex = floor(progressVar).mul(builder.settings.maxPoints)
+        const pointIndex = progressVar.fract().mul(0.999).mul(subdivisions)
+        const index = curveIndex.add(pointIndex)
 
         If(controlPointsCount.equal(2), () => {
           const p0 = curvePositionArray.element(index)
@@ -151,11 +153,14 @@ export function useControlPoints(builder: GroupBuilder<any, any>) {
           }
         }).Else(() => {
           const p0 = curvePositionArray.element(index).toVar()
-          const p1 = curvePositionArray.element(index.add(1)).toVar()
-          const p2 = curvePositionArray.element(index.add(2)).toVar()
+          const p1 = curvePositionArray
+            .element(curveIndex.add(pointIndex.add(1).mod(controlPointsCount)))
+            .toVar()
+          const p2 = curvePositionArray
+            .element(curveIndex.add(pointIndex.add(2).mod(controlPointsCount)))
+            .toVar()
 
-          const controlPointsCount = controlPointCounts.element(int(t.y))
-          if (builder.settings.adjustEnds) {
+          if (builder.settings.adjustEnds === true) {
             If(t.x.greaterThan(float(1)), () => {
               p0.assign(mix(p0, p1, float(0.5)))
             })

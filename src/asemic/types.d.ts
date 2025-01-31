@@ -54,9 +54,8 @@ declare global {
     maxLength: number
     maxCurves: number
     maxPoints: number
-    adjustEnds: boolean
     renderTargets: ReturnTypeq<typeof mrt>
-    loop: boolean
+    adjustEnds: boolean | 'loop'
     pointPosition: (input: ReturnType<typeof vec2>, info: ParticleInfo) => input
     pointThickness: (
       input: ReturnType<typeof float>,

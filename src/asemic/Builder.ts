@@ -1159,7 +1159,6 @@ ${this.curves
       maxCurves: 0,
       maxPoints: 0,
       align: 0.5,
-      loop: false,
       renderInit: false,
       renderClear: true,
       resample: true,
