@@ -115,14 +115,7 @@ export const noiseWaveRandom = (
   Loop(count, ({ i }) => {
     output.addAssign(
       sin(
-        hash(
-          float(seed)
-            .mul(1000)
-            .add(0 * 10)
-        )
-          .mul(freq)
-          .mul(time.mul(PI2).add(phase))
-          .mul(int(i).add(1))
+        hash(seed).mul(freq).mul(time.mul(PI2).add(phase)).mul(int(i).add(1))
       ).div(int(i).add(1))
     )
     total.addAssign(float(1).div(int(i).add(1)))
