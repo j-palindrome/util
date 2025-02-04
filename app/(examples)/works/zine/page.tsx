@@ -6,7 +6,7 @@ import { slides } from './slides'
 import GroupBuilder from '@/util/src/asemic/Builder'
 import { useEventListener } from '@/util/src/dom'
 import Asemic from '@/util/src/asemic/Asemic'
-import PointBrush from '@/util/src/asemic/PointBrush'
+import PointBrush from '@/util/src/asemic/DashBrush'
 
 export default function DigiRis() {
   const [currentChild, setCurrentChild] = useState(0)

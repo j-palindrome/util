@@ -3,7 +3,7 @@ import GroupBuilder from '@/util/src/asemic/Builder'
 import { useInterval } from '@/util/src/dom'
 import { useState } from 'react'
 import Asemic from '@/util/src/asemic/Asemic'
-import PointBrush from '@/util/src/asemic/PointBrush'
+import PointBrush from '@/util/src/asemic/DashBrush'
 
 const yin = (b: GroupBuilder) =>
   b

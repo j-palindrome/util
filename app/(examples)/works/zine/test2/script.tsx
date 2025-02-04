@@ -137,7 +137,6 @@ export function init() {
     return vec3(t.xy, 0)
   })()
   material.transparent = true
-  material.blending = THREE.AdditiveBlending
   material.depthWrite = false
 
   material.scaleNode = vec2(particleSize)

@@ -29,7 +29,6 @@ export default function Genuary6() {
             )
           },
           curveFrag: (input, info) => {
-            console.log(info.settings.start)
             return mix(
               info.lastColor,
               input,

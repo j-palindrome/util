@@ -17,7 +17,7 @@ export default function Genuary14() {
               })
             },
             {
-              recalculate: 50
+              renderInit: 50
             }
           )
         }

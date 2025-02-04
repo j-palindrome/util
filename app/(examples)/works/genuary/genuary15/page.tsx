@@ -27,8 +27,8 @@ export default function Genuary14() {
                     {
                       thickness: 1920 * 1.1,
                       reset: 'last',
-                      scale: [1, g.toRange(g.hash(), [0.1, 0.2])],
-                      translate: [g.toRange(g.hash(), [0, 0.1]), -0.1]
+                      scale: [1, g.getRange(g.hash(), [0.1, 0.2])],
+                      translate: [g.getRange(g.hash(), [0, 0.1]), -0.1]
                     }
                   ],
                   [0.5, g.noise([g.time * 0.5, g.hash(), i])],
@@ -38,7 +38,7 @@ export default function Genuary14() {
             },
             {
               spacing: 500,
-              recalculate: true,
+              renderInit: true,
               align: 0
             },
             {

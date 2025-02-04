@@ -13,10 +13,11 @@
     "typegen": "cd sanity && sanity typegen generate"
   },
   "dependencies": {
+    "@elemaudio/core": "^4.0.1",
     "@portabletext/react": "^3.2.0",
     "@react-spring/web": "^9.7.5",
     "@react-three/drei": "^9.120.6",
-    "@react-three/fiber": "^8.17.12",
+    "@react-three/fiber": "^8.17.14",
     "@react-three/postprocessing": "^2.16.6",
     "@sanity/image-url": "^1.1.0",
     "@sanity/preview-url-secret": "^1.6.21",
@@ -27,6 +28,7 @@
     "@types/matter-js": "^0.19.8",
     "@types/p5": "^1.7.6",
     "@types/three": "^0.172.0",
+    "@webgpu/types": "^0.1.53",
     "animejs": "^3.2.2",
     "framer-motion": "^11.15.0",
     "groq": "^3.68.3",

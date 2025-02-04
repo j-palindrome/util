@@ -101,7 +101,7 @@ excess`,
                       progress.fract()
                     ).mul(input.a)
                   },
-                  curveVert: (input, { pointUV, aspectRatio }) => {
+                  curveVert: (input, { pointUV, height: aspectRatio }) => {
                     const progress = time.mul(4).add(pointUV.y)
                     input.xy.addAssign(
                       vec2(
