@@ -1,6 +1,6 @@
 import _, { range } from 'lodash'
 import { rotate2d } from './manipulation'
-import { rad } from '../math'
+import { rad } from '../math/math'
 import { PI } from './utilities'
 import { PointBuilder } from '../asemic/PointBuilder'
 import { Vector2 } from 'three'

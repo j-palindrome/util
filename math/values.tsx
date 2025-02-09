@@ -7,12 +7,12 @@ export const useNormalize = (
   {
     signed = false,
     cancelAbove = false,
-    cancelBelow = false,
+    cancelBelow = false
   }: {
     signed?: boolean
     cancelAbove?: false | number
     cancelBelow?: false | number
-  },
+  }
 ) => {
   const min = useRef(init)
   const max = useRef(init)
