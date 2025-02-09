@@ -1,4 +1,3 @@
-import { Switch } from '@material-tailwind/react'
 import { useState } from 'react'
 
 export default function Button({
