@@ -1,1 +1,9 @@
-{}
+{
+  "dependencies": {
+    "@react-three/fiber": "^8.17.14",
+    "lodash": "^4.17.21",
+    "mathjs": "^14.2.1",
+    "pts": "^0.12.9",
+    "three": "^0.173.0"
+  }
+}
