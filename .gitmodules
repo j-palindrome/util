@@ -1,6 +1,0 @@
-[submodule "asemic"]
-	path = asemic
-	url = https://github.com/j-palindrome/asemic.git
-[submodule "oscPresets"]
-	path = oscPresets
-	url = https://github.com/j-palindrome/oscPresets.git
