@@ -1,8 +1,8 @@
 'use client'
 // line that may or may not intersect
 
-import Asemic from '@/util/src/asemic/Asemic'
-import MeshBrush from '@/util/src/asemic/LineBrush'
+import Asemic from '@/asemic/src/Asemic'
+import MeshBrush from '@/asemic/src/LineBrush'
 import { afterImage } from '@/util/src/tsl/afterImage'
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js'
 import { uv } from 'three/tsl'

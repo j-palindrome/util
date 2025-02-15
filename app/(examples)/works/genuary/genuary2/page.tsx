@@ -1,5 +1,5 @@
 'use client'
-import Asemic from '@/util/src/asemic/Asemic'
+import Asemic from '@/asemic/src/Asemic'
 import { random } from 'lodash'
 import {
   hash,

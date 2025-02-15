@@ -1,5 +1,5 @@
 'use client'
-import Asemic, { AsemicCanvas } from '@/util/src/asemic/Asemic'
+import Asemic, { AsemicCanvas } from '@/asemic/src/Asemic'
 import { sampleFix } from '@/util/src/tsl/utility'
 import {
   Break,
@@ -24,7 +24,7 @@ import {
   vec4
 } from 'three/tsl'
 import { afterImage } from '@/util/src/tsl/afterImage'
-import SceneBuilder from '@/util/src/asemic/Builder'
+import SceneBuilder from '@/asemic/src/Builder'
 import { range } from 'lodash'
 
 export default function Genuary16() {

@@ -1,8 +1,8 @@
 'use client'
 // line that may or may not intersect
 
-import Asemic from '@/util/src/asemic/Asemic'
-import PointBrush from '@/util/src/asemic/DashBrush'
+import Asemic from '@/asemic/src/Asemic'
+import PointBrush from '@/asemic/src/DashBrush'
 import { afterImage } from '@/util/src/tsl/afterImage'
 import {
   float,

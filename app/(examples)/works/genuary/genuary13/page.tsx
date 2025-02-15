@@ -1,5 +1,5 @@
 'use client'
-import Asemic, { AsemicCanvas } from '@/util/src/asemic/Asemic'
+import Asemic, { AsemicCanvas } from '@/asemic/src/Asemic'
 import { scale } from '@/util/src/math'
 import { waveform } from '@/util/src/math/functions'
 import { now } from 'lodash'

@@ -1,5 +1,5 @@
 'use client'
-import { AsemicCanvas } from '@/util/src/asemic/Asemic'
+import { AsemicCanvas } from '@/asemic/src/Asemic'
 
 export default function Scene({ children }) {
   return (

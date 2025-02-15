@@ -1,7 +1,7 @@
 'use client'
 // line that may or may not intersect
-import Asemic from '@/util/src/asemic/Asemic'
-import MeshBrush from '@/util/src/asemic/LineBrush'
+import Asemic from '@/asemic/src/Asemic'
+import MeshBrush from '@/asemic/src/LineBrush'
 import { bezier2 } from '@/util/src/tsl/curves'
 import { positionLocal, vec2, vec4 } from 'three/tsl'
 

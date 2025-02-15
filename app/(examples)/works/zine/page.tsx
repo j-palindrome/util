@@ -3,10 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 import { now } from 'lodash'
 import { Color } from 'three'
 import { slides } from './slides'
-import GroupBuilder from '@/util/src/asemic/Builder'
+import GroupBuilder from '@/asemic/src/Builder'
 import { useEventListener } from '@/util/src/dom'
-import Asemic from '@/util/src/asemic/Asemic'
-import PointBrush from '@/util/src/asemic/DashBrush'
+import Asemic from '@/asemic/src/Asemic'
+import PointBrush from '@/asemic/src/DashBrush'
 
 export default function DigiRis() {
   const [currentChild, setCurrentChild] = useState(0)

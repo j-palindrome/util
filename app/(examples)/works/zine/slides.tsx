@@ -1,4 +1,4 @@
-import GroupBuilder from '@/util/src/asemic/Builder'
+import GroupBuilder from '@/asemic/src/Builder'
 
 export const slides: {
   asemic?: ((b: GroupBuilder) => GroupBuilder)[]

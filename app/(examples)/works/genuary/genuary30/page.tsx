@@ -1,11 +1,11 @@
 'use client'
-import { useAsemic } from '@/util/src/asemic/Asemic'
-import BlobBrush from '@/util/src/asemic/BlobBrush'
+import { useAsemic } from '@/asemic/src/Asemic'
+import BlobBrush from '@/asemic/src/BlobBrush'
 // line that may or may not intersect
-import { toTuple } from '@/util/src/asemic/typeGuards'
+import { toTuple } from '@/asemic/src/typeGuards'
 import { Vector2 } from 'three'
-import LineBrush from '@/util/src/asemic/LineBrush'
-import PointBrush from '@/util/src/asemic/DashBrush'
+import LineBrush from '@/asemic/src/LineBrush'
+import PointBrush from '@/asemic/src/DashBrush'
 
 // grid-based graphic design
 export default function Genuary30() {

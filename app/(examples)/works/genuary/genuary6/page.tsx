@@ -1,6 +1,6 @@
 'use client'
-import Asemic from '@/util/src/asemic/Asemic'
-import { PointBuilder } from '@/util/src/asemic/PointBuilder'
+import Asemic from '@/asemic/src/Asemic'
+import { PointBuilder } from '@/asemic/src/PointBuilder'
 import { easeInOutSine } from '@/util/src/tsl/easing'
 import { random } from 'lodash'
 import { Vector2 } from 'three'

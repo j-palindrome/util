@@ -10,7 +10,7 @@
   h5,
   h6,
   .heading {
-    @apply font-heading font-semibold text-center mb-4 leading-tight block w-full;
+    @apply font-heading mb-4 block w-full text-center font-semibold leading-tight;
   }
 
   a {
@@ -39,11 +39,11 @@
 }
 
 @layer components {
-  .cover {
-    @apply absolute top-0 left-0 h-full w-full flex items-center justify-center dropShadow p-4;
+  .dropShadow {
+    @apply shadow-black drop-shadow;
   }
 
-  .dropShadow {
-    @apply drop-shadow shadow-black;
+  .cover {
+    @apply absolute left-0 top-0 flex h-full w-full items-center justify-center p-4 shadow-black drop-shadow;
   }
 }

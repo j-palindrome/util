@@ -1,5 +1,5 @@
 'use client'
-import Asemic from '@/util/src/asemic/Asemic'
+import Asemic from '@/asemic/src/Asemic'
 import { Vector2, Vector3 } from 'three'
 import { hash, range, time, vec4 } from 'three/tsl'
 

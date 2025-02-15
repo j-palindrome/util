@@ -1,9 +1,9 @@
 'use client'
-import { useAsemic } from '@/util/src/asemic/Asemic'
+import { useAsemic } from '@/asemic/src/Asemic'
 // line that may or may not intersect
 
-import MeshBrush from '@/util/src/asemic/LineBrush'
-import { toTuple } from '@/util/src/asemic/typeGuards'
+import MeshBrush from '@/asemic/src/LineBrush'
+import { toTuple } from '@/asemic/src/typeGuards'
 import { Vector2 } from 'three'
 
 // grid-based graphic design

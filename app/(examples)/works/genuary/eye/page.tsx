@@ -1,11 +1,11 @@
 'use client'
 // line that may or may not intersect
 
-import Asemic from '@/util/src/asemic/Asemic'
-import ParticlesBrush from '@/util/src/asemic/ParticlesBrush'
-import StripeBrush from '@/util/src/asemic/StripeBrush'
-import MeshBrush from '@/util/src/asemic/LineBrush'
-import PointBrush from '@/util/src/asemic/DashBrush'
+import Asemic from '@/asemic/src/Asemic'
+import ParticlesBrush from '@/asemic/src/ParticlesBrush'
+import StripeBrush from '@/asemic/src/StripeBrush'
+import MeshBrush from '@/asemic/src/LineBrush'
+import PointBrush from '@/asemic/src/DashBrush'
 import { afterImage } from '@/util/src/tsl/afterImage'
 import {
   float,

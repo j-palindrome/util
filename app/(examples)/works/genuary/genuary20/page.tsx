@@ -1,6 +1,6 @@
 'use client'
-import Asemic, { AsemicCanvas } from '@/util/src/asemic/Asemic'
-import SceneBuilder from '@/util/src/asemic/Builder'
+import Asemic, { AsemicCanvas } from '@/asemic/src/Asemic'
+import SceneBuilder from '@/asemic/src/Builder'
 import { afterImage } from '@/util/src/tsl/afterImage'
 import { gaussianBlur } from '@/util/src/tsl/effects'
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js'

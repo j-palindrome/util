@@ -31,7 +31,7 @@ import {
 import { WebGPURenderer } from 'three/src/Three.WebGPU.js'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
-import { useHeight } from '@/util/src/asemic/util'
+import { useHeight } from '@/asemic/src/util'
 
 const StepType = {
   NONE: 0,

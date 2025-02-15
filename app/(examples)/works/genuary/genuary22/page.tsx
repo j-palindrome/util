@@ -1,10 +1,10 @@
 'use client'
 
-import { useAsemic } from '@/util/src/asemic/Asemic'
+import { useAsemic } from '@/asemic/src/Asemic'
 import { noiseWaveRandom, simplex2D } from '@/util/src/tsl/noise'
 import { el } from '@elemaudio/core'
 import { mix, PI, PI2, range, sin, time, uv, vec4 } from 'three/tsl'
-import LineBrush from '@/util/src/asemic/LineBrush'
+import LineBrush from '@/asemic/src/LineBrush'
 import { useThree } from '@react-three/fiber'
 
 export default function Genuary18() {

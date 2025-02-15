@@ -35,6 +35,6 @@
     ".next/types/app/work/page.tsx",
     ".next/types/app/layout.tsx",
     ".next/types/app/page.tsx"
-  ],
+, ".tailwindrc"  ],
   "exclude": ["node_modules"]
 }

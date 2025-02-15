@@ -1,5 +1,5 @@
 'use client'
-import Asemic from '@/util/src/asemic/Asemic'
+import Asemic from '@/asemic/src/Asemic'
 import { gaussianBlur } from '@/util/src/tsl/effects'
 import { dimensions } from '@/util/src/tsl/utility'
 import { vec2 } from 'three/tsl'

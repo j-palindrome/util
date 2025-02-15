@@ -1,5 +1,5 @@
 'use client'
-import Asemic, { AsemicCanvas } from '@/util/src/asemic/Asemic'
+import Asemic, { AsemicCanvas } from '@/asemic/src/Asemic'
 
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js'
 import { floor, Fn, select, vec4 } from 'three/tsl'

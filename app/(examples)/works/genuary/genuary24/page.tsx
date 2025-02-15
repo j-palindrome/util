@@ -1,8 +1,8 @@
 'use client'
 
-import Asemic from '@/util/src/asemic/Asemic'
-import MeshBrush from '@/util/src/asemic/LineBrush'
-import PointBrush from '@/util/src/asemic/DashBrush'
+import Asemic from '@/asemic/src/Asemic'
+import MeshBrush from '@/asemic/src/LineBrush'
+import PointBrush from '@/asemic/src/DashBrush'
 import { afterImage } from '@/util/src/tsl/afterImage'
 import { gaussianBlur } from '@/util/src/tsl/effects'
 import { screenUV, select, time, uv, vec2, vec4 } from 'three/tsl'

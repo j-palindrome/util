@@ -1,8 +1,8 @@
 'use client'
 
-import Asemic, { AsemicCanvas } from '@/util/src/asemic/Asemic'
-import AsemicInput from '@/util/src/asemic/Input'
-import useHeight from '@/util/src/asemic/util'
+import Asemic, { AsemicCanvas } from '@/asemic/src/Asemic'
+import AsemicInput from '@/asemic/src/Input'
+import useHeight from '@/asemic/src/util'
 import { Plane, useVideoTexture } from '@react-three/drei'
 import { extend, Object3DNode, useFrame, useThree } from '@react-three/fiber'
 import { Suspense, useEffect, useRef, useState } from 'react'

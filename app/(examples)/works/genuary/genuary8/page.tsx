@@ -1,7 +1,7 @@
 'use client'
 
-import Asemic, { AsemicCanvas } from '@/util/src/asemic/Asemic'
-import Particles from '@/util/src/asemic/Particles'
+import Asemic, { AsemicCanvas } from '@/asemic/src/Asemic'
+import Particles from '@/asemic/src/Particles'
 
 export default function Genuary8() {
   return (

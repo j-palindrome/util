@@ -1,7 +1,7 @@
 'use client'
-import { useAsemic } from '@/util/src/asemic/Asemic'
-import Background from '@/util/src/asemic/Background'
-import DotBrush from '@/util/src/asemic/DotBrush'
+import { useAsemic } from '@/asemic/src/Asemic'
+import Background from '@/asemic/src/Background'
+import DotBrush from '@/asemic/src/DotBrush'
 import { gaussian } from '@/util/src/tsl/gaussian'
 import { noiseWaveRandom } from '@/util/src/tsl/noise'
 // line that may or may not intersect
