@@ -4,7 +4,7 @@ import { now } from "lodash";
 import { Color } from "three";
 import { slides } from "./slides";
 import GroupBuilder from "@/libs/asemic/src/Builder";
-import { useEventListener } from "@/util/src/dom";
+import { useEventListener } from "@/libs/util/dom";
 import Asemic from "@/libs/asemic/src/Asemic";
 import PointBrush from "@/libs/asemic/src/DashBrush";
 

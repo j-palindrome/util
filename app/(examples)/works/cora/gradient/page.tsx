@@ -2,8 +2,8 @@
 import { useAsemic } from "@/libs/asemic/src/Asemic";
 import Background from "@/libs/asemic/src/Background";
 import DotBrush from "@/libs/asemic/src/DotBrush";
-import { gaussian } from "@/util/src/tsl/gaussian";
-import { noiseWaveRandom } from "@/util/src/tsl/noise";
+import { gaussian } from "@/libs/util/tsl/gaussian";
+import { noiseWaveRandom } from "@/libs/util/tsl/noise";
 // line that may or may not intersect
 
 import { extend } from "@react-three/fiber";

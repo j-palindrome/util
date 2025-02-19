@@ -1,7 +1,7 @@
 "use client";
 import Asemic, { AsemicCanvas } from "@/libs/asemic/src/Asemic";
-import { scale } from "@/util/src/math";
-import { waveform } from "@/util/src/math/functions";
+import { scale } from "@/libs/util/math";
+import { waveform } from "@/libs/util/math/functions";
 import { now } from "lodash";
 import {
   time,

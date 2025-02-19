@@ -1,7 +1,7 @@
 "use client";
 
 import { useAsemic } from "@/libs/asemic/src/Asemic";
-import { noiseWaveRandom, simplex2D } from "@/util/src/tsl/noise";
+import { noiseWaveRandom, simplex2D } from "@/libs/util/tsl/noise";
 import { el } from "@elemaudio/core";
 import { mix, PI, PI2, range, sin, time, uv, vec4 } from "three/tsl";
 import LineBrush from "@/libs/asemic/src/LineBrush";

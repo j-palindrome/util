@@ -3,7 +3,7 @@
 
 import Asemic from "@/libs/asemic/src/Asemic";
 import PointBrush from "@/libs/asemic/src/DashBrush";
-import { afterImage } from "@/util/src/tsl/afterImage";
+import { afterImage } from "@/libs/util/tsl/afterImage";
 import {
   float,
   fract,

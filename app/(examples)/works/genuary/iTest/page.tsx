@@ -6,7 +6,7 @@ import ParticlesBrush from "@/libs/asemic/src/ParticlesBrush";
 import StripeBrush from "@/libs/asemic/src/StripeBrush";
 import MeshBrush from "@/libs/asemic/src/LineBrush";
 import PointBrush from "@/libs/asemic/src/DashBrush";
-import { afterImage } from "@/util/src/tsl/afterImage";
+import { afterImage } from "@/libs/util/tsl/afterImage";
 import {
   float,
   fract,

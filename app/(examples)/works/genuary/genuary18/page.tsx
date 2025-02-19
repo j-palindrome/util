@@ -1,7 +1,7 @@
 "use client";
 import Asemic, { AsemicCanvas } from "@/libs/asemic/src/Asemic";
 import SceneBuilder from "@/libs/asemic/src/Builder";
-import { afterImage } from "@/util/src/tsl/afterImage";
+import { afterImage } from "@/libs/util/tsl/afterImage";
 import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js";
 import { hash, PI2, range, time, vec2, vec4 } from "three/tsl";
 

@@ -3,7 +3,7 @@
 
 import Asemic from "@/libs/asemic/src/Asemic";
 import MeshBrush from "@/libs/asemic/src/LineBrush";
-import { afterImage } from "@/util/src/tsl/afterImage";
+import { afterImage } from "@/libs/util/tsl/afterImage";
 import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js";
 import { uv } from "three/tsl";
 

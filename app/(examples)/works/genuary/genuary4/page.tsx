@@ -1,6 +1,6 @@
 "use client";
 import Asemic from "@/libs/asemic/src/Asemic";
-import { randomString } from "@/util/src/strings/strings";
+import { randomString } from "@/libs/util/strings/strings";
 import { sample } from "lodash";
 import { mx_noise_float } from "three/src/nodes/TSL.js";
 import { hash, time, vec2, vec3, vec4, range } from "three/tsl";

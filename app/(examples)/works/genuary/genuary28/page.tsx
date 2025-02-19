@@ -2,7 +2,7 @@
 // line that may or may not intersect
 import Asemic from "@/libs/asemic/src/Asemic";
 import MeshBrush from "@/libs/asemic/src/LineBrush";
-import { bezier2 } from "@/util/src/tsl/curves";
+import { bezier2 } from "@/libs/util/tsl/curves";
 import { positionLocal, vec2, vec4 } from "three/tsl";
 
 export default function Genuary26() {

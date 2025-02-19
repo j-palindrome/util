@@ -20,8 +20,7 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@animation/*": ["libs/util/reactive/*"],
-      "@util/*": ["libs/util/src/*"]
+      "@util/*": ["./libs/util/*"]
     },
     "target": "ES2017"
   },

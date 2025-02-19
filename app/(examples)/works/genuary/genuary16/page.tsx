@@ -1,6 +1,6 @@
 "use client";
 import Asemic, { AsemicCanvas } from "@/libs/asemic/src/Asemic";
-import { sampleFix } from "@/util/src/tsl/utility";
+import { sampleFix } from "@/libs/util/tsl/utility";
 import {
   Break,
   float,
@@ -23,7 +23,7 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import { afterImage } from "@/util/src/tsl/afterImage";
+import { afterImage } from "@/libs/util/tsl/afterImage";
 import SceneBuilder from "@/libs/asemic/src/Builder";
 import { range } from "lodash";
 

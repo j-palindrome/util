@@ -1,6 +1,6 @@
 "use client";
 import GroupBuilder from "@/libs/asemic/src/Builder";
-import { useInterval } from "@/util/src/dom";
+import { useInterval } from "@/libs/util/dom";
 import { useState } from "react";
 import Asemic from "@/libs/asemic/src/Asemic";
 import PointBrush from "@/libs/asemic/src/DashBrush";
