@@ -1,5 +1,5 @@
 "use client";
-import Asemic from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import { PointBuilder } from "@/libs/asemic/src/PointBuilder";
 import { random } from "lodash";
 import { Vector2 } from "three";

@@ -1,6 +1,6 @@
 "use client";
-import Asemic, { AsemicCanvas } from "@/libs/asemic/src/Asemic";
-import { sampleFix } from "@/libs/util/tsl/utility";
+import { Asemic, AsemicCanvas } from "@/libs/asemic/src/Asemic";
+import { sampleFix } from "@/libs/util/three/utility";
 import {
   Break,
   float,
@@ -23,15 +23,15 @@ import {
   vec3,
   vec4,
 } from "three/tsl";
-import { afterImage } from "@/libs/util/tsl/afterImage";
-import SceneBuilder from "@/libs/asemic/src/Builder";
 import { range } from "lodash";
+import { afterImage } from "@/libs/util/three/afterImage";
+import SceneBuilder from "@/libs/asemic/src/Builder";
 
 export default function Genuary16() {
   return (
     <AsemicCanvas dimensions={[1080, 1920]}>
       <Asemic
-        builder={(b: SceneBuilder) =>
+        builder={(b) =>
           b
             .newGroup("line", (g) => {
               g.text(

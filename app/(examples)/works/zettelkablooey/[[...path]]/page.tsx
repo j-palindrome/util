@@ -1,17 +1,17 @@
-import dynamic from 'next/dynamic'
-import { fetchPaths } from './(services)/fetch'
+import dynamic from "next/dynamic";
+import { fetchPaths } from "./(services)/fetch";
 
-const ClientImport = dynamic(() => import('./client'), { ssr: false })
+const ClientImport = dynamic(() => import("./client"));
 export default async function Zettelkablooey({
-  params
+  params,
 }: {
-  params: { path?: string[] }
+  params: { path?: string[] };
 }) {
-  const paths = await fetchPaths(params.path ?? [])
+  const paths = await fetchPaths(params.path ?? []);
 
   return (
     <>
       <ClientImport paths={paths} />
     </>
-  )
+  );
 }

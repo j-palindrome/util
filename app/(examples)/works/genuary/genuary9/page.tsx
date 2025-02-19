@@ -1,5 +1,5 @@
 "use client";
-import Asemic, { AsemicCanvas } from "@/libs/asemic/src/Asemic";
+import { Asemic, AsemicCanvas } from "@/libs/asemic/src/Asemic";
 import { time, uv, vec2, vec3, vec4, mx_noise_float } from "three/tsl";
 
 export default function Page() {

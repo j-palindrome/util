@@ -1,10 +1,9 @@
 "use client";
-import Asemic, { AsemicCanvas } from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import SceneBuilder from "@/libs/asemic/src/Builder";
-import { afterImage } from "@/util/src/tsl/afterImage";
-import { gaussianBlur } from "@/util/src/tsl/effects";
+import { afterImage } from "@/libs/util/three/afterImage";
 import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js";
-import { float, hash, PI2, range, time, vec2, vec4 } from "three/tsl";
+import { vec2 } from "three/tsl";
 
 const builder = (b: SceneBuilder) => {
   b.newGroup(

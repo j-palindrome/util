@@ -1,5 +1,4 @@
 packages:
-  - 'sanity'
-  - 'util'
-  - 'asemic'
-  - '.'
+  - "sanity"
+  - "libs/*"
+  - "."

@@ -1,8 +1,8 @@
 "use client";
 // line that may or may not intersect
-import Asemic from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import MeshBrush from "@/libs/asemic/src/LineBrush";
-import { bezier2 } from "@/libs/util/tsl/curves";
+import { bezier2 } from "@/libs/util/three/curves";
 import { positionLocal, vec2, vec4 } from "three/tsl";
 
 export default function Genuary26() {

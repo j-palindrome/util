@@ -1,7 +1,7 @@
 "use client";
-import Asemic from "@/libs/asemic/src/Asemic";
-import { gaussianBlur } from "@/libs/util/tsl/effects";
-import { dimensions } from "@/libs/util/tsl/utility";
+import { Asemic } from "@/libs/asemic/src/Asemic";
+import { gaussianBlur } from "@/libs/util/three/effects";
+import { dimensions } from "@/libs/util/three/utility";
 import { vec2 } from "three/tsl";
 
 export default function Genuary21() {

@@ -1,8 +1,8 @@
 "use client";
 import GroupBuilder from "@/libs/asemic/src/Builder";
-import { useInterval } from "@/libs/util/dom";
+import { useInterval } from "@/libs/util/react/dom";
 import { useState } from "react";
-import Asemic from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import PointBrush from "@/libs/asemic/src/DashBrush";
 
 const yin = (b: GroupBuilder) =>

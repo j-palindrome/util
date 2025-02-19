@@ -1,7 +1,7 @@
 "use client";
-import Asemic from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import { PointBuilder } from "@/libs/asemic/src/PointBuilder";
-import { easeInOutSine } from "@/libs/util/tsl/easing";
+import { easeInOutSine } from "@/libs/util/three/easing";
 import { random } from "lodash";
 import { Vector2 } from "three";
 import { mix, time } from "three/tsl";

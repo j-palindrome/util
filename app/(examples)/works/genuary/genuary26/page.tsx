@@ -1,7 +1,7 @@
 "use client";
 // line that may or may not intersect
 
-import Asemic from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import PointBrush from "@/libs/asemic/src/DashBrush";
 import {
   fract,

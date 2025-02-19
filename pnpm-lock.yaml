@@ -172,7 +172,7 @@ importers:
         specifier: ^3.109.0
         version: 3.109.0
 
-  asemic:
+  libs/asemic:
     dependencies:
       '@elemaudio/core':
         specifier: ^4.0.1
@@ -204,6 +204,45 @@ importers:
       tiny-invariant:
         specifier: ^1.3.3
         version: 1.3.3
+
+  libs/util:
+    dependencies:
+      '@elemaudio/web-renderer':
+        specifier: ^3.2.3
+        version: 3.2.3
+      '@react-three/fiber':
+        specifier: 9.0.0-alpha.8
+        version: 9.0.0-alpha.8(@types/react@19.0.8)(react-dom@19.0.0)(react@19.0.0)(three@0.173.0)
+      '@webgpu/types':
+        specifier: ^0.1.54
+        version: 0.1.54
+      framer-motion:
+        specifier: ^12.4.2
+        version: 12.4.2(react-dom@19.0.0)(react@19.0.0)
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
+      mathjs:
+        specifier: ^14.2.1
+        version: 14.2.1
+      pts:
+        specifier: ^0.12.9
+        version: 0.12.9
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      simplex-noise:
+        specifier: ^4.0.3
+        version: 4.0.3
+      three:
+        specifier: ^0.173.0
+        version: 0.173.0
+      tiny-invariant:
+        specifier: ^1.3.3
+        version: 1.3.3
+      twgl.js:
+        specifier: ^5.5.4
+        version: 5.5.4
 
   sanity:
     dependencies:
@@ -247,45 +286,6 @@ importers:
       vite-tsconfig-paths:
         specifier: ^4.3.2
         version: 4.3.2(typescript@5.7.3)(vite@5.3.3)
-
-  util:
-    dependencies:
-      '@elemaudio/web-renderer':
-        specifier: ^3.2.3
-        version: 3.2.3
-      '@react-three/fiber':
-        specifier: 9.0.0-alpha.8
-        version: 9.0.0-alpha.8(@types/react@19.0.8)(react-dom@19.0.0)(react@19.0.0)(three@0.173.0)
-      '@webgpu/types':
-        specifier: ^0.1.54
-        version: 0.1.54
-      framer-motion:
-        specifier: ^12.4.2
-        version: 12.4.2(react-dom@19.0.0)(react@19.0.0)
-      lodash:
-        specifier: ^4.17.21
-        version: 4.17.21
-      mathjs:
-        specifier: ^14.2.1
-        version: 14.2.1
-      pts:
-        specifier: ^0.12.9
-        version: 0.12.9
-      react:
-        specifier: ^19.0.0
-        version: 19.0.0
-      simplex-noise:
-        specifier: ^4.0.3
-        version: 4.0.3
-      three:
-        specifier: ^0.173.0
-        version: 0.173.0
-      tiny-invariant:
-        specifier: ^1.3.3
-        version: 1.3.3
-      twgl.js:
-        specifier: ^5.5.4
-        version: 5.5.4
 
 packages:
 
@@ -5922,7 +5922,7 @@ packages:
       node-machine-id: 1.1.12
       pkg-dir: 5.0.0
       prettier: 3.3.2
-      semver: 7.6.2
+      semver: 7.7.1
       silver-fleece: 1.1.0
       validate-npm-package-name: 3.0.0
     transitivePeerDependencies:
@@ -13000,13 +13000,8 @@ packages:
     dependencies:
       js-tokens: 4.0.0
 
-  /lru-cache@10.2.2:
-    resolution: {integrity: sha512-9hp3Vp2/hFQUiIwKo8XCeFVnrg8Pk3TYNPIR7tJADKi5YfcF7vEaK7avFHTlSy3kOKYaJQaalfEo6YuXdceBOQ==}
-    engines: {node: 14 || >=16.14}
-
   /lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
-    dev: false
 
   /lru-cache@11.0.2:
     resolution: {integrity: sha512-123qHRfJBmo2jXDbo/a5YOQrJoHF/GNQTLzQ5+IdK5pWpceK17yRc6ozlWd25FxvGKQbIUs91fDFkXmDHTKcyA==}
@@ -13770,7 +13765,7 @@ packages:
     dependencies:
       hosted-git-info: 4.1.0
       is-core-module: 2.16.1
-      semver: 7.6.2
+      semver: 7.7.1
       validate-npm-package-license: 3.0.4
     dev: false
 
@@ -14264,7 +14259,7 @@ packages:
     resolution: {integrity: sha512-Xa4Nw17FS9ApQFJ9umLiJS4orGjm7ZzwUrwamcGQuHSzDyth9boKDaycYdDcZDuqYATXw4HFXgaqWTctW/v1HA==}
     engines: {node: '>=16 || 14 >=14.18'}
     dependencies:
-      lru-cache: 10.2.2
+      lru-cache: 10.4.3
       minipass: 7.1.2
 
   /path-scurry@2.0.0:

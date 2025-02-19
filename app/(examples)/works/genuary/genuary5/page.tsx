@@ -1,5 +1,5 @@
 "use client";
-import Asemic from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import { random } from "lodash";
 import {
   float,

@@ -4,7 +4,6 @@ import { useAsemic } from "@/libs/asemic/src/Asemic";
 
 import MeshBrush from "@/libs/asemic/src/LineBrush";
 import { toTuple } from "@/libs/asemic/src/typeGuards";
-import { Vector2 } from "three";
 
 // grid-based graphic design
 export default function Genuary29() {

@@ -1,9 +1,8 @@
 "use client";
-import Asemic, { AsemicCanvas } from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import SceneBuilder from "@/libs/asemic/src/Builder";
-import { afterImage } from "@/libs/util/tsl/afterImage";
 import { bloom } from "three/examples/jsm/tsl/display/BloomNode.js";
-import { hash, PI2, range, time, vec2, vec4 } from "three/tsl";
+import { hash, time, vec2 } from "three/tsl";
 
 const builder = (b: SceneBuilder) => {
   // b.newGroup(

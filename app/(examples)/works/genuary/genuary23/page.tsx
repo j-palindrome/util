@@ -1,9 +1,9 @@
 "use client";
 
-import Asemic from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import PointBrush from "@/libs/asemic/src/DashBrush";
-import { afterImage } from "@/libs/util/tsl/afterImage";
-import { gaussianBlur } from "@/libs/util/tsl/effects";
+import { afterImage } from "@/libs/util/three/afterImage";
+import { gaussianBlur } from "@/libs/util/three/effects";
 import { screenUV, select, time, uv, vec2, vec4 } from "three/tsl";
 
 // Inspired by brutalism

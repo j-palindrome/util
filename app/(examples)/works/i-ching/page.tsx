@@ -1,8 +1,8 @@
 "use client";
 import GroupBuilder from "@/libs/asemic/src/Builder";
-import { useInterval } from "@/libs/util/dom";
+import { useInterval } from "@/libs/util/react/dom";
 import { useState } from "react";
-import Asemic from "@/libs/asemic/src/Asemic";
+import { Asemic, AsemicCanvas } from "@/libs/asemic/src/Asemic";
 import PointBrush from "@/libs/asemic/src/DashBrush";
 
 const yin = (b: GroupBuilder) =>
@@ -140,11 +140,13 @@ export default function IChing() {
       </div>
       <div className="relative h-full grow py-4">
         {
-          <Asemic>
-            {days[day].asemic[timeSwitch].map((x, i) => (
-              <PointBrush key={i} render={x} />
-            ))}
-          </Asemic>
+          <AsemicCanvas>
+            <Asemic>
+              {days[day].asemic[timeSwitch].map((x, i) => (
+                <PointBrush key={i} render={x} />
+              ))}
+            </Asemic>
+          </AsemicCanvas>
         }
         {
           <div className="absolute left-0 top-0 flex h-full w-full flex-col justify-around px-4 text-center font-serif text-sm italic">

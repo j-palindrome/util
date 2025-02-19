@@ -1,5 +1,5 @@
 "use client";
-import Asemic from "@/libs/asemic/src/Asemic";
+import { Asemic } from "@/libs/asemic/src/Asemic";
 import {
   mx_noise_float,
   mx_noise_vec3,

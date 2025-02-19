@@ -1,5 +1,5 @@
 "use client";
-import Asemic, { AsemicCanvas } from "@/libs/asemic/src/Asemic";
+import { Asemic, AsemicCanvas } from "@/libs/asemic/src/Asemic";
 import { scale } from "@/libs/util/math";
 import { now } from "lodash";
 
