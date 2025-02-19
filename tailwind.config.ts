@@ -20,6 +20,13 @@ const config: Config = {
         "-lg": { max: "1023px" },
         "-sm": { max: "400px" },
       },
+      fontSize: {
+        h1: "3rem",
+        h2: "2.5rem",
+        h3: "2rem",
+        h4: "1.5rem",
+        base: "18px",
+      },
       lineHeight: {
         h: "1.5em",
       },
@@ -30,7 +37,16 @@ const config: Config = {
         accent: "rgb(var(--accent) / <alpha-value>)",
         accent2: "rgb(var(--accent2) / <alpha-value>)",
       },
+      fontFamily: {
+        body: "var(--body)",
+        heading: "var(--heading)",
+      },
+      dropShadow: {
+        text: "0 0 6px rgb(0, 0, 0)",
+      },
       height: {
+        topbar: "var(--topbar)",
+        "screen-topbar": "calc(100vh - var(--topbar))",
         vmin: "100vmin",
       },
     },

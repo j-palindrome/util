@@ -1,13 +1,14 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-**/*/node_modules
-
+**/node_modules
+**/.git
 # dependencies
 /node_modules
 sanity/node_modules
 /.pnp
 .pnp.js
 .yarn/install-state.gz
+asemic/examples
 
 # testing
 /coverage
