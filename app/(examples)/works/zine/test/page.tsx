@@ -1,16 +1,16 @@
-'use client'
-import Asemic from '@/asemic/src/Asemic'
-import { Vector2, Vector3 } from 'three'
-import { hash, range, time, vec4 } from 'three/tsl'
+"use client";
+import Asemic from "@/libs/asemic/src/Asemic";
+import { Vector2, Vector3 } from "three";
+import { hash, range, time, vec4 } from "three/tsl";
 
 export default function Tests() {
   return (
     <Asemic
       height={1920}
       width={1080}
-      className='bg-black'
+      className="bg-black"
       builder={
-        b =>
+        (b) =>
           b
             .group({
               curveVert: (input, pointCurve) =>
@@ -19,9 +19,9 @@ export default function Tests() {
                     hash(range(0, 1).mul(100).add(time.mul(0.5))),
                     pointCurve.y.add(time.mul(0.1)).mod(1),
                     0,
-                    0
-                  )
-                )
+                    0,
+                  ),
+                ),
             })
             .newCurvesBlank(50, 2)
             .newGroup({
@@ -33,9 +33,9 @@ export default function Tests() {
                       .sub(time.mul(0.1))
                       .mod(1),
                     0,
-                    0
-                  )
-                )
+                    0,
+                  ),
+                ),
             })
             .newCurvesBlank(50, 2)
         // .repeat(() => b.newCurve([0, 0], [1, 0]), 10)
@@ -49,5 +49,5 @@ export default function Tests() {
         // .newCurvesBlank(3, 5)
       }
     />
-  )
+  );
 }

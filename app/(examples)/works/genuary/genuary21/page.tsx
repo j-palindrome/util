@@ -1,8 +1,8 @@
-'use client'
-import Asemic from '@/asemic/src/Asemic'
-import { gaussianBlur } from '@/util/src/tsl/effects'
-import { dimensions } from '@/util/src/tsl/utility'
-import { vec2 } from 'three/tsl'
+"use client";
+import Asemic from "@/libs/asemic/src/Asemic";
+import { gaussianBlur } from "@/util/src/tsl/effects";
+import { dimensions } from "@/util/src/tsl/utility";
+import { vec2 } from "three/tsl";
 
 export default function Genuary21() {
   // const gui = new GUI()
@@ -13,7 +13,7 @@ export default function Genuary21() {
   // })
   return (
     <Asemic
-      builder={b => {
+      builder={(b) => {
         // b.newGroup(
         //   'line',
         //   g => {
@@ -27,16 +27,16 @@ export default function Genuary21() {
         //   }
         // )
         b.newGroup(
-          'attractors',
-          g => {
-            g.newCurve([0, 0], [0, 1])
+          "attractors",
+          (g) => {
+            g.newCurve([0, 0], [0, 1]);
           },
           {
             update: true,
             // maxLength: 2,
             spacing: 2,
-            spacingType: 'count',
-            recalculate: () => Math.random() * 500
+            spacingType: "count",
+            recalculate: () => Math.random() * 500,
           },
           {
             initialSpread: true,
@@ -51,16 +51,16 @@ export default function Genuary21() {
             spinningForce: 0,
             pointVelocity: (velocity, position) => {
               const brightness = gaussianBlur(
-                b.postProcessing.scenePass.getPreviousTextureNode('output'),
+                b.postProcessing.scenePass.getPreviousTextureNode("output"),
                 position.div(dimensions),
                 // quantize(position, 0.05),
-                vec2(0.03).div(dimensions)
-              ).r.mul(11)
+                vec2(0.03).div(dimensions),
+              ).r.mul(11);
               // return velocity
-              return velocity.mul(brightness.oneMinus())
-            }
-          }
-        )
+              return velocity.mul(brightness.oneMinus());
+            },
+          },
+        );
       }}
       // settings={{
       //   postProcessing: input => {
@@ -68,5 +68,5 @@ export default function Genuary21() {
       //   }
       // }}
     />
-  )
+  );
 }

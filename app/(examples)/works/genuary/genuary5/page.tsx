@@ -1,6 +1,6 @@
-'use client'
-import Asemic from '@/asemic/src/Asemic'
-import { random } from 'lodash'
+"use client";
+import Asemic from "@/libs/asemic/src/Asemic";
+import { random } from "lodash";
 import {
   float,
   mx_noise_float,
@@ -12,11 +12,11 @@ import {
   uv,
   vec2,
   vec3,
-  vec4
-} from 'three/tsl'
+  vec4,
+} from "three/tsl";
 
 export default function Genuary5() {
-  const recalculate = 3000
+  const recalculate = 3000;
   const pointFrag = (p: number) => (input, textureVector) =>
     vec4(
       input.xyz,
@@ -31,56 +31,56 @@ export default function Genuary5() {
               .sub((p * recalculate) / 1000)
               .mod(recalculate / 1000)
               .remap(0, 1, -1, 1)
-              .lessThan(textureVector.x)
+              .lessThan(textureVector.x),
           ),
         float(0.5).mul(textureVector.x.oneMinus().pow(3)),
-        0
-      )
-    )
-  const count = 30
+        0,
+      ),
+    );
+  const count = 30;
   return (
     <Asemic
       dimensions={[1080, 1920]}
-      builder={b =>
+      builder={(b) =>
         b
           .set({
             recalculate,
             strength: 1,
-            update: false
+            update: false,
           })
-          .repeat(count, p => {
-            b.newGroup(g => {
+          .repeat(count, (p) => {
+            b.newGroup((g) => {
               g.repeat(20, (_, i) => {
                 g.newCurve().set({
                   start: p * recalculate,
-                  pointFrag: pointFrag(p)
-                })
+                  pointFrag: pointFrag(p),
+                });
 
-                let grid = random(5)
+                let grid = random(5);
                 g.transform({
                   reset: true,
-                  scale: [1 / 5, (1 / 23) * g.h]
+                  scale: [1 / 5, (1 / 23) * g.h],
                 })
                   .transform({ translate: [grid, i % 2 ? 0 : 1] })
                   .transform({
                     translate: g.applyTransform(
                       g.getRandomAlong(
                         [0, 0],
-                        Math.random() > 0.5 ? [1, 1] : [-1, 1]
+                        Math.random() > 0.5 ? [1, 1] : [-1, 1],
                       ),
                       g.currentTransform,
-                      true
-                    )
+                      true,
+                    ),
                   })
                   .repeat(23, (p, i) => {
                     g.newPoints([0, 0], [0, 1]).transform({
-                      translate: [Math.random() > 0.5 ? -1 / 2 : 1 / 2, 1.5]
-                    })
-                  })
-              })
-            })
+                      translate: [Math.random() > 0.5 ? -1 / 2 : 1 / 2, 1.5],
+                    });
+                  });
+              });
+            });
           })
       }
     />
-  )
+  );
 }

@@ -1,20 +1,20 @@
-'use client'
-import { useEffect, useRef, useState } from 'react'
-import { now } from 'lodash'
-import { Color } from 'three'
-import { slides } from './slides'
-import GroupBuilder from '@/asemic/src/Builder'
-import { useEventListener } from '@/util/src/dom'
-import Asemic from '@/asemic/src/Asemic'
-import PointBrush from '@/asemic/src/DashBrush'
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { now } from "lodash";
+import { Color } from "three";
+import { slides } from "./slides";
+import GroupBuilder from "@/libs/asemic/src/Builder";
+import { useEventListener } from "@/util/src/dom";
+import Asemic from "@/libs/asemic/src/Asemic";
+import PointBrush from "@/libs/asemic/src/DashBrush";
 
 export default function DigiRis() {
-  const [currentChild, setCurrentChild] = useState(0)
-  const canvasRef = useRef<HTMLCanvasElement>(null!)
+  const [currentChild, setCurrentChild] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null!);
 
   const defaultFunc = (b: GroupBuilder) =>
     // @ts-ignore
-    b.set({ thickness: 2, color: new Color('pink') })
+    b.set({ thickness: 2, color: new Color("pink") });
 
   // useEffect(() => {
   //   const hydra = hydraRef.current.synth
@@ -22,32 +22,32 @@ export default function DigiRis() {
   // }, [currentChild])
 
   useEventListener(
-    'keydown',
-    ev => {
-      console.log(ev.key)
+    "keydown",
+    (ev) => {
+      console.log(ev.key);
 
       switch (ev.key) {
-        case 'ArrowLeft':
-          setCurrentChild(currentChild - 1)
-          break
-        case 'ArrowRight':
-          setCurrentChild(currentChild + 1)
-          break
+        case "ArrowLeft":
+          setCurrentChild(currentChild - 1);
+          break;
+        case "ArrowRight":
+          setCurrentChild(currentChild + 1);
+          break;
       }
     },
-    [currentChild]
-  )
+    [currentChild],
+  );
 
   return (
-    <div className='bg-black'>
-      <div className='h-full w-full absolute top-0 left-0'>
-        <canvas ref={canvasRef} className='h-full w-full' />
+    <div className="bg-black">
+      <div className="absolute left-0 top-0 h-full w-full">
+        <canvas ref={canvasRef} className="h-full w-full" />
       </div>
       {/* <Asemic builder={slides[currentChild].asemic?.[0] ?? (b) => b}>
       </Asemic> */}
-      <div className='text-pink-600 z-10 absolute top-0 left-0 h-full w-full font-mono font-bold'>
+      <div className="absolute left-0 top-0 z-10 h-full w-full font-mono font-bold text-pink-600">
         {slides[currentChild]?.slide}
       </div>
     </div>
-  )
+  );
 }

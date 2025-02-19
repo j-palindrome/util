@@ -20,8 +20,8 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@animation/*": ["./util/reactive/*"],
-      "@util/*": ["./util/src/*"]
+      "@animation/*": ["libs/util/reactive/*"],
+      "@util/*": ["libs/util/src/*"]
     },
     "target": "ES2017"
   },
@@ -34,7 +34,8 @@
     ".next/types/app/work/layout.tsx",
     ".next/types/app/work/page.tsx",
     ".next/types/app/layout.tsx",
-    ".next/types/app/page.tsx"
-, ".tailwindrc"  ],
+    ".next/types/app/page.tsx",
+    ".tailwindrc"
+  ],
   "exclude": ["node_modules"]
 }

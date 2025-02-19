@@ -1,5 +1,5 @@
-'use client'
-import Asemic from '@/asemic/src/Asemic'
+"use client";
+import Asemic from "@/libs/asemic/src/Asemic";
 import {
   mx_noise_float,
   mx_noise_vec3,
@@ -9,15 +9,15 @@ import {
   uv,
   vec2,
   vec3,
-  vec4
-} from 'three/tsl'
+  vec4,
+} from "three/tsl";
 
 export default function Genuary5() {
   return (
     <Asemic
       dimensions={[1080, 1920]}
-      builder={b =>
-        b.newGroup(g =>
+      builder={(b) =>
+        b.newGroup((g) =>
           g
             .set({
               gap: 0,
@@ -26,8 +26,8 @@ export default function Genuary5() {
               thickness: 10,
               update: true,
               alpha: 0.1,
-              pointRotate: input => input.add(range(0, 3.14)),
-              pointVert: input => input,
+              pointRotate: (input) => input.add(range(0, 3.14)),
+              pointVert: (input) => input,
               curveVert: (input, pointCurve) =>
                 vec4(
                   mx_noise_vec3(
@@ -35,18 +35,18 @@ export default function Genuary5() {
                       pointCurve
                         .mul(100)
                         .add(vec2(range(0, 1), range(60, 1)))
-                        .add(vec2(time.mul(0.1), time.mul(60.1)))
+                        .add(vec2(time.mul(0.1), time.mul(60.1))),
                     ),
                     1,
-                    0
+                    0,
                   ).xy.add(vec2(0.5, g.h / 2)),
-                  input.zw
+                  input.zw,
                 ),
-              maxLength: 1
+              maxLength: 1,
             })
-            .newCurvesBlank(100, 5)
+            .newCurvesBlank(100, 5),
         )
       }
     />
-  )
+  );
 }

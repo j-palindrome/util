@@ -1,17 +1,17 @@
-'use client'
-import Asemic from '@/asemic/src/Asemic'
-import { PointBuilder } from '@/asemic/src/PointBuilder'
-import { easeInOutSine } from '@/util/src/tsl/easing'
-import { random } from 'lodash'
-import { Vector2 } from 'three'
-import { mix, time } from 'three/tsl'
+"use client";
+import Asemic from "@/libs/asemic/src/Asemic";
+import { PointBuilder } from "@/libs/asemic/src/PointBuilder";
+import { easeInOutSine } from "@/util/src/tsl/easing";
+import { random } from "lodash";
+import { Vector2 } from "three";
+import { mix, time } from "three/tsl";
 
 export default function Genuary6() {
-  const poem = ['sometrees', 'amazing']
+  const poem = ["sometrees", "amazing"];
   return (
     <Asemic
       dimensions={[1080, 1920]}
-      builder={b => {
+      builder={(b) => {
         b.transform({
           recalculate: 2000,
           update: true,
@@ -24,9 +24,9 @@ export default function Genuary6() {
                 time
                   .sub(info.settings.start / 1000)
                   .mod(2)
-                  .div(2)
-              )
-            )
+                  .div(2),
+              ),
+            );
           },
           curveFrag: (input, info) => {
             return mix(
@@ -35,13 +35,13 @@ export default function Genuary6() {
               time
                 .sub(info.settings.start / 1000)
                 .mod(2)
-                .div(2)
-            )
-          }
+                .div(2),
+            );
+          },
         }).repeat(2, ({ i }) => {
           b.repeat(poem[i].length, ({ i: j }) => {
-            b.newGroup(g => {
-              g.transform({ start: j * 250 })
+            b.newGroup((g) => {
+              g.transform({ start: j * 250 });
               g.repeat(1, () => {
                 // const point = g.getRandomWithin([0.5, 0, { reset: true }], [0.2, 0])
                 // const resetTransform: PreTransformData =
@@ -57,10 +57,10 @@ export default function Genuary6() {
                     reset: true,
                     translate: [
                       g.getRandomWithin(0.5, 0.05),
-                      i === 0 ? g.h : 0
+                      i === 0 ? g.h : 0,
                     ],
-                    scale: (i === 0 ? -1 : 1) / 6
-                  }
+                    scale: (i === 0 ? -1 : 1) / 6,
+                  },
                 ])
                   .repeat(8, () => {
                     g.newPoints([
@@ -68,8 +68,8 @@ export default function Genuary6() {
                       1,
                       {
                         thickness: Math.random() * 10,
-                        alpha: Math.random() * 0.7
-                      }
+                        alpha: Math.random() * 0.7,
+                      },
                     ])
                       .transform({
                         rotate:
@@ -82,9 +82,9 @@ export default function Genuary6() {
                                 ? random(-0.2, 0)
                                 : random(0, 0.2)
                               : random(-0.08, 0.08),
-                        scale: 0.9
+                        scale: 0.9,
                       })
-                      .transform({ translate: [0, 1] })
+                      .transform({ translate: [0, 1] });
                   })
                   .text(poem[i][j], {
                     strength: 0,
@@ -92,14 +92,14 @@ export default function Genuary6() {
                     thickness: 1,
                     translate: i === 0 ? [0, 0.7] : [0, 0],
                     scale: new PointBuilder([0.07, 0.07]).divide(
-                      g.currentTransform.scale
-                    )
-                  })
-              })
-            })
-          })
-        })
+                      g.currentTransform.scale,
+                    ),
+                  });
+              });
+            });
+          });
+        });
       }}
     />
-  )
+  );
 }

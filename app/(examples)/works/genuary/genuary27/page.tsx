@@ -1,9 +1,9 @@
-'use client'
+"use client";
 // line that may or may not intersect
 
-import Asemic from '@/asemic/src/Asemic'
-import PointBrush from '@/asemic/src/DashBrush'
-import { afterImage } from '@/util/src/tsl/afterImage'
+import Asemic from "@/libs/asemic/src/Asemic";
+import PointBrush from "@/libs/asemic/src/DashBrush";
+import { afterImage } from "@/util/src/tsl/afterImage";
 import {
   float,
   fract,
@@ -16,18 +16,18 @@ import {
   select,
   time,
   vec2,
-  vec4
-} from 'three/tsl'
+  vec4,
+} from "three/tsl";
 
 // Inspired by brutalism
 export default function Genuary26() {
   return (
-    <Asemic postProcessing={i => afterImage(i, 0.9)}>
-      {s => (
+    <Asemic postProcessing={(i) => afterImage(i, 0.9)}>
+      {(s) => (
         <PointBrush
-          onInit={b => {
-            b.newCurve([0, 0, { translate: [0, 0.5 * s.h] }])
-            b.repeat(10, ({ p }) => b.newPoints([p, 0]))
+          onInit={(b) => {
+            b.newCurve([0, 0, { translate: [0, 0.5 * s.h] }]);
+            b.repeat(10, ({ p }) => b.newPoints([p, 0]));
           }}
           curvePosition={(input, { progress, lastFrame }) => {
             return vec4(
@@ -37,18 +37,18 @@ export default function Genuary26() {
                   select(
                     progress.mul(1000).toInt().modInt(3).greaterThan(0),
                     float(0.05).mul(progress.fract()),
-                    float(-0.05).mul(progress.fract().oneMinus())
-                  )
+                    float(-0.05).mul(progress.fract().oneMinus()),
+                  ),
                 ),
-                s.h
+                s.h,
               ),
-              lastFrame.zw
-            )
+              lastFrame.zw,
+            );
           }}
           maxLength={5}
           spacing={0.5}
         />
       )}
     </Asemic>
-  )
+  );
 }
