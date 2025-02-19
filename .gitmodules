@@ -1,6 +1,0 @@
-[submodule "libs/asemic"]
-	path = libs/asemic
-	url = https://github.com/j-palindrome/asemic.git
-[submodule "libs/util"]
-	path = libs/util
-	url = https://github.com/j-palindrome/util.git
