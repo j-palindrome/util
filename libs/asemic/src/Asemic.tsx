@@ -52,7 +52,7 @@ export function AsemicCanvas({
 } & React.PropsWithChildren) {
   const [audio, setAudio] = useState<SceneBuilder<any>["audio"]>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null!);
-  const [started, setStarted] = useState(false);
+  const [started, setStarted] = useState(!useAudio);
   // const [recording, setRecording] = useState(false)
   const [frameloop, setFrameloop] = useState<"never" | "always">("never");
   const coords: [number, number][] = [];
@@ -100,7 +100,10 @@ export function AsemicCanvas({
   };
 
   return (
-    <>
+    <div
+      className={`relative ${className}`}
+      style={{ height, width, ...style }}
+    >
       <Toggle
         label="pause"
         cb={(state) => {
@@ -110,6 +113,7 @@ export function AsemicCanvas({
             initAudio();
           } else setStarted(state);
         }}
+        className="absolute left-1 top-1"
       ></Toggle>
       {/* @ts-ignore */}
       <Canvas
@@ -137,7 +141,6 @@ export function AsemicCanvas({
           );
         }}
         ref={canvasRef}
-        style={{ height, width, ...style }}
         frameloop={frameloop}
         className={className}
         orthographic
@@ -186,7 +189,7 @@ export function AsemicCanvas({
         )}
         {frameloop === "always" && <Adjust />}
       </Canvas>
-    </>
+    </div>
   );
 }
 
