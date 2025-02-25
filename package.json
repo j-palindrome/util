@@ -31,7 +31,6 @@
     "@types/p5": "^1.7.6",
     "@types/three": "^0.173.0",
     "@webgpu/types": "^0.1.54",
-    "aframe": "^1.6.0",
     "animejs": "^3.2.2",
     "autoprefixer": "^10.4.20",
     "framer-motion": "^12.4.2",

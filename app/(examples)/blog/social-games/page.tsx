@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import "../../tailwind.css";
-import "aframe";
 
 declare global {
   namespace JSX {
@@ -36,7 +35,7 @@ declare global {
 }
 
 export default function Page() {
-  const scene = useRef();
+  const scene = useRef(0);
   useEffect(() => {
     console.log(scene);
   }, []);
