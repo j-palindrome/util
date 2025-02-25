@@ -873,6 +873,7 @@ ${this.curves
     const lines: number[] = [this.curves.length];
     let i = 0;
     for (let letter of str) {
+      if (eachLetter) eachLetter(i);
       if (this.letters[letter]) {
         this.transform({ strength: 0, translate: [0.2, 0], push: true });
         this.letters[letter]();
@@ -884,7 +885,6 @@ ${this.curves
           push: true,
         });
       }
-      if (eachLetter) eachLetter(i);
       i++;
     }
 

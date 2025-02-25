@@ -60,7 +60,10 @@ function App() {
                   maxLength={5}
                   onInit={(g) =>
                     g
-                      .newText("mouth", { scale: (g.time % 1) + 0.01 })
+                      .newText("mouth", {
+                        scale: (g.time % 1) + 0.01,
+                        thickness: g.getRange((g.time % 1) ** 2, [1, 100]),
+                      })
                       .setCurves("all", { center: 0.5, middle: 0.5 * h })
                   }
                 ></LineBrush>
@@ -110,6 +113,7 @@ function App() {
                         "as if a tiger were\n     taking the moon down",
                         {
                           reset: true,
+                          thickness: 5,
                         },
                       )
                       .setCurves("new", { width: 0.7, top: 0.2 })
@@ -128,7 +132,7 @@ function App() {
                     g.newText(
                       "joy",
                       {
-                        thickness: () => g.getRandomWithin(1, 10),
+                        thickness: () => g.getRandomWithin(5, 15),
                         scale: 0.5,
                       },
                       {
@@ -144,7 +148,10 @@ function App() {
 
                       .newText(
                         "of being seen",
-                        { reset: true },
+                        {
+                          reset: true,
+                          thickness: () => g.getRange(g.hash(), [1, 10]),
+                        },
                         { width: 0.5, middle: 0.2, left: 0.12 },
                       );
                   }}
@@ -157,6 +164,7 @@ function App() {
               <>
                 <Background map={textures[3]} />
                 <LineBrush
+                  renderInit
                   onInit={(g) => {
                     g.newText(
                       "and",
@@ -165,15 +173,20 @@ function App() {
                     ).newText(
                       "seeing oneself",
                       { thickness: 1 },
-                      { center: 0.5, middle: 0.2, width: 0.9 },
-                      () =>
+                      { center: 0.5, width: 0.9, middle: 0.2 },
+                      (i) =>
                         g
                           .transform({
                             translate: [1, 0],
                             push: true,
                             reset: "pop",
                           })
-                          .transform({ scale: [-1, 1] }),
+                          .transform({
+                            scale: [
+                              1,
+                              g.getWave(1, { signed: true }) * (i % 2 ? -1 : 1),
+                            ],
+                          }),
                     );
                   }}
                 />
@@ -206,24 +219,29 @@ function App() {
               <>
                 <Background map={textures[5]} />
                 <LineBrush
+                  renderInit
                   onInit={(g) => {
                     g.newText(
                       "but what if the posterity of the camera self isolates\n                      behind that hall of mirrors",
-                      {},
-                      { left: 0.05, middle: 0.1, width: 0.9 * h },
+                      { thickness: 3 },
+                      { left: 0, middle: 0.1, width: 0.9 },
                     )
                       .newText(
                         "and the annotations on what we sought are the\n      reflections of",
-                        { reset: true },
-                        { left: 0.3, width: 0.5, middle: 0.9 * h },
+                        { reset: true, thickness: 3 },
+                        { left: 0.3, width: 0.7, middle: 0.9 * h },
                       )
                       .newText(
                         "ourselves",
                         {
-                          alpha: () => g.getWaveNoise(1, {}) * 0.5,
-                          thickness: 7,
+                          alpha: () => g.getWaveNoise(1, {}),
+                          thickness: 15,
                         },
                         { middle: 0.5 * h, center: 0.5, width: 1 },
+                        () =>
+                          g.transform({
+                            scale: g.getRange(g.getWaveNoise(1), [0.5, 1.5]),
+                          }),
                       );
                   }}
                 />
@@ -265,9 +283,7 @@ function App() {
                       { width: 0.9, middle: 0.2 * h, center: 0.5 },
                       () =>
                         g.transform({
-                          translate: [g.getWave(1), 0],
-                          push: true,
-                          reset: "pop",
+                          translate: [g.getRange(g.getWave(1), [-0.5, 1]), 0],
                         }),
                     );
                   }}
@@ -287,8 +303,13 @@ function App() {
                       {
                         alpha: () => g.noise([g.time, 0]),
                         thickness: 5,
+                        scale: 1 / 15,
                       },
-                      { middle: 0.5 * h, center: 0.5, width: 0.7 },
+                      { middle: 0.5 * h, center: 0.5 },
+                      () =>
+                        g.transform({
+                          scale: g.getRange(g.getWave(1), [0.8, 1]),
+                        }),
                     );
                   }}
                 />
