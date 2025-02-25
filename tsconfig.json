@@ -20,7 +20,7 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "@util/*": ["libs/util/*"]
+      "@util/*": ["./libs/util/*"]
     },
     "target": "ES2017"
   },

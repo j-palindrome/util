@@ -1,5 +1,46 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import "../../tailwind.css";
-export default async function Page() {
+import "aframe";
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      "a-scene": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      > & { children?: React.ReactNode };
+      "a-box": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      > & { children?: React.ReactNode };
+      "a-sphere": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      > & { children?: React.ReactNode };
+      "a-cylinder": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      > & { children?: React.ReactNode };
+      "a-plane": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      > & { children?: React.ReactNode };
+      "a-sky": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      > & { children?: React.ReactNode };
+    }
+  }
+}
+
+export default function Page() {
+  const scene = useRef();
+  useEffect(() => {
+    console.log(scene);
+  }, []);
+
   return (
     <div className="">
       <h2>Response to Virtual Worlds</h2>
