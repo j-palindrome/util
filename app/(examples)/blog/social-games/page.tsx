@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import "../../tailwind.css";
 
 declare global {
   namespace JSX {
