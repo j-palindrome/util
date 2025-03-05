@@ -1,5 +1,11 @@
 import WebAudioRenderer from "@elemaudio/web-renderer";
-import { Canvas, extend, useFrame, useThree } from "@react-three/fiber";
+import {
+  Canvas,
+  extend,
+  ThreeElement,
+  useFrame,
+  useThree,
+} from "@react-three/fiber";
 import {
   Children,
   PropsWithChildren,
@@ -17,7 +23,7 @@ import {
 } from "three";
 import { Fn, pass, texture } from "three/tsl";
 import { PostProcessing, QuadMesh, WebGPURenderer } from "three/webgpu";
-import SceneBuilder from "./Builder";
+import { SceneBuilder } from "./builders/SceneBuilder";
 import { AsemicContext } from "./util/asemicContext";
 import { SettingsInput, useBuilderEvents, useEvents } from "./util/useEvents";
 import { el } from "@elemaudio/core";
@@ -29,8 +35,7 @@ extend({
 
 declare module "@react-three/fiber" {
   interface ThreeElements {
-    // @ts-ignore
-    quadMesh: Object3DNode<QuadMesh, typeof QuadMesh>;
+    quadMesh: ThreeElement<typeof QuadMesh>;
   }
 }
 
@@ -209,16 +214,12 @@ export function useAsemic<T extends SettingsInput>({
 }: {
   controls?: T;
 } & Partial<SceneBuilder<T>["sceneSettings"]> = {}) {
-  const { renderer, scene, camera } = useThree(
-    ({ gl, scene, camera, invalidate, advance }) => ({
-      // @ts-expect-error
-      renderer: gl as WebGPURenderer,
-      scene,
-      camera,
-      invalidate,
-      advance,
-    }),
-  );
+  const { renderer, scene, camera } = useThree(({ gl, scene, camera }) => ({
+    // @ts-expect-error
+    renderer: gl as WebGPURenderer,
+    scene,
+    camera,
+  }));
   controls = {
     constants: { ...controls?.constants },
     uniforms: { ...controls?.uniforms },
