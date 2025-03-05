@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { range } from 'lodash'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { Vector2, Vector4 } from 'three'
 import { Fn } from 'three/src/nodes/TSL.js'
 import {
@@ -12,7 +12,6 @@ import {
   instanceIndex,
   int,
   mix,
-  PI2,
   screenSize,
   select,
   uniformArray,
