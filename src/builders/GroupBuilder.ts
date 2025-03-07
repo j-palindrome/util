@@ -1,38 +1,34 @@
-import _, { entries, last, max, min, range } from "lodash";
-import { CurvePath, LineCurve, QuadraticBezierCurve, Vector2 } from "three";
-import { lerp } from "three/src/math/MathUtils.js";
-import { mrt, output } from "three/tsl";
-import invariant from "tiny-invariant";
-import { Builder } from "./Builder";
-import { PointBuilder } from "./PointBuilder";
+import _, { entries, last, max, min, range } from 'lodash'
+import { CurvePath, LineCurve, QuadraticBezierCurve, Vector2 } from 'three'
+import { lerp } from 'three/src/math/MathUtils.js'
+import { mrt, output } from 'three/tsl'
+import invariant from 'tiny-invariant'
+import Builder from './Builder'
+import PointBuilder from './PointBuilder'
 
-export class GroupBuilder<
-  T extends BrushTypes,
-  K extends Record<string, any>,
-> extends Builder {
-  time: number = performance.now() / 1000;
-  curves: PointBuilder[][] = [];
-  params: K;
-  settings: ProcessData<T, K> & BrushData<T>;
-  lastIndex: number = 0;
+export default class GroupBuilder extends Builder {
+  time: number = performance.now() / 1000
+  curves: PointBuilder[][] = []
+  lastIndex: number = 0
+  onInit: (g: GroupBuilder) => any
 
   getWave(
     frequency: number = 1,
     {
-      waveshape = "sine",
+      waveshape = 'sine',
       signed = false,
-    }: { waveshape?: "sine" | "saw"; signed?: boolean } = {},
+    }: { waveshape?: 'sine' | 'saw'; signed?: boolean } = {},
   ) {
-    let noise: number;
+    let noise: number
     switch (waveshape) {
-      case "sine":
-        noise = Math.sin(this.time * frequency);
-        break;
-      case "saw":
-        noise = Math.abs(0.5 - ((this.time * frequency) % 1)) * 2 * 2 - 1;
-        break;
+      case 'sine':
+        noise = Math.sin(this.time * frequency)
+        break
+      case 'saw':
+        noise = Math.abs(0.5 - ((this.time * frequency) % 1)) * 2 * 2 - 1
+        break
     }
-    return signed ? noise : (noise + 1) / 2;
+    return signed ? noise : (noise + 1) / 2
   }
 
   getWaveNoise(
@@ -43,86 +39,86 @@ export class GroupBuilder<
       harmonics = 1,
     }: { index?: number; signed?: boolean; harmonics?: number } = {},
   ) {
-    if (index === undefined) index = this.noiseIndex;
+    if (index === undefined) index = this.noiseIndex
 
     if (!this.noiseFuncs[index]) {
-      const waves = range(harmonics).map(() => Math.random());
+      const waves = range(harmonics).map(() => Math.random())
       this.noiseFuncs.push(() => {
-        let total = 0;
-        let harmonic = 0;
+        let total = 0
+        let harmonic = 0
         for (let i = 0; i < waves.length; i++) {
-          harmonic += 1 / (i + 1);
+          harmonic += 1 / (i + 1)
           total +=
             this.getWave(waves[i] * frequency * (i + 1), { signed: true }) /
-            (i + 1);
+            (i + 1)
         }
-        return total / harmonic;
-      });
+        return total / harmonic
+      })
     }
     const noise = signed
       ? this.noiseFuncs[index]()
-      : (this.noiseFuncs[index]() + 1) / 2;
-    this.noiseIndex++;
-    return noise;
+      : (this.noiseFuncs[index]() + 1) / 2
+    this.noiseIndex++
+    return noise
   }
 
   getPoint(index: number = -1, curve: number = -1) {
-    if (curve < 0) curve += this.curves.length;
-    if (index < 0) index += this.curves[curve].length;
-    return this.curves[curve][index];
+    if (curve < 0) curve += this.curves.length
+    if (index < 0) index += this.curves[curve].length
+    return this.curves[curve][index]
   }
 
   getIntersect(progress: number, curve: number = -1) {
-    if (curve < 0) curve += this.curves.length;
-    if (progress < 0) progress += 1;
+    if (curve < 0) curve += this.curves.length
+    if (progress < 0) progress += 1
 
-    const curvePath = this.makeCurvePath(this.curves[curve]);
-    return this.fromPoint(curvePath.getPointAt(progress));
+    const curvePath = this.makeCurvePath(this.curves[curve])
+    return this.fromPoint(curvePath.getPointAt(progress))
   }
 
   fromPoint(point: Vector2) {
-    return this.applyTransform(point, this.currentTransform, true).toArray();
+    return this.applyTransform(point, this.currentTransform, true).toArray()
   }
 
   toPoints(...coordinates: (Coordinate | PointBuilder | CoordinateData)[]) {
-    let points: PointBuilder[] = [];
+    let points: PointBuilder[] = []
     for (let i = 0; i < coordinates.length; i++) {
       if (coordinates[i] instanceof Array) {
-        points.push(this.toPoint(coordinates[i] as Coordinate));
+        points.push(this.toPoint(coordinates[i] as Coordinate))
       } else if (coordinates[i] instanceof PointBuilder) {
-        points.push(coordinates[i] as PointBuilder);
+        points.push(coordinates[i] as PointBuilder)
       } else {
-        this.transform(coordinates[i] as CoordinateSettings);
+        this.transform(coordinates[i] as CoordinateSettings)
       }
     }
-    return points;
+    return points
   }
 
   protected getPointSettings(): CoordinateSettings {
-    const newPointSettings: CoordinateSettings = {} as any;
+    const newPointSettings: CoordinateSettings = {} as any
     for (let [key, value] of entries(this.pointSettings)) {
-      if (typeof value === "function") {
+      if (typeof value === 'function') {
         newPointSettings[key] = value([
           last(this.curves)?.length ?? 0,
           this.curves.length,
-        ]);
+        ])
       } else {
-        newPointSettings[key] = value;
+        newPointSettings[key] = value
       }
     }
-    return newPointSettings;
+    return newPointSettings
   }
 
   toPoint(coordinate: Coordinate | PointBuilder | Vector2) {
-    if (coordinate instanceof PointBuilder) return coordinate;
+    if (coordinate instanceof PointBuilder) return coordinate
     else if (coordinate instanceof Vector2)
       return new PointBuilder(
         [coordinate.x, coordinate.y],
         this.getPointSettings(),
-      );
+      )
     else {
       if (coordinate[2]) {
-        this.transform(coordinate[2]);
+        this.transform(coordinate[2])
       }
       return this.applyTransform(
         new PointBuilder(
@@ -130,7 +126,7 @@ export class GroupBuilder<
           this.getPointSettings(),
         ),
         this.currentTransform,
-      );
+      )
     }
   }
 
@@ -138,68 +134,68 @@ export class GroupBuilder<
     curve: PointBuilder[],
     controlPointsCount: number,
   ) {
-    const newCurve = this.makeCurvePath(curve);
+    const newCurve = this.makeCurvePath(curve)
 
-    const newCurvePoints: PointBuilder[] = [];
+    const newCurvePoints: PointBuilder[] = []
     for (let i = 0; i < controlPointsCount; i++) {
-      const u = i / (controlPointsCount - 1);
+      const u = i / (controlPointsCount - 1)
       newCurvePoints.push(
         new PointBuilder(newCurve.getPointAt(u).toArray() as [number, number]),
-      );
-      curve.splice(0, curve.length, ...newCurvePoints);
+      )
+      curve.splice(0, curve.length, ...newCurvePoints)
     }
   }
 
-  protected getLength(curve: PointBuilder[]) {
-    let length = 0;
-    const testVec = new Vector2();
+  getLength(curve: PointBuilder[]) {
+    let length = 0
+    const testVec = new Vector2()
     for (let i = 1; i < curve.length; i++) {
-      length += testVec.subVectors(curve[i], curve[i - 1]).length();
+      length += testVec.subVectors(curve[i], curve[i - 1]).length()
     }
-    return length * 1.5; // estimation for Bezier curve
+    return length * 1.5 // estimation for Bezier curve
   }
 
   protected getTransformAt(transforms: TransformData[], progress: number) {
     const { t, start } = {
       start: Math.floor(progress * (transforms.length - 1)),
       t: (progress * (transforms.length - 1)) % 1,
-    };
+    }
 
     const curveInterpolate = <T extends Vector2 | number>(groups: T[]) => {
       if (groups[0] instanceof Vector2) {
-        invariant(groups[1] instanceof Vector2);
-        return groups[0].clone().lerp(groups[1], t);
-      } else if (typeof groups[0] === "number") {
-        invariant(typeof groups[1] === "number");
-        return lerp(groups[0], groups[1], t);
+        invariant(groups[1] instanceof Vector2)
+        return groups[0].clone().lerp(groups[1], t)
+      } else if (typeof groups[0] === 'number') {
+        invariant(typeof groups[1] === 'number')
+        return lerp(groups[0], groups[1], t)
       }
-    };
+    }
 
     const makeBezier = <T extends keyof TransformData>(key: T) => {
       const groups = range(2).map(
         (i) => transforms[(start + i) % transforms.length][key],
-      );
+      )
 
-      return curveInterpolate(groups as any);
-    };
+      return curveInterpolate(groups as any)
+    }
 
     const { rotate, translate, scale } = {
-      rotate: makeBezier("rotate"),
-      translate: makeBezier("translate"),
-      scale: makeBezier("scale"),
-    };
+      rotate: makeBezier('rotate'),
+      translate: makeBezier('translate'),
+      scale: makeBezier('scale'),
+    }
 
-    return { rotate, translate, scale } as TransformData;
+    return { rotate, translate, scale } as TransformData
   }
 
   protected makeCurvePath(curve: PointBuilder[]): CurvePath<Vector2> {
-    const path: CurvePath<Vector2> = new CurvePath();
+    const path: CurvePath<Vector2> = new CurvePath()
     if (curve.length <= 1) {
-      throw new Error(`Curve length is ${curve.length}`);
+      throw new Error(`Curve length is ${curve.length}`)
     }
     if (curve.length == 2) {
-      path.add(new LineCurve(curve[0], curve[1]));
-      return path;
+      path.add(new LineCurve(curve[0], curve[1]))
+      return path
     }
     for (let i = 0; i < curve.length - 2; i++) {
       if ((curve[i + 1].strength ?? 0) > 0.5) {
@@ -208,7 +204,7 @@ export class GroupBuilder<
             i === 0 ? curve[i] : curve[i].clone().lerp(curve[i + 1], 0.5),
             curve[i + 1],
           ),
-        );
+        )
         path.add(
           new LineCurve(
             curve[i + 1],
@@ -216,7 +212,7 @@ export class GroupBuilder<
               ? curve[i + 2]
               : curve[i + 1].clone().lerp(curve[i + 2], 0.5),
           ),
-        );
+        )
       } else {
         path.add(
           new QuadraticBezierCurve(
@@ -226,23 +222,23 @@ export class GroupBuilder<
               ? curve[i + 2]
               : curve[i + 1].clone().lerp(curve[i + 2], 0.5),
           ),
-        );
+        )
       }
     }
-    return path;
+    return path
   }
 
   getBounds(points: PointBuilder[]) {
-    const flatX = points.map((x) => x.x);
-    const flatY = points.map((y) => y.y);
-    const minCoord = new Vector2(min(flatX)!, min(flatY)!);
-    const maxCoord = new Vector2(max(flatX)!, max(flatY)!);
+    const flatX = points.map((x) => x.x)
+    const flatY = points.map((y) => y.y)
+    const minCoord = new Vector2(min(flatX)!, min(flatY)!)
+    const maxCoord = new Vector2(max(flatX)!, max(flatY)!)
     return {
       min: minCoord,
       max: maxCoord,
       size: new Vector2().subVectors(maxCoord, minCoord),
       center: new Vector2().lerpVectors(minCoord, maxCoord, 0.5),
-    };
+    }
   }
 
   randomize({
@@ -250,95 +246,95 @@ export class GroupBuilder<
     rotate,
     scale,
   }: {
-    translate?: [Coordinate, Coordinate];
-    rotate?: [number, number];
-    scale?: [Coordinate, Coordinate];
+    translate?: [Coordinate, Coordinate]
+    rotate?: [number, number]
+    scale?: [Coordinate, Coordinate]
   }) {
     let translatePoint = translate
       ? this.toPoint(translate[0])
           .lerpRandom(this.toPoint(translate[1]))
           .toArray()
-      : undefined;
+      : undefined
     let rotatePoint = rotate
       ? lerp(this.toRad(rotate[0]), this.toRad(rotate[1]), Math.random())
-      : undefined;
+      : undefined
     let scalePoint = scale
       ? this.toPoint(scale[0]).lerpRandom(this.toPoint(scale[1])).toArray()
-      : undefined;
+      : undefined
     const transform = this.toTransform({
       translate: translatePoint,
       scale: scalePoint,
       rotate: rotatePoint,
-    });
+    })
     this.curves.flat().forEach((p) => {
-      this.applyTransform(p, transform);
-    });
+      this.applyTransform(p, transform)
+    })
 
-    return this;
+    return this
   }
 
   getRandomAlong(...curve: Coordinate[]) {
-    const curvePoints = curve.map((x) => this.toPoint(x));
-    const curvePath = this.makeCurvePath(curvePoints);
+    const curvePoints = curve.map((x) => this.toPoint(x))
+    const curvePath = this.makeCurvePath(curvePoints)
     if (curve.length === 2) {
-      return this.toPoint(curve[0]).lerp(this.toPoint(curve[1]), Math.random());
+      return this.toPoint(curve[0]).lerp(this.toPoint(curve[1]), Math.random())
     }
-    return new PointBuilder([0, 0]).copy(curvePath.getPointAt(Math.random()));
+    return new PointBuilder([0, 0]).copy(curvePath.getPointAt(Math.random()))
   }
 
-  getRandomWithin(low: number, high: number): number;
+  getRandomWithin(low: number, high: number): number
   getRandomWithin(
     low: [number, number],
     high: [number, number],
-  ): [number, number];
+  ): [number, number]
   getRandomWithin(
     low: [number, number],
     high: [number, number],
     count: number,
-  ): [number, number][];
-  getRandomWithin(low: number, high: number, count: number): number[];
+  ): [number, number][]
+  getRandomWithin(low: number, high: number, count: number): number[]
   getRandomWithin(
     low: number | [number, number],
     high: number | [number, number],
     count = 1,
   ): number | [number, number] | (number | [number, number])[] {
     const random = () => {
-      if (typeof low === "number" && typeof high === "number") {
-        return low + Math.random() * (high - low);
+      if (typeof low === 'number' && typeof high === 'number') {
+        return low + Math.random() * (high - low)
       } else {
         return [
           low[0] + Math.random() * (high[0] - low[0]),
           low[1] + Math.random() * (high[1] - low[1]),
-        ] as [number, number];
+        ] as [number, number]
       }
-    };
+    }
     if (count > 1) {
-      return _.range(count).map(() => random());
-    } else return random();
+      return _.range(count).map(() => random())
+    } else return random()
   }
 
   /**
    * @param {number} variation variation limits
    */
-  getRandomAround(origin: number, variation: number): number;
+  getRandomAround(origin: number, variation: number): number
   getRandomAround(
     origin: [number, number],
     variation: [number, number],
-  ): [number, number];
+  ): [number, number]
   getRandomAround(
     origin: [number, number],
     variation: [number, number],
     count: number,
-  ): [number, number][];
-  getRandomAround(origin: number, variation: number, count: number): number[];
+  ): [number, number][]
+  getRandomAround(origin: number, variation: number, count: number): number[]
   getRandomAround(
     origin: number | [number, number],
     variation: number | [number, number],
     count = 1,
   ): number | [number, number] | (number | [number, number])[] {
     const random = () => {
-      if (typeof origin === "number" && typeof variation === "number") {
-        return origin + (Math.random() - 0.5) * variation;
+      if (typeof origin === 'number' && typeof variation === 'number') {
+        return origin + (Math.random() - 0.5) * variation
       } else {
         return new Vector2(...(origin as [number, number]))
           .add(
@@ -348,12 +344,12 @@ export class GroupBuilder<
               .multiplyScalar(2)
               .multiply(new Vector2(...(variation as [number, number]))),
           )
-          .toArray();
+          .toArray()
       }
-    };
+    }
     if (count > 1) {
-      return _.range(count).map(() => random());
-    } else return random();
+      return _.range(count).map(() => random())
+    } else return random()
   }
 
   debug() {
@@ -367,50 +363,50 @@ ${this.curves
           `${p
             .toArray()
             .map((p) => p.toFixed(2))
-            .join(",")}`,
+            .join(',')}`,
       )
-      .join(" "),
+      .join(' '),
   )
-  .join("\n")}`,
-    );
-    return this;
+  .join('\n')}`,
+    )
+    return this
   }
 
   within(from: Coordinate | Vector2, to: Coordinate | Vector2, curves: number) {
-    const fromV = this.toPoint(from);
-    const size = new Vector2().copy(this.toPoint(to)).sub(fromV);
+    const fromV = this.toPoint(from)
+    const size = new Vector2().copy(this.toPoint(to)).sub(fromV)
 
     this.lastCurves((g) => {
-      const curves = g.flat();
-      const bounds = this.getBounds(curves);
+      const curves = g.flat()
+      const bounds = this.getBounds(curves)
       curves.forEach((p) => {
-        p.sub(bounds.min).divide(bounds.size).multiply(size).add(fromV);
-      });
-    }, curves);
+        p.sub(bounds.min).divide(bounds.size).multiply(size).add(fromV)
+      })
+    }, curves)
 
-    return this;
+    return this
   }
 
   withinX(from: number, to: number, curves: number) {
-    const size = to - from;
+    const size = to - from
 
     this.lastCurves((g) => {
-      const curves = g.flat();
-      const bounds = this.getBounds(curves);
+      const curves = g.flat()
+      const bounds = this.getBounds(curves)
       curves.forEach((p) => {
         p.sub(bounds.min)
           .divide({ x: bounds.size.x, y: bounds.size.x })
           .multiply({ x: size, y: size })
-          .add({ x: from, y: bounds.min.y });
-      });
-    }, curves);
+          .add({ x: from, y: bounds.min.y })
+      })
+    }, curves)
 
-    return this;
+    return this
   }
 
   protected lastCurve(callback: (curve: PointBuilder[]) => void, curves = 1) {
-    callback(this.curves[this.curves.length - curves]);
-    return this;
+    callback(this.curves[this.curves.length - curves])
+    return this
   }
 
   protected lastCurves(
@@ -419,8 +415,8 @@ ${this.curves
   ) {
     let newCurves: PointBuilder[][] = this.curves.slice(
       this.curves.length - curves,
-    );
-    callback(newCurves);
+    )
+    callback(newCurves)
   }
 
   /**
@@ -428,11 +424,11 @@ ${this.curves
    */
   slide(amount: number) {
     return this.lastCurve((curve) => {
-      const path = this.makeCurvePath(curve);
+      const path = this.makeCurvePath(curve)
       // const totalLength = path.getLength()
-      const offset = curve[0].clone().sub(path.getPointAt(amount));
-      curve.forEach((point) => point.add(offset));
-    });
+      const offset = curve[0].clone().sub(path.getPointAt(amount))
+      curve.forEach((point) => point.add(offset))
+    })
   }
 
   newCurvesBlank(curveCount: number, pointCount: number) {
@@ -440,17 +436,17 @@ ${this.curves
       ...range(curveCount).map(() =>
         range(pointCount).map(() => new PointBuilder()),
       ),
-    );
-    return this;
+    )
+    return this
   }
 
   newCurve(...points: (Coordinate | PointBuilder | CoordinateData)[]) {
-    this.curves.push(this.toPoints(...points));
-    return this;
+    this.curves.push(this.toPoints(...points))
+    return this
   }
 
   getShape(divisions: 3 | 4 | 5 | 6 | 7 | 8) {
-    let shape;
+    let shape
     switch (divisions) {
       case 6:
         shape = [
@@ -459,8 +455,8 @@ ${this.curves
           [-0.5, 1],
           [-0.5, 0],
           [0, 0],
-        ];
-        break;
+        ]
+        break
       case 7:
         shape = [
           [0.33 / 2, 0],
@@ -472,59 +468,59 @@ ${this.curves
           [-0.5, 0.33],
           [-0.33 / 2, 0],
           [0, 0],
-        ];
-        break;
+        ]
+        break
     }
-    return shape;
+    return shape
   }
 
   newCurves(
     count: number,
     ...points: (Coordinate | PointBuilder | CoordinateData)[]
   ) {
-    return this.repeat(count, () => this.newCurve(...points));
+    return this.repeat(count, () => this.newCurve(...points))
   }
 
   newPoints(...points: (Coordinate | PointBuilder | CoordinateData)[]) {
-    return this.lastCurve((c) => c.push(...this.toPoints(...points)));
+    return this.lastCurve((c) => c.push(...this.toPoints(...points)))
   }
 
   setCurves(
-    curves: number | "all" | "new",
+    curves: number | 'all' | 'new',
     settings: Partial<{
-      center: number;
-      left: number;
-      width: number;
-      top: number;
-      middle: number;
-      varyPosition?: [number, number];
+      center: number
+      left: number
+      width: number
+      top: number
+      middle: number
+      varyPosition?: [number, number]
     }>,
   ) {
     const textCurves = this.curves.slice(
-      curves === "all"
+      curves === 'all'
         ? 0
-        : curves === "new"
+        : curves === 'new'
           ? this.lastIndex
           : curves < 0
             ? this.curves.length + curves
             : curves,
-    );
-    const flatCurves = textCurves.flat();
-    const bounds = this.getBounds(textCurves.flat());
+    )
+    const flatCurves = textCurves.flat()
+    const bounds = this.getBounds(textCurves.flat())
 
     if (settings.varyPosition) {
       const varyPosition: [number, number] =
         settings.varyPosition instanceof Array
           ? settings.varyPosition
-          : [settings.varyPosition, settings.varyPosition];
+          : [settings.varyPosition, settings.varyPosition]
       flatCurves.forEach((point) => {
         this.applyTransform(
           point,
           this.toTransform({
             translate: this.getRandomAround([0, 0], varyPosition),
           }),
-        );
-      });
+        )
+      })
     }
 
     if (settings.width) {
@@ -534,20 +530,20 @@ ${this.curves
           .clone()
           .add(bounds.size.divideScalar(bounds.size.x / settings.width)),
         textCurves.length,
-      );
-      bounds.max = bounds.min.clone().add(bounds.size);
+      )
+      bounds.max = bounds.min.clone().add(bounds.size)
       bounds.center = bounds.min
         .clone()
-        .add(bounds.size.clone().divideScalar(2));
+        .add(bounds.size.clone().divideScalar(2))
     }
 
     if (settings.center !== undefined) {
-      const lineBounds = this.getBounds(flatCurves);
-      console.log(settings.center - lineBounds.center.x);
+      const lineBounds = this.getBounds(flatCurves)
+      console.log(settings.center - lineBounds.center.x)
 
       flatCurves.forEach((point) =>
         point.add({ x: settings.center! - lineBounds.center.x, y: 0 }),
-      );
+      )
     }
 
     if (settings.left !== undefined) {
@@ -556,7 +552,7 @@ ${this.curves
           x: settings.left! - bounds.min.x,
           y: 0,
         }),
-      );
+      )
     }
 
     if (settings.top !== undefined) {
@@ -564,7 +560,7 @@ ${this.curves
         .flat()
         .forEach((point) =>
           point.add({ x: 0, y: settings.top! - bounds.max.y }),
-        );
+        )
     }
 
     if (settings.middle !== undefined) {
@@ -572,55 +568,55 @@ ${this.curves
         .flat()
         .forEach((point) =>
           point.add({ x: 0, y: settings.middle! - bounds.center.y }),
-        );
+        )
     }
-    return this;
+    return this
   }
 
   newText(
     str: string,
     transform?: CoordinateData,
-    settings?: Parameters<(typeof this)["setCurves"]>[1],
+    settings?: Parameters<(typeof this)['setCurves']>[1],
     eachLetter?: (i: number) => void,
   ) {
     if (transform) {
-      this.transform({ ...transform, push: true });
+      this.transform({ ...transform, push: true })
     }
-    this.lastIndex = this.curves.length;
+    this.lastIndex = this.curves.length
 
-    const lines: number[] = [this.curves.length];
-    let i = 0;
+    const lines: number[] = [this.curves.length]
+    let i = 0
     for (let letter of str) {
-      if (eachLetter) eachLetter(i);
+      if (eachLetter) eachLetter(i)
       if (this.letters[letter]) {
-        this.transform({ strength: 0, translate: [0.2, 0], push: true });
-        this.letters[letter]();
-      } else if (letter === "\n") {
-        lines.push(this.curves.length);
+        this.transform({ strength: 0, translate: [0.2, 0], push: true })
+        this.letters[letter]()
+      } else if (letter === '\n') {
+        lines.push(this.curves.length)
         this.transform({
-          reset: "pop",
+          reset: 'pop',
           translate: [0, -1.5],
           push: true,
-        });
+        })
       }
-      i++;
+      i++
     }
 
     if (settings) {
-      this.setCurves("new", settings);
+      this.setCurves('new', settings)
     }
 
-    return this;
+    return this
   }
 
-  protected letters: Record<string, () => GroupBuilder<T, K>> = {
-    " ": () => this.transform({ translate: [0.5, 0], reset: "pop" }),
-    "\t": () => this.transform({ translate: [2, 0], reset: "pop" }),
+  protected letters: Record<string, () => GroupBuilder> = {
+    ' ': () => this.transform({ translate: [0.5, 0], reset: 'pop' }),
+    '\t': () => this.transform({ translate: [2, 0], reset: 'pop' }),
     a: () =>
       this.newCurve([1, 1], [0.5, 1.3], [0, 0.5], [0.5, -0.3], [1, 0])
         .newCurve([0, 1, { translate: [1, 0] }], [-0.1, 0.5], [0, -0.3])
         .slide(0.1)
-        .within([0, 0, { reset: "pop" }], [0.5, 0.6], 2)
+        .within([0, 0, { reset: 'pop' }], [0.5, 0.6], 2)
         .transform({ translate: [0.5, 0] }),
     b: () =>
       this.newCurve([0, 1], [0, 0])
@@ -631,7 +627,7 @@ ${this.curves
           [0.5, -0.1],
           [0, 0],
         )
-        .within([0, 0, { reset: "pop" }], [0.5, 1], 2)
+        .within([0, 0, { reset: 'pop' }], [0.5, 1], 2)
         .transform({ translate: [0.5, 0] }),
     c: () =>
       this.newCurve(
@@ -642,7 +638,7 @@ ${this.curves
         [0.9, 0],
         [1, 1 - 0.75],
       )
-        .within([0, 0, { reset: "pop" }], [0.5, 0.5], 1)
+        .within([0, 0, { reset: 'pop' }], [0.5, 0.5], 1)
         .transform({ translate: [0.5, 0] }),
     d: () =>
       this.newCurve([1, 1], [1, 0])
@@ -653,18 +649,18 @@ ${this.curves
           [0.5, -0.1],
           [0, 0],
         )
-        .within([0, 0, { reset: "pop" }], [0.5, 1], 2)
+        .within([0, 0, { reset: 'pop' }], [0.5, 1], 2)
         .transform({ translate: [0.5, 0] }),
     e: () =>
       this.newCurve([0, 0.5], [1, 0.5])
         .newCurve([1, 0.5], [1, 1], [0, 1], [0, 0], [0.9, 0], [1, 0.2])
-        .within([0, 0, { reset: "pop" }], [0.5, 0.5], 2)
+        .within([0, 0, { reset: 'pop' }], [0.5, 0.5], 2)
         .transform({ translate: [0.5, 0] }),
     f: () =>
       this.newCurve([0, 0], [0, 1 / 2], [0, 1], [1 / 2, 1], [1 / 2, 0.75])
         .newCurve([0, 1 / 2], [1 / 2, 1 / 2])
         .slide(1 / 4)
-        .within([0, 0, { reset: "pop" }], [1 / 2, 1], 2)
+        .within([0, 0, { reset: 'pop' }], [1 / 2, 1], 2)
         .transform({ translate: [0.35, 0] }),
     g: () =>
       this.newCurve(
@@ -676,25 +672,25 @@ ${this.curves
         [0.5, 0.5],
       )
         .newCurve([0.5, 0.5], [0.5, 0], [0.5, -0.5], [0, -0.5], [0.05, -0.25])
-        .within([0, -0.5, { reset: "pop" }], [0.5, 0.5], 2)
+        .within([0, -0.5, { reset: 'pop' }], [0.5, 0.5], 2)
         .transform({ translate: [0.5, 0] }),
     h: () =>
       this.newCurve([0, 0], [0, 1])
         .newCurve([0, 0.6, { scale: [0.5, 0.7] }], [1, 1], [1, 0])
-        .transform({ translate: [0.5, 0], reset: "pop" }),
+        .transform({ translate: [0.5, 0], reset: 'pop' }),
     i: () =>
       this.transform({ translate: [0.2, 0], push: true })
         .newCurve([0, 0], [0, 1, { scale: [1, 0.5] }])
         .newCurve(
-          [0, 0, { reset: "last", translate: [0, 0.52], scale: 0.05 / 0.5 }],
+          [0, 0, { reset: 'last', translate: [0, 0.52], scale: 0.05 / 0.5 }],
           [-1, 0],
           [-1, 1],
           [1, 1],
           [1, 0],
           [0, 0],
         )
-        .transform({ reset: "pop" })
-        .transform({ translate: [0.2, 0], reset: "pop" }),
+        .transform({ reset: 'pop' })
+        .transform({ translate: [0.2, 0], reset: 'pop' }),
     j: () =>
       this.transform({ translate: [-0.25, 0], push: true })
         .newCurve(
@@ -719,26 +715,26 @@ ${this.curves
           [1, 0],
           [0, 0],
         )
-        .within([0, -0.5, { reset: "pop" }], [0.5, 0.5], 2)
-        .transform({ translate: [0.25, 0], reset: "pop" }),
+        .within([0, -0.5, { reset: 'pop' }], [0.5, 0.5], 2)
+        .transform({ translate: [0.25, 0], reset: 'pop' }),
     k: () =>
       this.newCurve([0, 1], [0, 0])
         .newCurve(
           [0, 0, { translate: this.getIntersect(0.6), push: true }],
           [0.3, 0, { rotate: 0.15 }],
         )
-        .newCurve([0, 0, { reset: "pop" }], [0.3, 0, { reset: "pop" }])
+        .newCurve([0, 0, { reset: 'pop' }], [0.3, 0, { reset: 'pop' }])
         .within([0, 0], [0.5, 1], 3)
         .transform({ translate: [0.5, 0] }),
     l: () =>
       this.newCurve([0, 1], [0, 0.2], [0, 0], [0.1, 0]).transform({
         translate: [0.2, 0],
-        reset: "pop",
+        reset: 'pop',
       }),
     m: () =>
       this.newCurve([0, 0, { scale: [0.5, 0.5] }], [0, 1], [1, 1], [1, 0])
         .newCurve([0, 0, { translate: [1, 0] }], [0, 1], [1, 1], [1, 0])
-        .transform({ translate: [1, 0], reset: "pop" }),
+        .transform({ translate: [1, 0], reset: 'pop' }),
     n: () =>
       this.newCurve(
         [0, 0, { scale: [0.5, 0.5] }],
@@ -747,7 +743,7 @@ ${this.curves
         [1, 0],
       ).transform({
         translate: [0.5, 0],
-        reset: "pop",
+        reset: 'pop',
       }),
     o: () =>
       this.newCurve(
@@ -757,16 +753,16 @@ ${this.curves
         [0.5, 1],
         [0.5, 0],
         [0, 0],
-      ).transform({ reset: "pop", translate: [0.5, 0] }),
+      ).transform({ reset: 'pop', translate: [0.5, 0] }),
     p: () =>
       this.newCurve([0, 0, { translate: [0, -0.5] }], [0, 1])
         .newCurve(
-          [0, 1, { reset: "last", scale: 0.5 }],
+          [0, 1, { reset: 'last', scale: 0.5 }],
           [1, 1.3],
           [1, -0.3],
           [0, 0],
         )
-        .within([0, -0.5, { reset: "pop" }], [0.5, 0.5], 2)
+        .within([0, -0.5, { reset: 'pop' }], [0.5, 0.5], 2)
         .transform({ translate: [0.5, 0] }),
     q: () =>
       this.newCurve(
@@ -775,12 +771,12 @@ ${this.curves
         [0.2, 0, { rotate: 0.15 }],
       )
         .newCurve(
-          [0, 1, { reset: "pop", scale: [0.5, 0.5], translate: [0, 0.5] }],
+          [0, 1, { reset: 'pop', scale: [0.5, 0.5], translate: [0, 0.5] }],
           [-1, 1.3],
           [-1, -0.3],
           [0, 0],
         )
-        .within([0, -0.5, { reset: "pop" }], [0.5, 0.5], 2)
+        .within([0, -0.5, { reset: 'pop' }], [0.5, 0.5], 2)
         .transform({ translate: [0.5, 0] }),
     r: () =>
       this.newCurve([0, 0], [0, 0.5])
@@ -789,7 +785,7 @@ ${this.curves
           [0.25, 0.1],
           [0.5, 0],
         )
-        .transform({ translate: [0.5, 0], reset: "pop" }),
+        .transform({ translate: [0.5, 0], reset: 'pop' }),
     s: () =>
       this.newCurve(
         [0.5, 1, { translate: [-0.1, 0], push: true }],
@@ -800,26 +796,26 @@ ${this.curves
         [1, 0],
         [0, 0],
       )
-        .within([0, 0, { reset: "pop" }], [0.5, 0.5], 1)
-        .transform({ translate: [0.45, 0], reset: "pop" }),
+        .within([0, 0, { reset: 'pop' }], [0.5, 0.5], 1)
+        .transform({ translate: [0.45, 0], reset: 'pop' }),
     t: () =>
       this.newCurve([0, 0], [0, 1])
         .newCurve([0, 0, { translate: [0, 0.65], scale: [0.4, 1] }], [1, 0])
         .slide(0.5)
-        .transform({ translate: [0.2, 0], reset: "pop" }),
+        .transform({ translate: [0.2, 0], reset: 'pop' }),
     u: () =>
       this.newCurve(
         [0, 0, { translate: [0, 0.5], scale: [0.5, 0.5] }],
         [0, -1],
         [1, -1],
         [1, 0],
-      ).transform({ translate: [0.5, 0], reset: "pop" }),
+      ).transform({ translate: [0.5, 0], reset: 'pop' }),
     v: () =>
       this.newCurve(
         [0, 0, { translate: [0, 0.5], scale: [0.5, 0.5] }],
         [0.5, -1, { strength: 1 }],
         [1, 0],
-      ).transform({ translate: [0.5, 0], reset: "pop" }),
+      ).transform({ translate: [0.5, 0], reset: 'pop' }),
     w: () =>
       this.newCurve(
         [0, 0.5, { scale: [0.7, 1], strength: 1 }],
@@ -827,117 +823,48 @@ ${this.curves
         [0.5, 0.5, { strength: 1 }],
         [0.75, 0, { strength: 1 }],
         [1, 0.5, { strength: 1 }],
-      ).transform({ translate: [0.7, 0], reset: "pop" }),
+      ).transform({ translate: [0.7, 0], reset: 'pop' }),
     x: () =>
       this.newCurve([1, 1, { translate: [0.25, 0.25], scale: 0.25 }], [-1, -1])
         .newCurve([-1, 1], [1, -1])
-        .transform({ translate: [0.5, 0], reset: "pop" }),
+        .transform({ translate: [0.5, 0], reset: 'pop' }),
     y: () =>
       this.newCurve(
         [0, -1, { scale: [0.5, 0.5], translate: [-0.05, 0] }],
         [1, 1],
       )
         .newCurve([0.5, 0], [0, 1])
-        .transform({ translate: [0.55, 0], reset: "pop" }),
+        .transform({ translate: [0.55, 0], reset: 'pop' }),
     z: () =>
       this.newCurve(
         [0, 1, { scale: 0.5, strength: 1 }],
         [1, 1, { strength: 1 }],
         [0, 0, { strength: 1 }],
         [1, 0],
-      ).transform({ translate: [0.5, 0], reset: "pop" }),
+      ).transform({ translate: [0.5, 0], reset: 'pop' }),
     // this.newCurve([0, 1], [0, 0.2], [0, 0], [0.1, 0]).transform({
     //   translate: [0.2, 0],
     //   reset: 'pop'
     // })
-  };
+  }
 
   reInitialize(seconds: number) {
-    this.time = seconds;
-    this.reset(true);
-    this.hashIndex = 0;
-    this.noiseIndex = 0;
-    this.settings.onInit(this);
-    if (this.settings.maxPoints === 0) {
-      this.settings.maxPoints = max(this.curves.flatMap((x) => x.length))!;
-    }
-    if (this.settings.maxLength === 0) {
-      this.settings.maxLength = max(this.curves.map((x) => this.getLength(x)))!;
-    }
-    if (this.settings.maxCurves === 0) {
-      this.settings.maxCurves = this.curves.length;
-    }
-    return this;
+    this.time = seconds
+    this.reset(true)
+    this.hashIndex = 0
+    this.noiseIndex = 0
+    this.onInit(this)
+    return this
   }
 
   clear() {
-    this.curves.splice(0, this.curves.length);
-    return this;
+    this.curves.splice(0, this.curves.length)
+    return this
   }
 
-  constructor(
-    type: T,
-    settings: Partial<ProcessData<T, K>> & Partial<BrushData<T>>,
-    params: K,
-  ) {
-    super();
-
-    const defaultBrushSettings: { [T in BrushTypes]: BrushData<T> } = {
-      line: { type: "line" },
-      dash: {
-        type: "dash",
-        dashSize: 10,
-      },
-      particles: {
-        type: "particles",
-        speedDamping: 1e-3,
-        initialSpread: true,
-        speedMax: 1,
-        speedMin: 0,
-        particleSize: 1,
-        particleVelocity: (input) => input,
-        particlePosition: (input) => input,
-        attractorPull: 0,
-        attractorPush: 1,
-        particleCount: 1e4,
-      },
-      stripe: { type: "stripe" },
-      dot: { type: "dot" },
-      blob: { type: "blob", centerMode: "center" },
-    };
-    const defaultSettings: ProcessData<T, K> = {
-      maxLength: 0,
-      maxCurves: 0,
-      maxPoints: 0,
-      align: 0.5,
-      renderInit: false,
-      renderClear: true,
-      resample: true,
-      renderStart: 0,
-      squareAspect: false,
-      spacing: 3,
-      spacingType: "pixel",
-      adjustEnds: true,
-      renderTargets: mrt({
-        output,
-      }),
-      pointProgress: (input) => input,
-      pointPosition: (input) => input,
-      pointColor: (input) => input,
-      curvePosition: (input) => input,
-      curveColor: (input) => input,
-      pointRotate: (input) => input,
-      pointThickness: (input) => input,
-      onUpdate: () => {},
-      onInit: () => {},
-    };
-    this.settings = {
-      ...defaultSettings,
-      ...defaultBrushSettings[type],
-      ...settings,
-    };
-    this.params = params;
-
-    this.reInitialize(0);
+  constructor(onInit: (g: GroupBuilder) => any) {
+    super()
+    this.onInit = onInit
+    this.reInitialize(0)
   }
 }

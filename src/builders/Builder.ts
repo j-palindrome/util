@@ -1,25 +1,25 @@
-import { last } from "lodash";
-import { createNoise2D, createNoise3D, createNoise4D } from "simplex-noise";
-import { Vector2 } from "three";
-import { isTransformData } from "../typeGuards";
-import { multiBezierJS } from "../util/bezier";
+import { last } from 'lodash'
+import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
+import { Vector2 } from 'three'
+import { isTransformData } from '../typeGuards'
+import { multiBezierJS } from '../util/bezier'
 
 export const defaultCoordinateSettings: CoordinateSettings = {
   strength: 0,
   alpha: 1,
   color: [1, 1, 1],
   thickness: 1,
-};
+}
 
-export abstract class Builder {
-  protected transforms: TransformData[] = [];
-  currentTransform: TransformData = this.toTransform();
-  pointSettings: PreTransformData & CoordinateData = defaultCoordinateSettings;
-  protected noiseFuncs: ((...args: any[]) => number)[] = [];
-  protected randomTable: number[] = [];
-  protected hashIndex: number = 0;
-  protected noiseIndex: number = 0;
-  vec2 = new Vector2();
+export default abstract class Builder {
+  protected transforms: TransformData[] = []
+  currentTransform: TransformData = this.toTransform()
+  pointSettings: PreTransformData & CoordinateData = defaultCoordinateSettings
+  protected noiseFuncs: ((...args: any[]) => number)[] = []
+  protected randomTable: number[] = []
+  protected hashIndex: number = 0
+  protected noiseIndex: number = 0
+  vec2 = new Vector2()
 
   repeatGrid(
     dimensions: [number, number],
@@ -28,19 +28,19 @@ export abstract class Builder {
       i,
       count,
     }: {
-      p: Vector2;
-      i: Vector2;
-      count: Vector2;
-      pCenter: Vector2;
-      pComplete: Vector2;
-      iNumber: number;
+      p: Vector2
+      i: Vector2
+      count: Vector2
+      pCenter: Vector2
+      pComplete: Vector2
+      iNumber: number
     }) => void,
   ) {
-    let p = new Vector2();
-    let pCenter = new Vector2();
-    let pComplete = new Vector2();
-    let i = new Vector2();
-    let count = new Vector2(...dimensions);
+    let p = new Vector2()
+    let pCenter = new Vector2()
+    let pComplete = new Vector2()
+    let i = new Vector2()
+    let count = new Vector2(...dimensions)
     for (let y = 0; y < dimensions[1]; y++) {
       for (let x = 0; x < dimensions[0]; x++) {
         func({
@@ -56,11 +56,11 @@ export abstract class Builder {
           ),
           count,
           iNumber: x + y * x,
-        });
+        })
       }
     }
 
-    return this;
+    return this
   }
 
   repeat(
@@ -71,62 +71,62 @@ export abstract class Builder {
       count,
       pComplete,
     }: {
-      p: number;
-      i: number;
-      count: number;
-      pComplete: number;
+      p: number
+      i: number
+      count: number
+      pComplete: number
     }) => void,
   ) {
-    const runCount = typeof count === "number" ? count : count.count;
+    const runCount = typeof count === 'number' ? count : count.count
     for (let i = 0; i < runCount; i++) {
       func({
         p: i / runCount,
         pComplete: i / (runCount - 1 || 1),
         i,
         count: runCount,
-      });
+      })
     }
 
-    return this;
+    return this
   }
 
   protected reset(clear = false) {
-    this.currentTransform = this.toTransform();
-    this.pointSettings = { ...defaultCoordinateSettings };
+    this.currentTransform = this.toTransform()
+    this.pointSettings = { ...defaultCoordinateSettings }
 
-    if (clear) this.transforms = [];
-    return this;
+    if (clear) this.transforms = []
+    return this
   }
 
   transform(transform: Partial<CoordinateData>) {
     if (transform.reset) {
       switch (transform.reset) {
-        case "pop":
-          this.currentTransform = this.transforms.pop() ?? this.toTransform();
-          break;
-        case "last":
+        case 'pop':
+          this.currentTransform = this.transforms.pop() ?? this.toTransform()
+          break
+        case 'last':
           this.currentTransform = this.cloneTransform(
             last(this.transforms) ?? this.toTransform(),
-          );
-          break;
+          )
+          break
         case true:
-          this.reset();
-          break;
+          this.reset()
+          break
       }
     }
 
     this.currentTransform = this.combineTransforms(
       this.currentTransform,
       this.toTransform(transform),
-    );
+    )
 
     if (transform.push) {
-      this.transforms.push(this.cloneTransform(this.currentTransform));
+      this.transforms.push(this.cloneTransform(this.currentTransform))
     }
 
-    Object.assign(this.pointSettings, transform);
+    Object.assign(this.pointSettings, transform)
 
-    return this;
+    return this
   }
 
   protected combineTransforms(
@@ -139,20 +139,20 @@ export abstract class Builder {
         nextTransformData.translate
           .divide(transformData.scale)
           .rotateAround({ x: 0, y: 0 }, -transformData.rotate),
-      );
-      transformData.rotate -= nextTransformData.rotate;
-      transformData.scale.divide(nextTransformData.scale);
+      )
+      transformData.rotate -= nextTransformData.rotate
+      transformData.scale.divide(nextTransformData.scale)
     } else {
       transformData.translate.add(
         nextTransformData.translate
           .multiply(transformData.scale)
           .rotateAround({ x: 0, y: 0 }, transformData.rotate),
-      );
-      transformData.rotate += nextTransformData.rotate;
-      transformData.scale.multiply(nextTransformData.scale);
+      )
+      transformData.rotate += nextTransformData.rotate
+      transformData.scale.multiply(nextTransformData.scale)
     }
 
-    return transformData;
+    return transformData
   }
 
   applyTransform<T extends Vector2>(
@@ -160,20 +160,20 @@ export abstract class Builder {
     transformData: TransformData | PreTransformData,
     invert: boolean = false,
   ): T {
-    const convertedData = this.toTransform(transformData);
+    const convertedData = this.toTransform(transformData)
     if (invert) {
       vector
         .sub(convertedData.translate)
         .rotateAround({ x: 0, y: 0 }, -convertedData.rotate)
-        .divide(convertedData.scale);
+        .divide(convertedData.scale)
     } else {
       vector
         .multiply(convertedData.scale)
         .rotateAround({ x: 0, y: 0 }, convertedData.rotate)
-        .add(convertedData.translate);
+        .add(convertedData.translate)
     }
 
-    return vector;
+    return vector
   }
 
   protected cloneTransform(transform: TransformData): TransformData {
@@ -182,24 +182,24 @@ export abstract class Builder {
       rotate: transform.rotate,
       translate: transform.translate.clone(),
       isTransformData: true,
-    };
+    }
   }
 
   protected toTransform(
     transform?: PreTransformData | TransformData,
   ): TransformData {
-    if (isTransformData(transform)) return transform;
+    if (isTransformData(transform)) return transform
     if (!transform) {
       return {
         scale: new Vector2(1, 1),
         rotate: 0,
         translate: new Vector2(),
         isTransformData: true,
-      };
+      }
     }
     return {
       scale:
-        typeof transform.scale === "number"
+        typeof transform.scale === 'number'
           ? new Vector2(transform.scale, transform.scale)
           : transform.scale instanceof Array
             ? new Vector2(...transform.scale)
@@ -210,26 +210,26 @@ export abstract class Builder {
           ? new Vector2(...transform.translate)
           : (transform.translate ?? new Vector2()),
       isTransformData: true,
-    };
+    }
   }
 
   getAlong(t: number, ...curve: (Vector2 | Coordinate)[]) {
     return multiBezierJS(
       t,
       ...curve.map((x) => (x instanceof Array ? new Vector2(x[0], x[1]) : x)),
-    );
+    )
   }
 
   protected toRad(rotation: number) {
-    return rotation * Math.PI * 2;
+    return rotation * Math.PI * 2
   }
 
   protected fromRad(rotation: number) {
-    return rotation / Math.PI / 2;
+    return rotation / Math.PI / 2
   }
 
   getRange(input: number, bounds: [number, number], exponent: number = 1) {
-    return input ** exponent * (bounds[1] - bounds[0]) + bounds[0];
+    return input ** exponent * (bounds[1] - bounds[0]) + bounds[0]
   }
 
   /**
@@ -237,13 +237,13 @@ export abstract class Builder {
    */
   hash(i?: number) {
     if (i === undefined) {
-      this.hashIndex++;
-      i = this.hashIndex;
+      this.hashIndex++
+      i = this.hashIndex
     }
 
-    if (!this.randomTable[i]) this.randomTable.push(Math.random());
+    if (!this.randomTable[i]) this.randomTable.push(Math.random())
 
-    return this.randomTable[i];
+    return this.randomTable[i]
   }
 
   noise(
@@ -257,24 +257,24 @@ export abstract class Builder {
     }: { signed?: boolean; advance?: boolean } = {},
   ) {
     if (!advance) {
-      this.noiseIndex = Math.max(0, this.noiseIndex - 1)!;
+      this.noiseIndex = Math.max(0, this.noiseIndex - 1)!
     }
     if (!this.noiseFuncs[this.noiseIndex]) {
       switch (coords.length) {
         case 2:
-          this.noiseFuncs.push(createNoise2D());
-          break;
+          this.noiseFuncs.push(createNoise2D())
+          break
         case 3:
-          this.noiseFuncs.push(createNoise3D());
-          break;
+          this.noiseFuncs.push(createNoise3D())
+          break
         case 4:
-          this.noiseFuncs.push(createNoise4D());
-          break;
+          this.noiseFuncs.push(createNoise4D())
+          break
       }
     }
-    const noise = this.noiseFuncs[this.noiseIndex](...coords);
-    this.noiseIndex++;
-    return signed ? noise : (noise + 1) / 2;
+    const noise = this.noiseFuncs[this.noiseIndex](...coords)
+    this.noiseIndex++
+    return signed ? noise : (noise + 1) / 2
   }
 
   constructor() {}
