@@ -3,7 +3,7 @@ import { Node, TextureNode } from 'three/webgpu'
 
 export const quantize = (
   position: ShaderNodeObject<Node>,
-  quantizeFactor: ReturnType<typeof float> | number
+  quantizeFactor: ReturnType<typeof float> | number,
 ) => {
   return position.div(quantizeFactor).round().mul(quantizeFactor)
 }
@@ -142,25 +142,53 @@ void main() {
 export const gaussianBlur = (
   texNode: ShaderNodeObject<TextureNode>,
   uv: ReturnType<typeof vec2>,
-  blur: ReturnType<typeof vec2>
+  blur: ReturnType<typeof vec2>,
 ) => {
-  const thisBlur = blur.div(screenSize).toVar()
-  // const vuv = uv.toVar().div(thisBlur).round().mul(thisBlur)
-  const vuv = uv.toVar()
-  return texNode.sample(vuv).add(
+  // Direction for horizontal blur
+  const horizontal = vec2(1, 0)
+
+  // The amount to blur based on the passed blur value
+  const blurAmount = blur.div(screenSize)
+
+  // Calculate 9-tap Gaussian blur with predefined weights
+  const sum = add(
+    // -4.0 offset
     texNode
-      .sample(vuv.add(vec2(thisBlur.x.negate(), thisBlur.y)))
-      .add(texNode.sample(vuv.add(vec2(0, thisBlur.y))))
-      .add(texNode.sample(vuv.add(vec2(thisBlur.x, thisBlur.y))))
-      .add(texNode.sample(vuv.add(vec2(thisBlur.x.negate(), 0))))
-      .add(texNode.sample(vuv.add(vec2(thisBlur.x, 0))))
-      .add(
-        texNode.sample(vuv.add(vec2(thisBlur.x.negate(), thisBlur.y.negate())))
-      )
-      .add(texNode.sample(vuv.add(vec2(0, thisBlur.x.negate()))))
-      .add(texNode.sample(vuv.add(vec2(thisBlur.x, thisBlur.x.negate()))))
-    // .mul(float(0.5).pow(float(i)))
+      .sample(uv.sub(blurAmount.mul(horizontal).mul(4.0)))
+      .mul(0.0162162162),
+    // -3.0 offset
+    texNode
+      .sample(uv.sub(blurAmount.mul(horizontal).mul(3.0)))
+      .mul(0.0540540541),
+    // -2.0 offset
+    texNode
+      .sample(uv.sub(blurAmount.mul(horizontal).mul(2.0)))
+      .mul(0.1216216216),
+    // -1.0 offset
+    texNode
+      .sample(uv.sub(blurAmount.mul(horizontal).mul(1.0)))
+      .mul(0.1945945946),
+    // Center sample
+    texNode.sample(uv).mul(0.227027027),
+    // +1.0 offset
+    texNode
+      .sample(uv.add(blurAmount.mul(horizontal).mul(1.0)))
+      .mul(0.1945945946),
+    // +2.0 offset
+    texNode
+      .sample(uv.add(blurAmount.mul(horizontal).mul(2.0)))
+      .mul(0.1216216216),
+    // +3.0 offset
+    texNode
+      .sample(uv.add(blurAmount.mul(horizontal).mul(3.0)))
+      .mul(0.0540540541),
+    // +4.0 offset
+    texNode
+      .sample(uv.add(blurAmount.mul(horizontal).mul(4.0)))
+      .mul(0.0162162162),
   )
+
+  return sum
   // thisBlur.addAssign(vec2(1, 1).div(screenSize))
 
   // return sample
