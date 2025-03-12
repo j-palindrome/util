@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 export const useSlider = (
   frame: React.RefObject<HTMLDivElement>,
   onMouseMove: ({ x, y }: { x: number; y: number }) => void,
-  onMouseUp?: ({ x, y }: { x: number; y: number }) => void,
+  onMouseUp?: ({ x, y }: { x: number; y: number }) => void
 ) => {
   const [dragging, setDragging] = useState(false)
 
@@ -25,28 +25,28 @@ export const useSlider = (
   useElementEventListener(
     frame,
     'mousemove',
-    (ev) => {
+    ev => {
       if (!dragging || !open.current) return
       onMouseMove(getXY(ev))
       open.current = false
       requestAnimationFrame(() => (open.current = true))
     },
-    [dragging],
+    [dragging]
   )
 
-  useElementEventListener(frame, 'mouseleave', (ev) => {
+  useElementEventListener(frame, 'mouseleave', ev => {
     setDragging(false)
     if (onMouseUp) onMouseUp(getXY(ev))
   })
 
-  useElementEventListener(frame, 'mouseup', (ev) => {
+  useElementEventListener(frame, 'mouseup', ev => {
     setDragging(false)
     if (onMouseUp) onMouseUp(getXY(ev))
   })
 }
 
 export const useRefAsState = <T>(
-  initialValue: T | null,
+  initialValue: T | null
 ): [T, (set: T) => void, () => T] => {
   const ref = useRef<T | null>(initialValue)
   const setRef = (newValue: T) => {
@@ -65,7 +65,7 @@ export const probLog = (prob: number, ...args: any[]) => {
 export const useEventListener = <K extends keyof WindowEventMap>(
   listener: K,
   func: (data: WindowEventMap[K]) => void,
-  dependencies: any[] = [],
+  dependencies?: any[]
 ) => {
   useEffect(() => {
     window.addEventListener(listener, func)
@@ -77,7 +77,7 @@ export const useElementEventListener = <K extends keyof HTMLElementEventMap>(
   element: React.RefObject<HTMLElement>,
   listener: K,
   func: (data: HTMLElementEventMap[K]) => void,
-  dependencies: any[] = [],
+  dependencies: any[] = []
 ) => {
   useEffect(() => {
     if (!element.current) return
@@ -89,7 +89,7 @@ export const useElementEventListener = <K extends keyof HTMLElementEventMap>(
 export const useInterval = (
   interval: () => void,
   intervalTime: number,
-  dependencies: any[] = [],
+  dependencies: any[] = []
 ) => {
   useEffect(() => {
     const intervalIndex = window.setInterval(interval, intervalTime)
@@ -100,7 +100,7 @@ export const useInterval = (
 export const useMemoCleanup = <T>(
   create: () => T,
   cleanup: (item: T) => void,
-  deps: any[] = [],
+  deps: any[] = []
 ) => {
   const itemRef = useRef<T | null>(null)
   const item = useMemo(() => {
