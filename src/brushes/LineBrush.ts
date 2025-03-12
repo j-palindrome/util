@@ -1,4 +1,4 @@
-import { extend, ThreeElement, useThree } from '@react-three/fiber'
+import { extend, ThreeElement, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import {
@@ -10,26 +10,18 @@ import {
   varying,
   vec2,
   vec4,
-  vertexIndex,
+  vertexIndex
 } from 'three/tsl'
 import {
   MeshBasicNodeMaterial,
   StorageInstancedBufferAttribute,
-  WebGPURenderer,
+  WebGPURenderer
 } from 'three/webgpu'
-import GroupBuilder from '../builders/GroupBuilder'
-import { useCurve } from '../util/useControlPoints'
 import BrushBuilder from '../builders/BrushBuilder'
+import GroupBuilder from '../builders/GroupBuilder'
 
 type VectorList = [number, number]
 type Vector3List = [number, number, number]
-export type Jitter = {
-  size?: VectorList
-  position?: VectorList
-  hsl?: Vector3List
-  a?: number
-  rotation?: number
-}
 
 extend({ StorageInstancedBufferAttribute })
 declare module '@react-three/fiber' {
@@ -40,17 +32,13 @@ declare module '@react-three/fiber' {
   }
 }
 
-export default function LineBrush({
-  children,
-  ...settings
-}: { children: ConstructorParameters<typeof GroupBuilder>[0] } & Partial<
-  BrushBuilder<'line'>['settings']
->) {
-  const group = new GroupBuilder(children)
-  const builder = new BrushBuilder('line', settings)
-
-  const { getBezier, instancesPerCurve } = useCurve(group, builder)
-  const { material, geometry } = useMemo(() => {
+export class LineBrush extends BrushBuilder<'line'> {
+  protected getDefaultBrushSettings(): { type: 'line' } {
+    return { type: 'line' }
+  }
+  protected onFrame() {}
+  protected onDraw() {}
+  protected onInit() {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3))
     const indexGuide = [0, 1, 2, 1, 2, 3]
@@ -58,11 +46,11 @@ export default function LineBrush({
     let currentIndex = 0
     const indexes: number[] = []
 
-    for (let i = 0; i < builder.settings.maxCurves; i++) {
-      if (builder.settings.adjustEnds === 'loop') {
+    for (let i = 0; i < this.settings.maxCurves; i++) {
+      if (this.settings.adjustEnds === 'loop') {
         const curveStart = currentIndex
-        for (let i = 0; i < instancesPerCurve - 2; i++) {
-          indexes.push(...indexGuide.map((x) => x + currentIndex))
+        for (let i = 0; i < this.info.instancesPerCurve - 2; i++) {
+          indexes.push(...indexGuide.map(x => x + currentIndex))
           currentIndex += 2
         }
         indexes.push(
@@ -71,12 +59,12 @@ export default function LineBrush({
           curveStart,
           currentIndex + 1,
           curveStart,
-          curveStart + 1,
+          curveStart + 1
         )
         currentIndex += 2
       } else {
-        for (let i = 0; i < instancesPerCurve - 1; i++) {
-          indexes.push(...indexGuide.map((x) => x + currentIndex))
+        for (let i = 0; i < this.info.instancesPerCurve - 1; i++) {
+          indexes.push(...indexGuide.map(x => x + currentIndex))
           currentIndex += 2
         }
       }
@@ -88,9 +76,9 @@ export default function LineBrush({
       depthWrite: false,
       blending: THREE.NormalBlending,
       side: THREE.DoubleSide,
-      color: 'white',
+      color: 'white'
     })
-    material.mrtNode = builder.settings.renderTargets
+    material.mrtNode = this.settings.renderTargets
 
     const position = vec2().toVar('thisPosition')
     const rotation = float(0).toVar('rotation')
@@ -100,25 +88,25 @@ export default function LineBrush({
     const vUv = varying(vec2(), 'vUv')
 
     const main = Fn(() => {
-      getBezier(
+      this.getBezier(
         vertexIndex
           .div(2)
           .toFloat()
-          .div(instancesPerCurve - 0.001),
+          .div(this.info.instancesPerCurve - 0.001),
         position,
         {
           rotation,
           thickness,
           color,
-          progress,
-        },
+          progress
+        }
       )
 
       vUv.assign(
         vec2(
-          vertexIndex.div(2).toFloat().div(instancesPerCurve),
-          select(vertexIndex.modInt(2).equal(0), 0, 1),
-        ),
+          vertexIndex.div(2).toFloat().div(this.info.instancesPerCurve),
+          select(vertexIndex.modInt(2).equal(0), 0, 1)
+        )
       )
 
       // thickness.assign(0.1)
@@ -126,11 +114,11 @@ export default function LineBrush({
         rotateUV(
           vec2(
             thickness.mul(select(vertexIndex.modInt(2).equal(0), -0.5, 0.5)),
-            0,
+            0
           ),
           rotation.add(PI2.mul(0.25)),
-          vec2(0, 0),
-        ),
+          vec2(0, 0)
+        )
       )
       return vec4(position, 0, 1)
     })
@@ -138,31 +126,25 @@ export default function LineBrush({
     material.positionNode = main()
 
     material.colorNode = Fn(() =>
-      builder.settings.pointColor(varying(vec4(), 'color'), {
+      this.settings.pointColor(varying(vec4(), 'color'), {
         progress,
-        builder: group,
-        uv: vUv,
-      }),
+        builder: this.group,
+        uv: vUv
+      })
     )()
 
     material.needsUpdate = true
 
-    return {
-      material,
-      geometry,
-    }
-  }, [builder])
-
-  const scene = useThree(({ scene }) => scene)
-  useEffect(() => {
     const mesh = new THREE.Mesh(geometry, material)
-    scene.add(mesh)
-    return () => {
-      scene.remove(mesh)
-      material.dispose()
-      geometry.dispose()
-    }
-  }, [builder])
+    this.info.material = material
+    this.info.geometry = geometry
+    this.info.mesh = mesh
+    this.scene.add(mesh)
+  }
 
-  return <></>
+  protected onDispose() {
+    this.info.material.dispose()
+    this.info.geometry.dispose()
+    this.scene.remove(this.info.mesh)
+  }
 }

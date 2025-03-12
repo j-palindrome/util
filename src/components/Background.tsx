@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { JSX } from 'react'
 import { extend, ThreeElement } from '@react-three/fiber'
 

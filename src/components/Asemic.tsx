@@ -4,7 +4,7 @@ import {
   extend,
   ThreeElement,
   useFrame,
-  useThree,
+  useThree
 } from '@react-three/fiber'
 import {
   Children,
@@ -13,7 +13,7 @@ import {
   useContext,
   useEffect,
   useRef,
-  useState,
+  useState
 } from 'react'
 import { HalfFloatType, OrthographicCamera, RenderTarget, Vector2 } from 'three'
 import { Fn, pass, texture } from 'three/tsl'
@@ -25,7 +25,7 @@ import { el } from '@elemaudio/core'
 import Toggle from '../util/Toggle'
 
 extend({
-  QuadMesh,
+  QuadMesh
 })
 
 declare module '@react-three/fiber' {
@@ -41,7 +41,7 @@ export function AsemicCanvas({
   style,
   outputChannel = 0,
   useAudio = false,
-  highBitDepth = true,
+  highBitDepth = true
 }: {
   className?: string
   dimensions?: [number | string, number | string]
@@ -50,7 +50,7 @@ export function AsemicCanvas({
   outputChannel?: number | ((ctx: AudioContext) => number)
   highBitDepth?: boolean
 } & React.PropsWithChildren) {
-  const [audio, setAudio] = useState<SceneBuilder<any>['audio']>(null)
+  const [audio, setAudio] = useState<SceneBuilder['audio']>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null!)
   const [started, setStarted] = useState(!useAudio ? true : false)
   // const [recording, setRecording] = useState(false)
@@ -80,10 +80,10 @@ export function AsemicCanvas({
     const elNode = await elCore.initialize(ctx, {
       numberOfInputs: 0,
       numberOfOutputs: 2,
-      outputChannelCount: [1, 1],
+      outputChannelCount: [1, 1]
     })
     const channelMerger = ctx.createChannelMerger(
-      ctx.destination.maxChannelCount,
+      ctx.destination.maxChannelCount
     )
     ctx.destination.channelCount = ctx.destination.maxChannelCount
     ctx.destination.channelCountMode = 'explicit'
@@ -103,21 +103,21 @@ export function AsemicCanvas({
   return (
     <div
       className={`relative ${className}`}
-      style={{ height, width, ...style }}
-    >
-      <Toggle
-        label='pause'
-        cb={(state) => {
-          console.log('state;', state, 'audio', audio)
+      style={{ height, width, ...style }}>
+      {useAudio && (
+        <Toggle
+          label='pause'
+          cb={state => {
+            console.log('state;', state, 'audio', audio)
 
-          if (state && !audio) {
-            initAudio()
-          } else setStarted(state)
-        }}
-      ></Toggle>
+            if (state && !audio) {
+              initAudio()
+            } else setStarted(state)
+          }}></Toggle>
+      )}
       {/* @ts-ignore */}
       <Canvas
-        onClick={(ev) => {
+        onClick={ev => {
           setScene((scene + 1) % Children.count(children))
           if (ev.shiftKey) {
             coords.splice(0, coords.length - 1)
@@ -127,17 +127,15 @@ export function AsemicCanvas({
           coords.push([
             ev.clientX / canvasRef.current.clientWidth,
             (canvasRef.current.clientHeight - ev.clientY) /
-              canvasRef.current.clientHeight,
+              canvasRef.current.clientHeight
           ])
           navigator.clipboard.writeText(
             coords
-              .map((x) => `[${x[0].toFixed(2)}, ${x[1].toFixed(2)}]`)
-              .join(', '),
+              .map(x => `[${x[0].toFixed(2)}, ${x[1].toFixed(2)}]`)
+              .join(', ')
           )
           console.log(
-            coords
-              .map((x) => `${x[0].toFixed(2)}, ${x[1].toFixed(2)}`)
-              .join(', '),
+            coords.map(x => `${x[0].toFixed(2)}, ${x[1].toFixed(2)}`).join(', ')
           )
         }}
         ref={canvasRef}
@@ -151,16 +149,16 @@ export function AsemicCanvas({
           right: 1,
           top: 1,
           bottom: 0,
-          position: [0, 0, 0],
+          position: [0, 0, 0]
         }}
-        gl={(canvas) => {
+        gl={canvas => {
           const renderer = new WebGPURenderer({
             canvas: canvas as HTMLCanvasElement,
             powerPreference: 'high-performance',
             antialias: true,
             depth: false,
             stencil: false,
-            alpha: true,
+            alpha: true
           })
 
           if (highBitDepth) {
@@ -169,19 +167,18 @@ export function AsemicCanvas({
             }
           }
 
-          Promise.all([renderer.init()]).then(async (result) => {
+          Promise.all([renderer.init()]).then(async result => {
             if (highBitDepth) {
               const context = renderer.getContext()
               context.configure({
                 device: renderer.backend.device,
-                format: renderer.backend.utils.getPreferredCanvasFormat(),
+                format: renderer.backend.utils.getPreferredCanvasFormat()
               })
             }
             setFrameloop('always')
           })
           return renderer
-        }}
-      >
+        }}>
         {started && frameloop === 'always' && (audio || !useAudio) && (
           <AsemicContext.Provider value={{ audio }}>
             {Children.toArray(children)[scene]}
@@ -194,8 +191,8 @@ export function AsemicCanvas({
 }
 
 function Adjust() {
-  const size = useThree((state) => state.size)
-  const camera = useThree((state) => state.camera as OrthographicCamera)
+  const size = useThree(state => state.size)
+  const camera = useThree(state => state.camera as OrthographicCamera)
   useEffect(() => {
     camera.top = size.height / size.width
     camera.updateProjectionMatrix()
@@ -204,50 +201,38 @@ function Adjust() {
 }
 
 export function useAsemic<T extends SettingsInput>({
-  controls,
   ...settings
 }: {
   controls?: T
-} & Partial<SceneBuilder<T>['sceneSettings']> = {}) {
+} & Partial<SceneBuilder['sceneSettings']> = {}) {
   const { renderer, scene, camera } = useThree(({ gl, scene, camera }) => ({
     // @ts-expect-error
     renderer: gl as WebGPURenderer,
     scene,
-    camera,
+    camera
   }))
-  controls = {
-    constants: { ...controls?.constants },
-    uniforms: { ...controls?.uniforms },
-    refs: { ...controls?.refs },
-  } as T
 
-  const size = useThree((state) => state.gl.getDrawingBufferSize(new Vector2()))
+  const size = useThree(state => state.gl.getDrawingBufferSize(new Vector2()))
 
   const { audio } = useContext(AsemicContext)
   const renderTarget = new RenderTarget(size.width, size.height, {
-    type: HalfFloatType,
+    type: HalfFloatType
   })
   const renderTarget2 = new RenderTarget(size.width, size.height, {
-    type: HalfFloatType,
+    type: HalfFloatType
   })
   const readback = texture(renderTarget.texture)
 
   const postProcessing = new PostProcessing(renderer)
   const scenePass = pass(scene, camera)
 
-  const controlsBuilt = useEvents(controls)
-
   const h = size.height / size.width
-  const b = new SceneBuilder(
-    settings,
-    {
-      postProcessing: { postProcessing, scenePass, readback },
-      audio,
-      h,
-      size,
-    },
-    controlsBuilt,
-  )
+  const b = new SceneBuilder(settings, {
+    postProcessing: { postProcessing, scenePass, readback },
+    audio,
+    h,
+    size
+  })
   useEffect(() => {
     b.h = h
     b.size = size
@@ -258,7 +243,7 @@ export function useAsemic<T extends SettingsInput>({
     const output = b.sceneSettings
       .postProcessing(scenePass.getTextureNode('output') as any, {
         scenePass,
-        readback,
+        readback
       })
       .toVar('outputAssign')
     return output
@@ -270,7 +255,7 @@ export function useAsemic<T extends SettingsInput>({
     if (b.sceneSettings.useReadback) {
       phase = !phase
       postProcessing.renderer.setRenderTarget(
-        phase ? renderTarget : renderTarget2,
+        phase ? renderTarget : renderTarget2
       )
       postProcessing.render()
       postProcessing.renderer.setRenderTarget(null)
@@ -300,7 +285,7 @@ export function Asemic<T extends SettingsInput>({
   children,
   ...props
 }: Parameters<typeof useAsemic<T>>[0] & {
-  children: ((builder: SceneBuilder<T>) => ReactNode) | ReactNode
+  children: ((builder: SceneBuilder) => ReactNode) | ReactNode
 }) {
   const builder = useAsemic(props)
   return <>{typeof children === 'function' ? children(builder) : children}</>

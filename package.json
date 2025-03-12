@@ -4,11 +4,11 @@
     "@elemaudio/web-renderer": "^4.0.3",
     "@react-three/fiber": "9.0.0-alpha.8",
     "@types/react": "^19.0.8",
-    "@types/three": "^0.173.0",
+    "@types/three": "^0.174.0",
     "lodash": "^4.17.21",
     "react": "^19.0.0",
     "simplex-noise": "^4.0.3",
-    "three": "^0.173.0",
+    "three": "^0.174.0",
     "tiny-invariant": "^1.3.3"
   },
   "scripts": {

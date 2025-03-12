@@ -3,15 +3,14 @@ import WebAudioRenderer from '@elemaudio/web-renderer'
 import { Vector2 } from 'three'
 import { pass, ShaderNodeObject, texture } from 'three/tsl'
 import { PostProcessing, TextureNode } from 'three/webgpu'
-import { Settings, SettingsInput } from '../util/useEvents'
 import Builder from './Builder'
 
 type BuilderGlobals = Pick<
-  SceneBuilder<any>,
+  SceneBuilder,
   'postProcessing' | 'audio' | 'h' | 'size'
 >
 
-export default class SceneBuilder<T extends SettingsInput> extends Builder {
+export default class SceneBuilder extends Builder {
   // groups: GroupBuilder<any>[] = []
   mouse = new Vector2()
   click = new Vector2()
@@ -28,9 +27,6 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
     elCore: WebAudioRenderer
   } | null
   size: Vector2
-  constants: Settings<T>['constants']
-  refs: Settings<T>['refs']
-  uniforms: Settings<T>['uniforms']
   h: number
 
   sceneSettings: {
@@ -50,15 +46,11 @@ export default class SceneBuilder<T extends SettingsInput> extends Builder {
   }
 
   constructor(
-    sceneSettings: Partial<SceneBuilder<T>['sceneSettings']>,
+    sceneSettings: Partial<SceneBuilder['sceneSettings']>,
     globals: BuilderGlobals,
-    controls: Settings<T>,
   ) {
     super()
     Object.assign(this.sceneSettings, sceneSettings)
-    this.constants = controls.constants
-    this.refs = controls.refs
-    this.uniforms = controls.uniforms
     this.audio = globals.audio
     this.postProcessing = globals.postProcessing
     this.size = globals.size

@@ -1,7 +1,7 @@
-import { Texture, TypedArray, Vector2 } from 'three'
+import { Color, Texture, TypedArray, Vector2 } from 'three'
 import Backend from 'three/src/renderers/common/Backend.js'
 import { float, mrt, varying, vec2, vec4 } from 'three/tsl'
-import { GroupBuilder } from './builders/GroupBuilder'
+import GroupBuilder from './builders/GroupBuilder'
 import BrushBuilder from './builders/BrushBuilder'
 
 declare global {
@@ -27,7 +27,7 @@ declare global {
   type CoordinateSettings = {
     strength: number
     thickness: number
-    color: [number, number, number]
+    color: [number, number, number] | Color
     alpha: number
   }
   type ProgressInfo = {
@@ -40,7 +40,7 @@ declare global {
     builder: GroupBuilder
   }
 
-  type ProcessData = {
+  type ProcessData<T extends BrushTypes> = {
     renderInit: boolean | number | ((lastFrame: number) => number)
     renderStart: number | (() => number)
     renderClear: boolean
@@ -56,15 +56,15 @@ declare global {
     squareAspect: boolean
     pointPosition: (
       input: ReturnType<typeof vec2>,
-      info: ParticleInfo,
+      info: ParticleInfo
     ) => typeof input
     pointThickness: (
       input: ReturnType<typeof float>,
-      info: ParticleInfo,
+      info: ParticleInfo
     ) => typeof input
     pointRotate: (
       input: ReturnType<typeof float>,
-      info: ParticleInfo,
+      info: ParticleInfo
     ) => typeof input
     /**
      * vec4(x, y, strength, thickness), {tPoint: 0-1, tCurve: 0-1}
@@ -73,24 +73,27 @@ declare global {
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & {
         lastFrame: ReturnType<typeof vec4>
-      },
+      }
     ) => typeof input
     pointColor: (
       input: ReturnType<typeof vec4>,
-      info: ParticleInfo & { uv: ReturnType<typeof float | typeof varying> },
+      info: ParticleInfo & { uv: ReturnType<typeof float | typeof varying> }
     ) => typeof input
     pointProgress: (
       input: ReturnType<typeof float>,
-      info: ParticleInfo,
+      info: ParticleInfo
     ) => typeof input
     curvePosition: (
       input: ReturnType<typeof vec4>,
       info: ParticleInfo & {
         lastFrame: ReturnType<typeof vec4>
-      },
+      }
     ) => typeof input
-    onUpdate: (builder: GroupBuilder) => void
-    onInit: (builder: GroupBuilder) => void
+    onUpdate?: (b: BrushBuilder<T>) => void
+    onInit?: (b: BrushBuilder<T>) => void
+    onClick?: (b: BrushBuilder<T>) => void
+    onDrag?: (b: BrushBuilder<T>) => void
+    onOver?: (b: BrushBuilder<T>) => void
   }
 
   type BrushTypes = 'dash' | 'line' | 'particles' | 'stripe' | 'blob' | 'dot'
@@ -100,29 +103,30 @@ declare global {
         dashSize: number
       }
     : T extends 'particles'
-      ? {
-          type: 'particles'
-          initialSpread: boolean
-          speedMax: number
-          speedMin: number
-          speedDamping: number
-          particleSize: number
-          attractorPull: number
-          attractorPush: number
-          particleCount: number
-          particleVelocity: (
-            velocity: ReturnType<typeof vec2>,
-            position: ReturnType<typeof vec2>,
-            info: ParticleInfo,
-          ) => ReturnType<typeof vec2>
-          particlePosition: (
-            position: ReturnType<typeof vec2>,
-            info: ParticleInfo,
-          ) => ReturnType<typeof vec2>
-        }
-      : T extends 'blob'
-        ? { type: T; centerMode: 'center' | 'first' | 'betweenEnds' }
-        : { type: T }
+    ? {
+        type: 'particles'
+        initialSpread: boolean
+        speedMax: number
+        speedMin: number
+        speedDamping: number
+        speedFrame: number
+        particleSize: number
+        attractorPull: number
+        attractorPush: number
+        particleCount: number
+        particleVelocity: (
+          velocity: ReturnType<typeof vec2>,
+          position: ReturnType<typeof vec2>,
+          info: ParticleInfo
+        ) => ReturnType<typeof vec2>
+        particlePosition: (
+          position: ReturnType<typeof vec2>,
+          info: ParticleInfo
+        ) => ReturnType<typeof vec2>
+      }
+    : T extends 'blob'
+    ? { type: T; centerMode: 'center' | 'first' | 'betweenEnds' }
+    : { type: T }
 
   type CoordinateData = PreTransformData &
     Partial<{
@@ -130,6 +134,11 @@ declare global {
         | CoordinateSettings[T]
         | ((progress: [number, number]) => CoordinateSettings[T])
     }>
+
+  type BrushProps<T extends BrushTypes> = {
+    children: ConstructorParameters<typeof GroupBuilder>[0]
+    type: T
+  } & Omit<Partial<BrushBuilder<T>['settings']>, 'type'>
 }
 
 declare module 'three/webgpu' {
@@ -150,7 +159,7 @@ declare module 'three/webgpu' {
         x: number,
         y: number,
         width: number,
-        height: number,
+        height: number
       ) => Promise<TypedArray>
       utils: {
         getPreferredCanvasFormat: () => GPUTextureFormat

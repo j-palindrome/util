@@ -213,11 +213,25 @@ export default abstract class Builder {
     }
   }
 
-  getAlong(t: number, ...curve: (Vector2 | Coordinate)[]) {
-    return multiBezierJS(
+  getAlong<T extends Vector2 | Coordinate | number>(
+    t: number,
+    ...curve: T[]
+  ): T extends number ? number : Vector2 {
+    const result = multiBezierJS(
       t,
-      ...curve.map((x) => (x instanceof Array ? new Vector2(x[0], x[1]) : x)),
+      ...curve.map((x) =>
+        x instanceof Array
+          ? new Vector2(x[0], x[1])
+          : x instanceof Vector2
+            ? x
+            : new Vector2(x, 0),
+      ),
     )
+    if (typeof curve[0] === 'number') {
+      // @ts-ignore
+      return result.x as number
+      // @ts-ignore
+    } else return result as Vector2
   }
 
   protected toRad(rotation: number) {

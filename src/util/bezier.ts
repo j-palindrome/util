@@ -9,13 +9,15 @@ import {
   PI2,
   select,
   sin,
-  vec2
+  vec2,
 } from 'three/tsl'
 
 const bezierJS = (t: number, p0: Vector2, p1: Vector2, p2: Vector2) => {
   const tInverse = 1 - t
   const test = new Vector2()
   const test2 = new Vector2()
+  console.log(p0, p1, p2)
+
   return test
     .copy(p0)
     .multiplyScalar(tInverse ** 2)
@@ -24,6 +26,9 @@ const bezierJS = (t: number, p0: Vector2, p1: Vector2, p2: Vector2) => {
 }
 
 export const multiBezierJS = (t: number, ...points: Vector2[]) => {
+  if (points.length === 2) {
+    return points[0].clone().lerp(points[1], t)
+  }
   const subdivisions = points.length - 2
   const progress = t * subdivisions // 0 -> numSubdivisions
   const startCurve = Math.floor(progress)
@@ -41,7 +46,7 @@ export const multiBezierJS = (t: number, ...points: Vector2[]) => {
 
 export const rotate2d = (
   v: ReturnType<typeof vec2>,
-  a: number | ReturnType<typeof float>
+  a: number | ReturnType<typeof float>,
 ) => {
   const s = sin(PI2.mul(a))
   const c = cos(PI2.mul(a))
@@ -53,7 +58,7 @@ export const bezier2Tangent = ({
   t,
   p0,
   p1,
-  p2
+  p2,
 }: {
   t: ReturnType<typeof float>
   p0: ReturnType<typeof vec2>
@@ -70,7 +75,7 @@ export const polyLine = ({
   t,
   p0,
   p1,
-  p2
+  p2,
 }: {
   t: ReturnType<typeof float>
   p0: ReturnType<typeof vec2>
@@ -84,7 +89,7 @@ export const polyLine = ({
   return select(
     t.greaterThan(splitPoint),
     mix(p1, p2, t.sub(splitPoint).div(splitPoint.oneMinus())),
-    mix(p0, p1, t.div(splitPoint))
+    mix(p0, p1, t.div(splitPoint)),
   )
 }
 
@@ -122,8 +127,8 @@ export const bezierRational = ({ t, p0, p1, p2, strength }) => {
             .mul(2)
             .mul(t.oneMinus())
             .mul(float(1).add(float(strength).mul(2)))
-            .add(t.pow(2))
-        )
+            .add(t.pow(2)),
+        ),
     )
 }
 
